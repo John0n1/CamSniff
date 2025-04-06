@@ -85,6 +85,7 @@ Designed for Debian 12 or similar systems with the [PEP 668 “externally-manage
 
 # Customizing
 
+- **`config.json`**: Customize settings like `SLEEP_SECONDS`, `COMMON_RTSP_PATHS`, `suspicious` domains, and `ports` for Nmap scans.
 - **`SLEEP_SECONDS`** in the script controls how frequently the active scanning loop runs (default: 300s = 5 minutes).  
 - **Additional RTSP Paths**: see `COMMON_RTSP_PATHS` if your camera uses special stream URLs.  
 - **Suspicious DNS Patterns**: customize in `parse_dns_queries()` for your own phone-home domain checks.  

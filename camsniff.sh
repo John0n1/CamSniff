@@ -162,7 +162,24 @@ function cleanup() {
 ########################
 # 10) Main Active Scan Loop
 ########################
-SLEEP_SECONDS=300  # 5 minutes
+# Read settings from config.json
+CONFIG_FILE="config.json"
+if [[ -f "$CONFIG_FILE" ]]; then
+  SLEEP_SECONDS=$(jq -r '.SLEEP_SECONDS' "$CONFIG_FILE")
+  COMMON_RTSP_PATHS=($(jq -r '.COMMON_RTSP_PATHS[]' "$CONFIG_FILE"))
+  SUSPICIOUS_DOMAINS=($(jq -r '.suspicious_domains[]' "$CONFIG_FILE"))
+  NMAP_PORTS=$(jq -r '.nmap_ports' "$CONFIG_FILE")
+else
+  echo "[-] config.json not found. Using default settings."
+  SLEEP_SECONDS=300  # 5 minutes
+  COMMON_RTSP_PATHS=(
+    "live.sdp" "stream1" "axis-media/media.amp" "video1" "video" "0"
+    "cam/realmonitor" "h264" "mjpeg" "media.smp" "ch0_0.h264" "ch1.h264"
+    "Streaming/Channels/101" "Streaming/Channels/102" "av0_0" "av1_0"
+  )
+  SUSPICIOUS_DOMAINS=("ring.com" "ezvizlife.com" "nest.com" "cloud.p2pserver.com" "hik-connect.com" "dahuaddns.com")
+  NMAP_PORTS="80,443,554,8080,8554,8000,37777,5000"
+fi
 
 while true; do
   TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
@@ -175,28 +192,22 @@ while true; do
 
   # 10b) Stealthy Nmap
   echo "[+] Nmap scanning for camera ports on discovered hosts..."
-  nmap -sS -T2 --open -p80,443,554,8080,8554,8000,37777,5000 \
+  nmap -sS -T2 --open -p"$NMAP_PORTS" \
        -iL logs/live_hosts.txt -oX logs/nmap_scan.xml
 
   # 10c) RTSP brute force
   echo "--- [$(date)] RTSP Brute Force Round ---" >> logs/found_streams.log
-  COMMON_RTSP_PATHS=(
-    "live.sdp" "stream1" "axis-media/media.amp" "video1" "video" "0"
-    "cam/realmonitor" "h264" "mjpeg" "media.smp" "ch0_0.h264" "ch1.h264"
-    "Streaming/Channels/101" "Streaming/Channels/102" "av0_0" "av1_0"
-  )
   while read -r ip; do
     # If port 554 is open, attempt RTSP paths
     if grep -A10 "<address addr=\"$ip\"" logs/nmap_scan.xml | grep 'portid="554" state="open"' >/dev/null; then
       echo "[+] Checking RTSP paths on $ip..."
-      for path in "${COMMON_RTSP_PATHS[@]}"; do
-        url="rtsp://$ip:554/$path"
+      echo "${COMMON_RTSP_PATHS[@]}" | xargs -n 1 -P 4 -I {} bash -c '
+        url="rtsp://'"$ip"':554/{}"
         ffprobe -v error -rtsp_transport tcp -timeout 3000000 -i "$url" 2>&1 | grep -Eq "Stream.*Video|Unauthorized"
         if [[ $? -eq 0 ]]; then
-          echo "[FOUND] $ip => $url" | tee -a logs/found_streams.log
-          break
+          echo "[FOUND] '"$ip"' => $url" | tee -a logs/found_streams.log
         fi
-      done
+      '
     fi
   done < logs/live_hosts.txt
 
