@@ -33,8 +33,7 @@ fi
 echo "[+] Checking/installing required apt packages (no pip system-wide)..."
 APT_PACKAGES=(
   tcpdump tshark nmap arp-scan avahi-utils ffmpeg curl jq
-  cutycapt python3 python3-venv
-)
+  cutycapt python3 python3-venv)
 
 apt-get update -qq
 for pkg in "${APT_PACKAGES[@]}"; do
