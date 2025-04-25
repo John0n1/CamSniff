@@ -1,246 +1,241 @@
-#!/bin/bash
-#
-# camsniff.sh
-#
-# A stealthy IP camera & IoT device detection/monitoring script
-# that avoids system-wide pip installation by using a local Python venv.
-#
-# Compatible with Debian 12 ("externally-managed-environment") and others.
-#
-# 1) Installs system packages with apt (if missing) – but no pip installs system-wide.
-# 2) Sets up ./camsniff_venv for Python-based tasks (wsdiscovery, scapy, onvif-zeep).
-# 3) Launches continuous passive + active scanning loop:
-#    - Passive: tcpdump for ARP/DHCP, SSDP/mDNS/ONVIF, DNS queries
-#    - Active: ARP sweep (arp-scan), stealthy Nmap on typical camera ports,
-#              RTSP brute force (ffprobe), ONVIF WS-Discovery via local venv Python,
-#              HTTP banner & screenshot (curl + cutycapt).
-#
-# Run as root (sudo ./camsniff.sh). It will create camsniff_venv/ if needed.
-# Logs go to ./logs, captures to ./captures, screenshots to ./screenshots.
-#
+#!/usr/bin/env bash
+###############################################################################
+# CamSniff 4.10 – bY https://github.com/John0n1/CamSniff
+###############################################################################
+set -uo pipefail
+IFS=$'\n\t'
+declare -A STREAMS        
+declare -A HOSTS_SCANNED  
+FIRST_RUN=1
 
-########################
-# 1) Privilege check
-########################
-if [[ $EUID -ne 0 ]]; then
-  echo "[-] Please run as root (sudo). Exiting."
-  exit 1
+#— Logging
+log(){ printf "\e[33m[%s]\e[0m %s\n" "$(date +'%H:%M:%S')" "$*"; }
+
+#— Config
+read -r -d '' DEFAULT_CFG <<'JSON'
+{
+  "sleep_seconds": 45,
+  "nmap_ports": "1-65535",
+  "masscan_rate": 20000,
+  "hydra_rate": 16,
+  "max_streams": 4,
+  "cve_db": "/usr/share/cve/cve-2025.json",
+  "dynamic_rtsp_url": "https://raw.githubusercontent.com/maaaaz/michelle/master/rtsp.txt"
+}
+JSON
+[[ -f camcfg.json ]] || printf '%s\n' "$DEFAULT_CFG" > camcfg.json
+JQ(){ command jq "$@"; }
+SS=$(JQ -r '.sleep_seconds' camcfg.json)
+PORTS=$(JQ -r '.nmap_ports'    camcfg.json)
+MASSCAN_RATE=$(JQ -r '.masscan_rate' camcfg.json)
+HYDRA_RATE=$(JQ -r '.hydra_rate'   camcfg.json)
+MAX_STREAMS=$(JQ -r '.max_streams' camcfg.json)
+CVE_DB=$(JQ -r '.cve_db'          camcfg.json)
+RTSP_LIST_URL=$(JQ -r '.dynamic_rtsp_url' camcfg.json)
+
+#— Cleanup
+(( EUID == 0 )) || { echo "[-] sudo please"; exit 1; }
+cleanup(){
+  log "Shutting down…"
+  pkill -P $$               2>/dev/null || true
+  pkill -f __camsniff_player 2>/dev/null || true
+  killall avahi-daemon      2>/dev/null || true
+}
+trap cleanup INT TERM EXIT
+
+#— Deps & venv
+log "Installing deps…"
+apt-get -qq update
+deps=(fping masscan nmap hydra fzf tcpdump tshark arp-scan avahi-utils \
+      ffmpeg curl jq snmp snmp-mibs-downloader python3 python3-venv python3-pip \
+      python3-opencv git rtmpdump build-essential cmake pkg-config autoconf automake libtool chafa)
+for d in "${deps[@]}"; do
+  dpkg -l | grep -qw "$d" || DEBIAN_FRONTEND=noninteractive apt-get -y install "$d" >/dev/null
+done
+if ! command -v coap-client &>/dev/null; then
+  log "Building libcoap…"
+  tmp=/opt/libcoap.build
+  git clone --depth 1 https://github.com/obgm/libcoap.git "$tmp" >/dev/null
+  cmake -S "$tmp" -B "$tmp/build" -DENABLE_CLIENT=ON -DENABLE_DTLS=OFF -DENABLE_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release >/dev/null
+  cmake --build "$tmp/build" --target coap-client -j"$(nproc)" >/dev/null
+  install -m755 "$tmp/build/coap-client" /usr/local/bin/
 fi
 
-########################
-# 2) APT-based dependencies
-########################
-echo "[+] Checking/installing required apt packages (no pip system-wide)..."
-APT_PACKAGES=(
-  tcpdump tshark nmap arp-scan avahi-utils ffmpeg curl jq
-  cutycapt python3 python3-venv)
+VENV=".camvenv"
+if [[ ! -d $VENV ]]; then
+  log "Creating venv…"
+  python3 -m venv "$VENV"
+fi
+# shellcheck source=/dev/null
+source "$VENV/bin/activate"
+pip install --upgrade pip >/dev/null
+pip install --no-cache-dir wsdiscovery opencv-python >/dev/null
 
-apt-get update -qq
-for pkg in "${APT_PACKAGES[@]}"; do
-  if ! dpkg -l | grep -q "^ii\s\+$pkg"; then
-    echo "[+] Installing $pkg ..."
-    apt-get install -y "$pkg"
-  fi
+#— Pre-scan prompt
+while true; do
+  read -rp "Start scanning? (Y/N) " yn
+  case $yn in
+    [Yy]*) log "Scanning… Ctrl-C to stop"; break ;;
+    [Nn]*) log "Abort—cleanup & delete"; deactivate 2>/dev/null || true; cleanup; rm -rf "$VENV" camcfg.json plugins; exit ;;
+    *) echo "Y or N";;
+  esac
 done
 
-########################
-# 3) Local Python venv
-########################
-if [ ! -d "./camsniff_venv" ]; then
-  echo "[+] Creating local Python venv in ./watchtower_venv..."
-  python3 -m venv ./camsniff_venv
-  echo "[+] Installing wsdiscovery, scapy, onvif-zeep in venv..."
-  ./camsniff_venv/bin/pip install --upgrade pip
-  ./camsniff_venv/bin/pip install wsdiscovery scapy onvif-zeep
-fi
+#— Network info & taps
+IF=$(ip r | awk '/default/ {print $5;exit}')
+SUBNET=$(ip -o -f inet addr show "$IF" | awk '{print $4}')
+log "IF=$IF SUBNET=$SUBNET"
+avahi-daemon --start 2>/dev/null || true
+tcpdump -i "$IF" -l -n -q '(arp or (udp port 67 or udp port 68))' &
+tcpdump -i "$IF" -l -n -q '(udp port 5353 or udp port 3702)' &
+tshark -i "$IF" -l -Y 'rtsp||http||coap||mqtt||rtmp' -T fields -e ip.src -e tcp.port -e udp.port &
 
-########################
-# 4) Setup directories
-########################
-mkdir -p logs captures screenshots
-touch logs/camsniff.log logs/arp_scan.log logs/live_hosts.txt \
-      logs/found_streams.log logs/http_banners.log logs/onvif_devices.log \
-      logs/mac_vendors.log logs/dns_suspicious.log
-
-########################
-# 5) Identify interface & subnet
-########################
-INTERFACE=$(ip route | awk '/default/ {print $5; exit}')
-if [[ -z "$INTERFACE" ]]; then
-  echo "[-] Could not parse default interface from routing table. Using eth0."
-  INTERFACE="eth0"
-fi
-SUBNET=$(ip route show dev "$INTERFACE" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}' | head -n1)
-if [[ -z "$SUBNET" ]]; then
-  # fallback
-  SUBNET="192.168.1.0/24"
-fi
-
-echo "[+] Using interface: $INTERFACE"
-echo "[+] Using subnet:    $SUBNET"
-echo "[+] Logs in ./logs/, captures in ./captures/, screenshots in ./screenshots/"
-
-########################
-# 6) Start Passive Sniffers
-########################
-echo "[+] Starting tcpdump for ARP & DHCP..."
-tcpdump -i "$INTERFACE" -n -q \
-  '(arp or (udp and (port 67 or 68)))' \
-  -w captures/arp_dhcp.pcap 2>/dev/null &
-
-echo "[+] Starting tcpdump for multicast (SSDP/mDNS/ONVIF)..."
-tcpdump -i "$INTERFACE" -n -q \
-  '(host 239.255.255.250 or udp port 5353 or udp port 3702)' \
-  -w captures/multicast.pcap 2>/dev/null &
-
-echo "[+] Starting tcpdump for DNS (udp 53)..."
-tcpdump -i "$INTERFACE" -n -q \
-  'udp port 53' \
-  -w captures/dns_queries.pcap 2>/dev/null &
-
-# Avahi daemon for mDNS announcements
-avahi-daemon --daemonize &>/dev/null
-
-########################
-# 7) DNS Query Parser (Optional)
-########################
-function parse_dns_queries() {
-  # Example suspicious domains: ring.com, ezvizlife.com, nest.com, etc.
-  local suspicious=("ring.com" "ezvizlife.com" "nest.com" "cloud.p2pserver.com" "hik-connect.com" "dahuaddns.com")
-
-  echo "--- [$(date)] DNS Parser Round ---" >> logs/dns_suspicious.log
-
-  # Use tshark to parse the entire pcap for new DNS queries.
-  while read -r domain; do
-    domain=$(echo "$domain" | tr '[:upper:]' '[:lower:]')
-    for sdom in "${suspicious[@]}"; do
-      if [[ "$domain" == *"$sdom" ]]; then
-        echo "[!] Suspicious camera DNS query => $domain" | tee -a logs/dns_suspicious.log
-      fi
-    done
-  done < <(tshark -r captures/dns_queries.pcap -T fields -e dns.qry.name -Y "dns.qry.type == 1" 2>/dev/null | sort -u)
-}
-
-########################
-# 8) ONVIF WS-Discovery via venv Python
-########################
-function onvif_discovery() {
-  # We call the local python in camsniff_venv, using the recommended ThreadedWSDiscovery
-  ./camsniff_venv/bin/python <<EOF
-from wsdiscovery.discovery import ThreadedWSDiscovery as WSDiscovery
-
-wsd = WSDiscovery()
-wsd.start()
-
-services = wsd.searchServices()
-with open('logs/onvif_devices.log', 'a') as f:
-    f.write("\\n--- ONVIF Discovery @ $(date) ---\\n")
-    for svc in services:
-        epr = svc.getEPR()
-        scopes = svc.getScopes()
-        xaddrs = svc.getXAddrs()
-        f.write(f"Device EPR: {epr}\\n")
-        f.write(f"Scopes: {scopes}\\n")
-        f.write(f"XAddrs: {xaddrs}\\n\\n")
-
-wsd.stop()
-EOF
-}
-
-########################
-# 9) Cleanup on exit
-########################
-trap cleanup INT TERM
-
-function cleanup() {
-  echo "[+] Stopping background processes..."
-  kill $(jobs -p) &>/dev/null || true
-  avahi-daemon --kill &>/dev/null || true
-  exit 0
-}
-
-########################
-# 10) Main Active Scan Loop
-########################
-# Read settings from config.json
-CONFIG_FILE="config.json"
-if [[ -f "$CONFIG_FILE" ]]; then
-  SLEEP_SECONDS=$(jq -r '.SLEEP_SECONDS' "$CONFIG_FILE")
-  COMMON_RTSP_PATHS=($(jq -r '.COMMON_RTSP_PATHS[]' "$CONFIG_FILE"))
-  SUSPICIOUS_DOMAINS=($(jq -r '.suspicious_domains[]' "$CONFIG_FILE"))
-  NMAP_PORTS=$(jq -r '.nmap_ports' "$CONFIG_FILE")
+#— RTSP list & creds
+log "Fetching RTSP paths…"
+if curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.txt; then
+  mapfile -t RTSP_PATHS < /tmp/rtsp_paths.txt
 else
-  echo "[-] config.json not found. Using default settings."
-  SLEEP_SECONDS=300  # 5 minutes
-  COMMON_RTSP_PATHS=(
-    "live.sdp" "stream1" "axis-media/media.amp" "video1" "video" "0"
-    "cam/realmonitor" "h264" "mjpeg" "media.smp" "ch0_0.h264" "ch1.h264"
-    "Streaming/Channels/101" "Streaming/Channels/102" "av0_0" "av1_0"
-  )
-  SUSPICIOUS_DOMAINS=("ring.com" "ezvizlife.com" "nest.com" "cloud.p2pserver.com" "hik-connect.com" "dahuaddns.com")
-  NMAP_PORTS="80,443,554,8080,8554,8000,37777,5000"
+  RTSP_PATHS=(live.sdp h264 stream1 video)
 fi
+HTTP_CREDS=(admin:admin admin:123456 admin:1234 admin:password root:root root:123456 root:toor user:user guest:guest :admin admin:)
+HYDRA_FILE=/tmp/.hydra_creds.txt
+printf "%s\n" "${HTTP_CREDS[@]}" > "$HYDRA_FILE"
+
+run_plugins(){
+  mkdir -p plugins
+  for f in plugins/*.sh; do [[ -x $f ]] && bash "$f" & done
+  for p in plugins/*.py; do [[ -x $p ]] && python3 "$p" & done
+}
+
+add_stream(){ (( ${#STREAMS[@]:-0} < MAX_STREAMS )) && STREAMS["$1"]=1; }
+launch_mosaic(){
+  (( ${#STREAMS[@]:-0} )) || return
+  inputs=(); for u in "${!STREAMS[@]:-}"; do inputs+=(-i "$u"); done
+  ffmpeg "${inputs[@]}" -filter_complex "xstack=inputs=${#STREAMS[@]:-0}:layout=0*0|w0*0|0*h0|w0*h0" -f matroska - \
+    | ffplay -loglevel error -
+  unset STREAMS; declare -A STREAMS
+}
+
+screenshot_and_analyze(){
+  u=$1; ip=${u#*://}; ip=${ip%%[:/]*}; out="/tmp/snap_${ip}.jpg"
+  ffmpeg -rtsp_transport tcp -i "$u" -frames:v 1 -q:v 2 -y "$out" &>/dev/null && log "[SNAP] $u → $out"
+  python3 - <<PY 2>/dev/null
+import cv2
+img=cv2.imread("$out",0)
+_,th=cv2.threshold(img,200,255,cv2.THRESH_BINARY)
+cnt=cv2.countNonZero(th)
+if cnt>50: print(f"[AI] IR spots detected ({cnt}px)")
+PY
+}
+
+cve_check(){ grep -iF "$1" "$CVE_DB" 2>/dev/null | head -n3 | xargs -I{} log "[CVE] {}"; }
+
+discover_onvif(){
+  python3 - <<PY 2>/dev/null
+from wsdiscovery.discovery import ThreadedWSDiscovery as WSD
+wsd=WSD(); wsd.start(); svcs=wsd.searchServices()
+print(f"[ONVIF] {len(svcs)} services")
+for s in svcs: print("[ONVIF]",s.getXAddrs()[0])
+wsd.stop()
+PY
+}
+discover_ssdp(){
+  echo -ne 'M-SEARCH * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nST:urn:schemas-upnp-org:device:Basic:1\r\nMAN:"ssdp:discover"\r\nMX:2\r\n\r\n' \
+    | nc -u -w2 239.255.255.250 1900 | grep -i LOCATION | head -5 | sed 's/^/ [SSDP] /'
+}
+
+scan_hls(){ for p in live index stream playlist master; do
+  url="http://$1:$2/$p.m3u8"
+  curl -sfI "$url" | grep -qi 'application/vnd.apple.mpegurl' && { log "[HLS] $url"; add_stream "$url"; return; }
+done }
+
+scan_rtsp(){ for p in "${RTSP_PATHS[@]}"; do
+  u="rtsp://$1:$2/$p"
+  ffprobe -v quiet -rtsp_transport tcp -timeout 500000 -i "$u" 2>&1 | grep -q Video: && { log "[RTSP] $u"; add_stream "$u"; return; }
+done
+hydra -L "$HYDRA_FILE" -P "$HYDRA_FILE" "$1" rtsp &>/dev/null && log "[HYDRA-RTSP] $1:$2"; }
+
+scan_http(){
+  for cred in "${HTTP_CREDS[@]}"; do
+    IFS=: read u p <<<"$cred"
+    url="http://$1:$2/video"
+    curl -su "$u:$p" -m3 "$url" 2>/dev/null | grep -q multipart/x-mixed-replace && { log "[MJPEG] $url ($u)"; add_stream "$url"; break; }
+  done
+  scan_hls "$1" "$2"
+  hydra -C "$HYDRA_FILE" -s "$2" http-get://"$1" -t "$HYDRA_RATE" &>/dev/null && log "[HYDRA-HTTP] $1:$2"
+  hdr=$(curl -sI "http://$1:$2" | grep -i '^Server:' | cut -d' ' -f2-)
+  [[ $hdr ]] && cve_check "$hdr"
+}
+
+scan_snmp(){ for com in public private camera admin; do
+  out=$(snmpwalk -v2c -c "$com" -Ovq -t1 -r0 "$1" sysDescr.0 2>/dev/null)
+  [[ $out ]] && { log "[SNMP] $1 ($com) → $out"; cve_check "$out"; break; }
+done }
+
+scan_coap(){ for p in .well-known/core media stream status; do
+  out=$(timeout 3 coap-client -m get -s 2 "coap://$1/$p" 2>/dev/null)
+  [[ $out ]] && log "[CoAP] coap://$1/$p → ${out:0:80}"
+done }
+
+scan_rtmp(){ for p in live/stream live cam play h264; do
+  u="rtmp://$1/$p"
+  timeout 4 rtmpdump --timeout 2 -r "$u" --stop 1 &>/dev/null && { log "[RTMP] $u"; add_stream "$u"; }
+done }
+
+sweep(){
+  log "Discovering alive hosts…"
+  mapfile -t ALIVE < <(fping -a -g "$SUBNET" 2>/dev/null)
+  (( ${#ALIVE[@]} )) || mapfile -t ALIVE < <(arp-scan -l -I "$IF" | awk '{print $1}')
+
+  if (( FIRST_RUN )); then
+    log "First-run masscan…"
+    mapfile -t SCAN < <(masscan "$SUBNET" -p"$PORTS" --rate "$MASSCAN_RATE" -oL - 2>/dev/null | awk '/open/ {print $4":"$2}')
+    FIRST_RUN=0
+  else
+    NEW=()
+    for ip in "${ALIVE[@]}"; do
+      [[ -z ${HOSTS_SCANNED[$ip]+x} ]] && NEW+=("$ip")
+    done
+    if ((${#NEW[@]})); then
+      log "Masscan new: ${NEW[*]}"
+      mapfile -t SCAN < <(masscan "${NEW[@]}" -p"$PORTS" --rate "$MASSCAN_RATE" -oL - 2>/dev/null | awk '/open/ {print $4":"$2}')
+    else
+      SCAN=()
+    fi
+  fi
+
+  for e in "${SCAN[@]}"; do
+    ip=${e%%:*}; port=${e#*:}
+    HOSTS_SCANNED["$ip"]=1
+    case $port in
+      554|8554|10554|5544|1055) scan_rtsp "$ip" "$port" ;;
+      80|8080|8000|81|443)      scan_http "$ip" "$port" ;;
+      161)                      scan_snmp "$ip"    ;;
+    esac
+  done
+
+  discover_onvif; discover_ssdp
+
+  for ip in "${ALIVE[@]}"; do scan_coap "$ip"; done
+  for ip in "${ALIVE[@]}"; do scan_rtmp "$ip"; done
+
+  log "Screenshot + AI…"
+  for u in "${!STREAMS[@]:-}"; do screenshot_and_analyze "$u"; done
+
+  log "Mosaic…"
+  launch_mosaic
+
+  log "TUI…"
+  if (( ${#STREAMS[@]:-0} )) && command -v fzf &>/dev/null; then
+    printf "%s\n" "${!STREAMS[@]:-}" | fzf --prompt="Select> " | xargs -r -I{} ffplay -loglevel error "{}"
+  fi
+
+  run_plugins
+}
 
 while true; do
-  TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-  echo "[+] [$TIMESTAMP] Starting active sweep/scans..." | tee -a logs/camsniff.log
-
-  # 10a) ARP Sweep
-  echo "[+] ARP scan on $INTERFACE..."
-  arp-scan -l -q --interface "$INTERFACE" | tee logs/arp_scan.log
-  grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' logs/arp_scan.log > logs/live_hosts.txt
-
-  # 10b) Stealthy Nmap
-  echo "[+] Nmap scanning for camera ports on discovered hosts..."
-  nmap -sS -T2 --open -p"$NMAP_PORTS" \
-       -iL logs/live_hosts.txt -oX logs/nmap_scan.xml
-
-  # 10c) RTSP brute force
-  echo "--- [$(date)] RTSP Brute Force Round ---" >> logs/found_streams.log
-  while read -r ip; do
-    # If port 554 is open, attempt RTSP paths
-    if grep -A10 "<address addr=\"$ip\"" logs/nmap_scan.xml | grep 'portid="554" state="open"' >/dev/null; then
-      echo "[+] Checking RTSP paths on $ip..."
-      echo "${COMMON_RTSP_PATHS[@]}" | xargs -n 1 -P 4 -I {} bash -c '
-        url="rtsp://'"$ip"':554/{}"
-        ffprobe -v error -rtsp_transport tcp -timeout 3000000 -i "$url" 2>&1 | grep -Eq "Stream.*Video|Unauthorized"
-        if [[ $? -eq 0 ]]; then
-          echo "[FOUND] '"$ip"' => $url" | tee -a logs/found_streams.log
-        fi
-      '
-    fi
-  done < logs/live_hosts.txt
-
-  # 10d) HTTP banner & screenshot
-  echo "--- [$(date)] HTTP Banner Round ---" >> logs/http_banners.log
-  while read -r ip; do
-    open_http=$(grep -A10 "<address addr=\"$ip\"" logs/nmap_scan.xml | \
-                grep -E 'portid="80"|portid="8080"' | grep 'state="open"')
-    if [[ -n "$open_http" ]]; then
-      title=$(curl -s --connect-timeout 3 "http://$ip" | grep -oP '(?<=<title>).*?(?=</title>)' | head -n1)
-      if [[ -n "$title" ]]; then
-        echo "[$(date)] HTTP at $ip => $title" | tee -a logs/http_banners.log
-      else
-        echo "[$(date)] HTTP at $ip => No <title> found" | tee -a logs/http_banners.log
-      fi
-      cutycapt --url="http://$ip" --out="screenshots/${ip}_ui.png" \
-        --min-width=800 --min-height=600 &>/dev/null || true
-    fi
-  done < logs/live_hosts.txt
-
-  # 10e) ONVIF WS-Discovery
-  echo "[+] Sending ONVIF WS-Discovery probe..."
-  onvif_discovery
-
-  # 10f) MAC vendor
-  echo "--- [$(date)] MAC Vendor Round ---" >> logs/mac_vendors.log
-  arp-scan -l --interface "$INTERFACE" >> logs/mac_vendors.log
-
-  # 10g) Optional: parse DNS queries
-  parse_dns_queries
-
-  # 10h) Sleep
-  echo "[+] Sleeping $SLEEP_SECONDS seconds before next cycle..."
-  sleep "$SLEEP_SECONDS"
-
+  log "===== SWEEP $(date '+%F %T') ====="
+  sweep
+  log "Sleeping ${SS}s…"
+  sleep "$SS"
 done
