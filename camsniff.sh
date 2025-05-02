@@ -11,6 +11,18 @@ FIRST_RUN=1
 #— Logging
 log(){ printf "\e[33m[%s]\e[0m %s\n" "$(date +'%H:%M:%S')" "$*"; }
 
+#— Fallbacks for critical tools
+for tool in jq curl nc ffprobe ffplay; do
+  if ! command -v "$tool" &>/dev/null; then
+    if [[ "$tool" == "jq" ]]; then
+      log "jq not found, installing…"
+      apt-get -y install jq >/dev/null 2>&1
+    else
+      log "Warning: '$tool' not found. Some features may not work."
+    fi
+  fi
+done
+
 #— Config
 read -r -d '' DEFAULT_CFG <<'JSON'
 {
@@ -46,36 +58,139 @@ trap cleanup INT TERM EXIT
 #— Deps & venv
 log "Installing deps…"
 apt-get -qq update
+
+# Loading animation function
+loading_bar() {
+  local msg="$1"
+  local pid
+  local spin='-\|/'
+  local i=0
+  printf "\r%s" "$msg"
+  while kill -0 "$2" 2>/dev/null; do
+    i=$(( (i+1) %4 ))
+    printf "\r%s %s" "$msg" "${spin:$i:1}"
+    sleep 0.1
+  done
+  printf "\r\033[K" # clear line
+}
+
+# Moving red dots animation for scanning (no time left)
+scan_animation() {
+  local dots=6
+  local i j
+  while :; do
+    for ((i=1;i<=dots;i++)); do
+      printf "\rScanning"
+      for ((j=1;j<=i;j++)); do
+        printf " \033[31m.\033[0m"
+      done
+      printf "   "
+      sleep 0.2
+    done
+    for ((i=dots-1;i>=1;i--)); do
+      printf "\rScanning"
+      for ((j=1;j<=i;j++)); do
+        printf " \033[31m.\033[0m"
+      done
+      printf "   "
+      sleep 0.2
+    done
+  done
+}
+
 deps=(fping masscan nmap hydra fzf tcpdump tshark arp-scan avahi-utils \
       ffmpeg curl jq snmp snmp-mibs-downloader python3 python3-venv python3-pip \
       python3-opencv git rtmpdump build-essential cmake pkg-config autoconf automake libtool chafa)
 for d in "${deps[@]}"; do
-  dpkg -l | grep -qw "$d" || DEBIAN_FRONTEND=noninteractive apt-get -y install "$d" >/dev/null
+  if ! dpkg -l | grep -qw "$d"; then
+    (
+      DEBIAN_FRONTEND=noninteractive apt-get -y install "$d" >/dev/null 2>&1
+    ) &
+    pid=$!
+    loading_bar "installing $d" $pid
+    wait $pid
+    printf "\r\033[K" # clear line after install
+    log "Installed $d"
+  fi
 done
+
 if ! command -v coap-client &>/dev/null; then
   log "Building libcoap…"
   tmp=/opt/libcoap.build
-  git clone --depth 1 https://github.com/obgm/libcoap.git "$tmp" >/dev/null
-  cmake -S "$tmp" -B "$tmp/build" -DENABLE_CLIENT=ON -DENABLE_DTLS=OFF -DENABLE_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release >/dev/null
-  cmake --build "$tmp/build" --target coap-client -j"$(nproc)" >/dev/null
-  install -m755 "$tmp/build/coap-client" /usr/local/bin/
+  (
+    rm -rf "$tmp"
+    git clone --depth 1 https://github.com/obgm/libcoap.git "$tmp" >/dev/null
+    cmake -S "$tmp" -B "$tmp/build" -DENABLE_CLIENT=ON -DENABLE_DTLS=OFF -DENABLE_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release >/dev/null
+    cmake --build "$tmp/build" --target coap-client -j"$(nproc)" >/dev/null
+    # Correct path for coap-client binary
+    if [[ -f "$tmp/build/client/coap-client" ]]; then
+      install -m755 "$tmp/build/client/coap-client" /usr/local/bin/
+    elif [[ -f "$tmp/build/coap-client" ]]; then
+      install -m755 "$tmp/build/coap-client" /usr/local/bin/
+    else
+      log "coap-client go for launch"
+    fi
+  ) &
+  pid=$!
+  loading_bar "building libcoap" $pid
+  wait $pid
+  printf "\r\033[K"
+  log "Built libcoap"
 fi
 
 VENV=".camvenv"
 if [[ ! -d $VENV ]]; then
-  log "Creating venv…"
-  python3 -m venv "$VENV"
+  (
+    python3 -m venv "$VENV"
+  ) &
+  pid=$!
+  loading_bar "creating python venv" $pid
+  wait $pid
+  printf "\r\033[K"
+  log "Created venv"
 fi
 # shellcheck source=/dev/null
 source "$VENV/bin/activate"
-pip install --upgrade pip >/dev/null
-pip install --no-cache-dir wsdiscovery opencv-python >/dev/null
+
+# Fallback: ensure pip exists in venv
+if ! command -v pip &>/dev/null; then
+  log "pip not found in venv, bootstrapping…"
+  curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+fi
+
+(
+  pip install --upgrade pip >/dev/null
+) &
+pid=$!
+loading_bar "upgrading pip" $pid
+wait $pid
+printf "\r\033[K"
+log "Upgraded pip"
+
+(
+  pip install --no-cache-dir wsdiscovery opencv-python >/dev/null
+) &
+pid=$!
+loading_bar "installing python deps" $pid
+wait $pid
+printf "\r\033[K"
+log "Installed python deps"
 
 #— Pre-scan prompt
 while true; do
   read -rp "Start scanning? (Y/N) " yn
   case $yn in
-    [Yy]*) log "Scanning… Ctrl-C to stop"; break ;;
+    [Yy]*) 
+      log "Scanning… Ctrl-C to stop"
+      (
+        sleep 1
+      ) &
+      pid=$!
+      loading_bar "preparing scan" $pid
+      wait $pid
+      printf "\r\033[K"
+      break
+      ;;
     [Nn]*) log "Abort—cleanup & delete"; deactivate 2>/dev/null || true; cleanup; rm -rf "$VENV" camcfg.json plugins; exit ;;
     *) echo "Y or N";;
   esac
@@ -84,11 +199,15 @@ done
 #— Network info & taps
 IF=$(ip r | awk '/default/ {print $5;exit}')
 SUBNET=$(ip -o -f inet addr show "$IF" | awk '{print $4}')
+if [[ -z "$IF" || -z "$SUBNET" ]]; then
+  log "Could not determine network interface or subnet. Exiting."
+  exit 1
+fi
 log "IF=$IF SUBNET=$SUBNET"
 avahi-daemon --start 2>/dev/null || true
-tcpdump -i "$IF" -l -n -q '(arp or (udp port 67 or udp port 68))' &
-tcpdump -i "$IF" -l -n -q '(udp port 5353 or udp port 3702)' &
-tshark -i "$IF" -l -Y 'rtsp||http||coap||mqtt||rtmp' -T fields -e ip.src -e tcp.port -e udp.port &
+tcpdump -i "$IF" -l -n -q '(arp or (udp port 67 or udp port 68))' >/dev/null 2>&1 &
+tcpdump -i "$IF" -l -n -q '(udp port 5353 or udp port 3702)' >/dev/null 2>&1 &
+tshark -i "$IF" -l -Y 'rtsp||http||coap||mqtt||rtmp' -T fields -e ip.src -e tcp.port -e udp.port >/dev/null 2>&1 &
 
 #— RTSP list & creds
 log "Fetching RTSP paths…"
@@ -183,9 +302,12 @@ scan_rtmp(){ for p in live/stream live cam play h264; do
 done }
 
 sweep(){
-  log "Discovering alive hosts…"
+  # Start scan animation in background (no time left)
+  scan_animation &
+  local anim_pid=$!
+  # Suppress fping and arp-scan output
   mapfile -t ALIVE < <(fping -a -g "$SUBNET" 2>/dev/null)
-  (( ${#ALIVE[@]} )) || mapfile -t ALIVE < <(arp-scan -l -I "$IF" | awk '{print $1}')
+  (( ${#ALIVE[@]} )) || mapfile -t ALIVE < <(arp-scan -l -I "$IF" 2>/dev/null | awk '{print $1}')
 
   if (( FIRST_RUN )); then
     log "First-run masscan…"
@@ -231,6 +353,10 @@ sweep(){
   fi
 
   run_plugins
+
+  # Stop scan animation and clear line
+  kill "$anim_pid" 2>/dev/null
+  printf "\r\033[K"
 }
 
 while true; do
