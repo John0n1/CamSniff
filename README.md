@@ -80,3 +80,23 @@ This tool is intended for educational and ethical purposes only. Unauthorized us
 ## Author
 
 Developed by [John0n1](https://github.com/John0n1).
+
+## New Script Structure
+
+The `camsniff.sh` script has been split into smaller scripts for better modularity and maintainability. The main script `camsniff.sh` now sources the following scripts:
+
+- `setup.sh`: Handles initial setup and logging.
+- `install_deps.sh`: Handles dependency installation and virtual environment setup.
+- `env_setup.sh`: Handles configuration loading and setting.
+- `scan_analyze.sh`: Handles all scanning and analysis-related functions.
+- `cleanup.sh`: Handles cleanup and exit handling.
+
+### Running the Script
+
+To run the script, use the following command:
+
+```bash
+sudo ./camsniff.sh
+```
+
+The main script will source the necessary scripts and execute all tasks in the correct order.
