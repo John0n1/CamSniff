@@ -156,3 +156,26 @@ sweep(){
   kill "$anim_pid" 2>/dev/null
   printf "\r\033[K"
 }
+
+# Placeholder for scan animation
+scan_animation() {
+    local len=8
+    local red='\033[31m'
+    local reset='\033[0m'
+    while :; do
+        for ((i=0; i<len; i++)); do
+            local line=""
+            for ((j=0; j<len; j++)); do
+                if (( j == i )); then
+                    line+="${red}●${reset}"
+                elif (( j < i )); then
+                    line+=" "
+                else
+                    line+="${red}●${reset}"
+                fi
+            done
+            echo -en "\rScanning... $line"
+            sleep 0.1
+        done
+    done
+}
