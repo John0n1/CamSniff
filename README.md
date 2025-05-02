@@ -1,4 +1,4 @@
-# CamSniff 4.10
+# CamSniff v5.5
 
 CamSniff is a powerful, all-in-one network camera reconnaissance tool designed for security professionals and enthusiasts. It combines advanced scanning, fingerprinting, and AI-assisted analysis to identify and interact with network cameras and IoT devices.
 
