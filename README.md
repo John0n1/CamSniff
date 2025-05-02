@@ -55,7 +55,14 @@ The script uses a `camcfg.json` file for configuration. If the file does not exi
    ```bash
    sudo ./camsniff.sh
    ```
+The `camsniff.sh` script has been split into smaller scripts for better modularity and maintainability. The main script `camsniff.sh` now sources the following scripts:
 
+- `setup.sh`: Handles initial setup and logging.
+- `install_deps.sh`: Handles dependency installation and virtual environment setup.
+- `env_setup.sh`: Handles configuration loading and setting.
+- `scan_analyze.sh`: Handles all scanning and analysis-related functions.
+- `cleanup.sh`: Handles cleanup and exit handling.
+- 
 2. Follow the interactive prompts to begin scanning.
 
 3. The script will:
@@ -67,7 +74,7 @@ The script uses a `camcfg.json` file for configuration. If the file does not exi
 ## Requirements
 
 - **Operating System**: Linux (Debian-based distributions recommended).
-- **Dependencies**: Automatically installed by the script (e.g., `fping`, `masscan`, `nmap`, `hydra`, `ffmpeg`, `python3`, etc.).
+- **Dependencies**: Automatically installed by the script (e.g., `fping`, `masscan`, `nmap`, `hydra`, `ffmpeg`, `python3`, etc..).
 
 ## Disclaimer
 
@@ -80,23 +87,5 @@ This tool is intended for educational and ethical purposes only. Unauthorized us
 ## Author
 
 Developed by [John0n1](https://github.com/John0n1).
-
-## New Script Structure
-
-The `camsniff.sh` script has been split into smaller scripts for better modularity and maintainability. The main script `camsniff.sh` now sources the following scripts:
-
-- `setup.sh`: Handles initial setup and logging.
-- `install_deps.sh`: Handles dependency installation and virtual environment setup.
-- `env_setup.sh`: Handles configuration loading and setting.
-- `scan_analyze.sh`: Handles all scanning and analysis-related functions.
-- `cleanup.sh`: Handles cleanup and exit handling.
-
-### Running the Script
-
-To run the script, use the following command:
-
-```bash
-sudo ./camsniff.sh
-```
 
 The main script will source the necessary scripts and execute all tasks in the correct order.
