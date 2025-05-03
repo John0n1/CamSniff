@@ -1,40 +1,62 @@
-# CamSniff v5.5
+# CamSniff v5.5.2
 
-CamSniff is a powerful, all-in-one network camera reconnaissance tool designed for security professionals and enthusiasts. It combines advanced scanning, fingerprinting, and AI-assisted analysis to identify and interact with network cameras and IoT devices.
+CamSniff is a powerful, all-in-one network camera reconnaissance tool for security pros and enthusiasts. It combines advanced host/port discovery, protocol support, credential brute-forcing, CVE lookup, AI-assisted frame analysis, and interactive/mosaic video display.
 
-## Features
+---
 
-- **Dependency Management**: Automatically installs required system dependencies and sets up a Python virtual environment.
-- **Dynamic Scanning**:
-  - Passive taps (ARP, mDNS/WS-Discovery).
-  - Ultra-fast host/port discovery using `fping`, `masscan`, and `nmap`.
-  - Dynamic RTSP path discovery.
-- **Protocol Support**:
-  - RTSP, HTTP, HTTPS, ONVIF, SSDP (UPnP), SNMP, CoAP, RTMP, HLS, MQTT.
-- **Brute Force**: Hydra-based credential brute-forcing for RTSP and HTTP.
-- **CVE Lookup**: Local database for vulnerability checks.
-- **AI-Assisted Analysis**: Detects IR spots and performs frame analysis.
-- **Interactive TUI**: Stream selection using `fzf`.
-- **Mosaic Viewer**: Console-based video mosaic with `ffmpeg`.
+## 📁 Repository Structure
 
-## Installation
+```
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/John0n1/CamSniff.git
-   cd CamSniff
-   ```
+CamSniff/
+├── LICENSE
+├── .gitignore
+├── README.md            ← (this file)
+├── Linux/               ← Linux (Bash) edition
+│   ├── camsniff.sh
+│   ├── setup.sh
+│   ├── install\_deps.sh
+│   ├── env\_setup.sh
+│   ├── scan\_analyze.sh
+│   ├── cleanup.sh
+│   └── camcfg.json
+└── Windows/             ← Windows (PowerShell) edition
+├── camsniff.ps1
+├── setup.ps1
+├── install\_deps.ps1
+├── env\_setup.ps1
+├── scan\_analyze.ps1
+├── cleanup.ps1
+└── config.json
 
-2. Run the script with `sudo`:
-   ```bash
-   sudo ./camsniff.sh
-   ```
+````
 
-3. Follow the prompts to start scanning.
+---
 
-## Configuration
+## 🚀 Features
 
-The script uses a `camcfg.json` file for configuration. If the file does not exist, it will be created with default values:
+- **Cross-Platform**  
+  - **Linux**: Modular Bash scripts  
+  - **Windows**: Pure PowerShell modules  
+- **Auto Dependency Management**  
+  - Linux: `apt` + Python venv  
+  - Windows: Chocolatey + Python venv  
+- **Dynamic Scanning**: Passive taps, `fping`, `masscan`, `nmap`  
+- **Protocols**: RTSP, HTTP/S, ONVIF, SSDP, SNMP, CoAP, RTMP, HLS, MQTT  
+- **Brute-Force**: Hydra-based for RTSP & HTTP  
+- **Vuln Lookup**: Local CVE JSON database  
+- **AI Analysis**: IR-spot & frame analysis via OpenCV  
+- **Interactive TUI**: `fzf` selection  
+- **Mosaic Viewer**: `ffmpeg` + `ffplay`  
+
+---
+
+## ⚙️ Configuration
+
+- **Linux**: `Linux/camcfg.json`  
+- **Windows**: `Windows/config.json`
+
+If missing, a default config is created on first run.
 
 ```json
 {
@@ -43,49 +65,82 @@ The script uses a `camcfg.json` file for configuration. If the file does not exi
   "masscan_rate": 20000,
   "hydra_rate": 16,
   "max_streams": 4,
-  "cve_db": "/usr/share/cve/cve-2025.json",
+  "cve_db": "/path/to/cve-2025.json",      // Linux: /usr/share/cve/...  Windows: C:\cve\...
   "dynamic_rtsp_url": "https://raw.githubusercontent.com/maaaaz/michelle/master/rtsp.txt"
 }
+````
+
+Adjust values and re-run; changes apply on next sweep.
+
+---
+
+## 💻 Installation & Usage
+
+### Linux (Debian-based)
+
+```bash
+git clone https://github.com/John0n1/CamSniff.git
+cd CamSniff/Linux
+chmod +x setup.sh install_deps.sh env_setup.sh scan_analyze.sh cleanup.sh camsniff.sh
+sudo ./camsniff.sh
 ```
 
+* Follow the Y/N prompt to start.
+* **Ctrl+C** to stop (auto-cleanup runs).
 
-## Usage
+### Windows (PowerShell)
 
-1. Start the script:
-   ```bash
-   sudo ./camsniff.sh
+1. **Clone & navigate**
+
+   ```powershell
+   git clone https://github.com/John0n1/CamSniff.git
+   cd CamSniff\Windows
    ```
-The `camsniff.sh` script has been split into smaller scripts for better modularity and maintainability. The main script `camsniff.sh` now sources the following scripts:
+2. **Unblock & run (Admin)**
 
-- `setup.sh`: Handles initial setup and logging.
-- `install_deps.sh`: Handles dependency installation and virtual environment setup.
-- `env_setup.sh`: Handles configuration loading and setting.
-- `scan_analyze.sh`: Handles all scanning and analysis-related functions.
-- `cleanup.sh`: Handles cleanup and exit handling.
-- 
-2. Follow the interactive prompts to begin scanning.
+   ```powershell
+   Set-ExecutionPolicy Bypass -Scope Process -Force
+   Unblock-File *.ps1
+   .\camsniff.ps1
+   ```
 
-3. The script will:
-   - Discover hosts and open ports.
-   - Identify cameras and IoT devices.
-   - Perform vulnerability checks and AI-assisted analysis.
-   - Display streams in a mosaic or allow selection via TUI.
+   * First run auto-installs: Chocolatey, nmap, masscan, ffmpeg, Python venv, etc.
+   * Press **Y** to begin scanning.
+   * **Ctrl+C** to exit (auto-cleanup kills child processes).
 
-## Requirements
+---
 
-- **Operating System**: Linux (Debian-based distributions recommended).
-- **Dependencies**: Automatically installed by the script (e.g., `fping`, `masscan`, `nmap`, `hydra`, `ffmpeg`, `python3`, etc..).
+## 🔀 Script Merging
 
-## Disclaimer
+If you need a single consolidated file:
 
-This tool is intended for educational and ethical purposes only. Unauthorized use on networks or devices without permission is illegal and unethical. Use responsibly.
+* **Linux**:
 
-## License
+  ```bash
+  cd CamSniff/Linux
+  ./merge.py merged_scripts.txt --ext .sh .py
+  ```
+* **Windows**:
 
-[MIT License](https://opensource.org/licenses/MIT)
+  ```powershell
+  cd CamSniff\Windows
+  .\merge.ps1 -Output merged_scripts.txt -Exts .ps1,.sh,.py
+  ```
 
-## Author
+---
+
+## ⚠️ Disclaimer
+
+For educational and ethical use only. Unauthorized scanning or exploitation without permission is illegal. Use responsibly.
+
+---
+
+## 📄 License
+
+This project is released under the [MIT License](https://opensource.org/licenses/MIT).
+
+---
+
+## 👤 Author
 
 Developed by [John0n1](https://github.com/John0n1).
-
-The main script will source the necessary scripts and execute all tasks in the correct order.
