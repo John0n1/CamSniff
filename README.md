@@ -108,24 +108,6 @@ sudo ./camsniff.sh
    * Press **Y** to begin scanning.
    * **Ctrl+C** to exit (auto-cleanup kills child processes).
 
----
-
-## 🔀 Script Merging
-
-If you need a single consolidated file:
-
-* **Linux**:
-
-  ```bash
-  cd CamSniff/Linux
-  ./merge.py merged_scripts.txt --ext .sh .py
-  ```
-* **Windows**:
-
-  ```powershell
-  cd CamSniff\Windows
-  .\merge.ps1 -Output merged_scripts.txt -Exts .ps1,.sh,.py
-  ```
 
 ---
 
