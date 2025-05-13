@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Dependency installation and virtual environment setup
+# Dependency installation and virtual environment setup with enhanced error handling and logging
 
 # Function to show loading animation
 loading_bar() {
@@ -18,8 +18,8 @@ loading_bar() {
 }
 
 # Install dependencies
-log "Installing deps…"
-apt-get -qq update
+log INFO "Installing deps…"
+apt-get -qq update || { log ERROR "apt-get update failed"; exit 1; }
 
 deps=(fping masscan nmap hydra fzf tcpdump tshark arp-scan avahi-utils \
       ffmpeg curl jq snmp snmp-mibs-downloader python3 python3-venv python3-pip \
@@ -32,14 +32,20 @@ for d in "${deps[@]}"; do
     pid=$!
     loading_bar "installing $d" $pid
     wait $pid
-    printf "\r\033[K" # clear line after install
-    log "Installed $d"
+    if dpkg -l | grep -qw "$d"; then
+      log INFO "Installed $d"
+    else
+      log ERROR "Failed to install $d"
+      exit 1
+    fi
+  else
+    log INFO "$d already installed"
   fi
 done
 
 # Build libcoap if not found
 if ! command -v coap-client &>/dev/null; then
-  log "Building libcoap…"
+  log INFO "Building libcoap…"
   tmp=/opt/libcoap.build
   (
     rm -rf "$tmp"
@@ -52,14 +58,14 @@ if ! command -v coap-client &>/dev/null; then
     elif [[ -f "$tmp/build/coap-client" ]]; then
       install -m755 "$tmp/build/coap-client" /usr/local/bin/
     else
-      log "coap-client go for launch"
+      log WARN "coap-client binary not found after build"
+      exit 1
     fi
   ) &
   pid=$!
   loading_bar "building libcoap" $pid
   wait $pid
-  printf "\r\033[K"
-  log "Built libcoap"
+  log INFO "Built libcoap"
 fi
 
 # Create Python virtual environment
@@ -71,16 +77,20 @@ if [[ ! -d $VENV ]]; then
   pid=$!
   loading_bar "creating python venv" $pid
   wait $pid
-  printf "\r\033[K"
-  log "Created venv"
+  if [[ -d $VENV ]]; then
+    log INFO "Created venv"
+  else
+    log ERROR "Failed to create python venv"
+    exit 1
+  fi
 fi
 # shellcheck source=/dev/null
 source "$VENV/bin/activate"
 
 # Fallback: ensure pip exists in venv
 if ! command -v pip &>/dev/null; then
-  log "pip not found in venv, bootstrapping…"
-  curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+  log WARN "pip not found in venv, bootstrapping…"
+  curl -sS https://bootstrap.pypa.io/get-pip.py | python3 || { log ERROR "Failed to bootstrap pip"; exit 1; }
 fi
 
 # Upgrade pip
@@ -90,8 +100,7 @@ fi
 pid=$!
 loading_bar "upgrading pip" $pid
 wait $pid
-printf "\r\033[K"
-log "Upgraded pip"
+log INFO "Upgraded pip"
 
 # Install Python dependencies
 (
@@ -100,5 +109,4 @@ log "Upgraded pip"
 pid=$!
 loading_bar "installing python deps" $pid
 wait $pid
-printf "\r\033[K"
-log "Installed python deps"
+log INFO "Installed python deps"
