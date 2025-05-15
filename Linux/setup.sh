@@ -31,4 +31,4 @@ for tool in "${critical_tools[@]}"; do
   else
     log INFO "Found required tool: $tool"
   fi
-}
+done
