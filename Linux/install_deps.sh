@@ -24,24 +24,43 @@ apt-get -qq update || { log ERROR "apt-get update failed"; exit 1; }
 deps=(fping masscan nmap hydra fzf tcpdump tshark arp-scan avahi-utils \
       ffmpeg curl jq snmp snmp-mibs-downloader python3 python3-venv python3-pip \
       python3-opencv git rtmpdump build-essential cmake pkg-config autoconf automake libtool chafa)
-for d in "${deps[@]}"; do
-  if ! dpkg -l | grep -qw "$d"; then
-    (
-      DEBIAN_FRONTEND=noninteractive apt-get -y install "$d" >/dev/null 2>&1
-    ) &
-    pid=$!
-    loading_bar "installing $d" $pid
-    wait $pid
-    if dpkg -l | grep -qw "$d"; then
-      log INFO "Installed $d"
+
+# Function to install a single dependency with retry mechanism
+install_dependency() {
+  local dep="$1"
+  local retries=3
+  local count=0
+  while (( count < retries )); do
+    if ! dpkg -l | grep -qw "$dep"; then
+      (
+        DEBIAN_FRONTEND=noninteractive apt-get -y install "$dep" >/dev/null 2>&1
+      ) &
+      pid=$!
+      loading_bar "installing $dep" $pid
+      wait $pid
+      if dpkg -l | grep -qw "$dep"; then
+        log INFO "Installed $dep"
+        return 0
+      else
+        log ERROR "Failed to install $dep, retrying... ($((count+1))/$retries)"
+        ((count++))
+      fi
     else
-      log ERROR "Failed to install $d"
-      exit 1
+      log INFO "$dep already installed"
+      return 0
     fi
-  else
-    log INFO "$d already installed"
-  fi
-done
+  done
+  log ERROR "Failed to install $dep after $retries attempts"
+  return 1
+}
+
+# Export the function to be used by xargs
+export -f install_dependency
+export -f loading_bar
+export -f log
+
+# Use xargs to install dependencies concurrently
+echo "${deps[@]}" | xargs -n 1 -P 4 -I {} bash -c 'install_dependency "$@"' _ {}
 
 # Build libcoap if not found
 if ! command -v coap-client &>/dev/null; then
@@ -68,11 +87,11 @@ if ! command -v coap-client &>/dev/null; then
   log INFO "Built libcoap"
 fi
 
-# Create Python virtual environment
+# Create Python virtual environment using pipenv
 VENV=".camvenv"
 if [[ ! -d $VENV ]]; then
   (
-    python3 -m venv "$VENV"
+    pipenv --python 3
   ) &
   pid=$!
   loading_bar "creating python venv" $pid
@@ -84,27 +103,13 @@ if [[ ! -d $VENV ]]; then
     exit 1
   fi
 fi
-# shellcheck source=/dev/null
-source "$VENV/bin/activate"
 
-# Fallback: ensure pip exists in venv
-if ! command -v pip &>/dev/null; then
-  log WARN "pip not found in venv, bootstrapping…"
-  curl -sS https://bootstrap.pypa.io/get-pip.py | python3 || { log ERROR "Failed to bootstrap pip"; exit 1; }
-fi
+# Activate the virtual environment
+pipenv shell
 
-# Upgrade pip
+# Install Python dependencies using pipenv
 (
-  pip install --upgrade pip >/dev/null
-) &
-pid=$!
-loading_bar "upgrading pip" $pid
-wait $pid
-log INFO "Upgraded pip"
-
-# Install Python dependencies
-(
-  pip install --no-cache-dir wsdiscovery opencv-python >/dev/null
+  pipenv install wsdiscovery opencv-python
 ) &
 pid=$!
 loading_bar "installing python deps" $pid

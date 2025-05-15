@@ -15,6 +15,13 @@ cleanup(){
   else
     log WARN "avahi-daemon not running"
   fi
+
+  # Ensure proper cleanup of temporary files
+  if rm -rf /tmp/snap_*.jpg /tmp/.hydra_creds.txt; then
+    log INFO "Temporary files cleaned up"
+  else
+    log WARN "Failed to clean up temporary files"
+  fi
 }
 
 # Trap signals and call cleanup function

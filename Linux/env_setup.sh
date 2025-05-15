@@ -56,3 +56,15 @@ REPORT_FILE=$(JQ -r '.report_file' camcfg.json)
 
 # Validate config on load
 validate_config
+
+# Configuration key explanations
+# sleep_seconds: Time to sleep between sweeps (in seconds)
+# nmap_ports: Ports to scan with nmap
+# masscan_rate: Rate for masscan (packets per second)
+# hydra_rate: Rate for Hydra (threads)
+# max_streams: Maximum number of streams to handle concurrently
+# cve_db: Path to the CVE database file
+# dynamic_rtsp_url: URL to fetch dynamic RTSP paths
+# log_file: Path to the log file
+# log_level: Logging level (INFO, WARN, ERROR)
+# report_file: Path to the report file
