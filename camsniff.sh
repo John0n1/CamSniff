@@ -4,6 +4,53 @@
 ###############################################################################
 set -euo pipefail
 IFS=$'\n\t'
+
+# Colors
+RED='\033[31m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+CYAN='\033[36m'
+RESET='\033[0m'
+
+echo -e "${CYAN}CamSniff is a powerful tool designed to:${RESET}"
+echo -e "${GREEN}- Discover and analyze network-connected cameras."
+echo -e "- Perform RTSP, HTTP, CoAP, and RTMP scans."
+echo -e "- Identify vulnerabilities and brute-force credentials."
+echo -e "- Generate AI-based insights from camera streams.${RESET}"
+
+cat << 'EOF'
+.--------------. | .--------------. | .--------------. | .--------------. | .--------------. | .--------------. | .--------------. | .--------------. 
+|     ______   | | |      __      | | | ____    ____ | | |    _______   | | | ____  _____  | | |     _____    | | |  _________   | | |  _________   |
+|   .' ___  |  | | |     /  \     | | ||_   \  /   _|| | |   /  ___  |  | | ||_   \|_   _| | | |    |_   _|   | | | |_   ___  |  | | | |_   ___  |  |
+|  / .'   \_|  | | |    / /\ \    | | |  |   \/   |  | | |  |  (__ \_|  | | |  |   \ | |   | | |      | |     | | |   | |_  \_|  | | |   | |_  \_|  |
+|  | |         | | |   / ____ \   | | |  | |\  /| |  | | |   '.___`-.   | | |  | |\ \| |   | | |      | |     | | |   |  _|      | | |   |  _|      |
+|  `.___.'\    | | | _/ /    \ \_ | | | _| |_\/_| |_ | | |  |`\____) |  | | | _| |_\   |_  | | |     _| |_    | | |  _| |_       | | |  _| |_       |
+|   `._____.'  | | ||____|  |____|| | ||_____||_____|| | |  |_______.'  | | ||_____|\____| | | |    |_____|   | | | |_____|      | | | |_____|      |
+|              | | |              | | |              | | |              | | |              | | |              | | |              | | |              |
+'--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------'
+
+EOF
+echo -e "${YELLOW}CamSniff 5.15.25 – by @John0n1${RESET}"
+echo -e "${YELLOW}What will happen:${RESET}"
+echo -e "${CYAN}1.${RESET} Dependencies will be checked and installed if missing."
+echo -e "${CYAN}2.${RESET} Network scanning will begin to identify active devices."
+echo -e "   ${RED}- This can take some time depending on the network size (up to 15 minutes)."
+echo -e "   - The scan is a very intensive process and may even affect the network.${RESET}"
+echo -e "${CYAN}3.${RESET} Camera streams will be analyzed and displayed."
+echo -e "${CYAN}4.${RESET} You can choose to start the scan or exit at any time (Ctrl+C)."
+echo -e "   - This will clean up the environment and stop all processes."
+echo -e "Press 'Y' to start or 'N' to exit.${RESET}'"
+
+# Launch prompt loop
+while true; do
+  read -rp "$(echo -e "${CYAN}Start CamSniff? (Y/N): ${RESET}")" yn
+  case $yn in
+    [Yy]*) break ;;  # proceed to main script
+    [Nn]*) echo -e "${RED}Exiting. Goodbye!${RESET}"; exit 0;;
+    *) echo -e "${YELLOW}Please press 'Y' to start or 'N' to exit.${RESET}";;
+  esac
+done
+
 declare -A STREAMS        
 declare -A HOSTS_SCANNED  
 FIRST_RUN=1
@@ -18,9 +65,17 @@ log_debug "Starting camsniff.sh"
 # Define Python virtualenv path so abort branch can remove it
 VENV="$PWD/.camvenv"
 
+# Determine data directory for supporting scripts
+SCRIPT_PATH=$(readlink -f "$0")
+if [[ "$(basename "$SCRIPT_PATH")" == "camsniff" || "$(basename "$SCRIPT_PATH")" == "camsniff.sh" ]]; then
+  DATADIR="/usr/share/camsniff"
+else
+  DATADIR="$(dirname "$SCRIPT_PATH")"
+fi
+
 #— Pre-split script sourcing
 log_debug "Sourcing setup.sh"
-if ! source "${BASH_SOURCE%/*}/setup.sh"; then
+if ! source "$DATADIR/setup.sh"; then
   log "ERROR: Failed to source setup.sh"
   exit 1
 fi
@@ -34,19 +89,19 @@ if [[ -z "${SKIP_DEPS-}" && ! -f .deps_installed ]]; then
     exit 1
   else
     # Run setup.sh to ensure critical tools are installed
-    if ! source "${BASH_SOURCE%/*}/setup.sh"; then
+    if ! source "$DATADIR/setup.sh"; then
       log "ERROR: Failed to run setup.sh"
       exit 1
     fi
 
     # Run env_setup.sh to ensure environment configuration
-    if ! source "${BASH_SOURCE%/*}/env_setup.sh"; then
+    if ! source "$DATADIR/env_setup.sh"; then
       log "ERROR: Failed to run env_setup.sh"
       exit 1
     fi
 
     # Run install_deps.sh to install required dependencies
-    if ! bash "${BASH_SOURCE%/*}/install_deps.sh"; then
+    if ! bash "$DATADIR/install_deps.sh"; then
       log "ERROR: Failed to run install_deps.sh"
       exit 1
     fi
@@ -57,19 +112,19 @@ fi
 
 #— Load environment and start scanning logic
 log_debug "Sourcing env_setup.sh"
-if ! source "${BASH_SOURCE%/*}/env_setup.sh"; then
+if ! source "$DATADIR/env_setup.sh"; then
   log "ERROR: Failed to source env_setup.sh"
   exit 1
 fi
 
 log_debug "Sourcing scan_analyze.sh"
-if ! source "${BASH_SOURCE%/*}/scan_analyze.sh"; then
+if ! source "$DATADIR/scan_analyze.sh"; then
   log "ERROR: Failed to source scan_analyze.sh"
   exit 1
 fi
 
 log_debug "Sourcing cleanup.sh"
-if ! source "${BASH_SOURCE%/*}/cleanup.sh"; then
+if ! source "$DATADIR/cleanup.sh"; then
   log "ERROR: Failed to source cleanup.sh"
   exit 1
 fi

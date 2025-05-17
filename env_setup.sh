@@ -26,7 +26,7 @@ read -r -d '' DEFAULT_CFG <<'JSON'
   "cve_db": "/usr/share/cve/cve-2025.json",
   "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
-  "snmp_communities": ["public", "private", "camera", "admin"],
+  "snmp_communities": ["public", "private", "camera", "admin", "cam", "cisco", "default", "guest", "test"],
   "medusa_threads": 8
 }
 JSON

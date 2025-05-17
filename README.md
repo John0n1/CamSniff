@@ -36,6 +36,10 @@ All dependencies are automatically installed when running the script.
 
 ## Installation
 
+### RECOMMENDED: Install the DEB package from the releases page for easy installation and updates.
+
+Alternatively, you can install CamSniff from the source code. Follow these steps to set up the tool on your system:
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/John0n1/CamSniff.git
