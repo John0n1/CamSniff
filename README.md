@@ -1,5 +1,3 @@
-
-
 # CamSniff - Camera Reconnaissance 📡
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/John0n1/CamSniff?style=flat-square&logo=github&label=Latest%20Release)](https://github.com/John0n1/CamSniff/releases/latest)
@@ -95,7 +93,7 @@ Download and install the latest DEB package from the [releases page](https://git
 
 3. Run the launcher:
     ```bash
-    ./launch.sh
+    sudo ./camsniff.sh
     ```
 
 ---
@@ -103,7 +101,7 @@ Download and install the latest DEB package from the [releases page](https://git
 ## Usage
 
 1. **Launch the Tool**  
-   Run `launch.sh` to start. An introduction will appear and you’ll be prompted to begin scanning.
+   Run `camsniff.sh` to start. An introduction will appear and you’ll be prompted to begin scanning.
 
 2. **Scanning**  
    - Scan your network for devices and identify cameras.
