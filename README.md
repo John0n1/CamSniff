@@ -113,6 +113,52 @@ Download and install the latest DEB package from the [releases page](https://git
 4. **Logs**  
    - All logs are stored in `.log` files for debugging and analysis.
 
+### Detailed Usage Examples
+
+#### Example 1: Basic Network Scan
+
+To perform a basic network scan and identify cameras, simply run the following command:
+
+```bash
+sudo ./camsniff.sh
+```
+
+This will start the tool, check for dependencies, and begin scanning your network for devices. The identified cameras will be displayed in a mosaic view.
+
+#### Example 2: Custom Configuration
+
+You can customize the scanning parameters by editing the `camcfg.json` file. For example, to change the masscan rate and the number of maximum streams, update the file as follows:
+
+```json
+{
+  "masscan_rate": 50000,
+  "max_streams": 8
+}
+```
+
+Save the file and run the tool again:
+
+```bash
+sudo ./camsniff.sh
+```
+
+#### Example 3: Using Plugins
+
+To extend the functionality of CamSniff, you can add custom scripts to the `plugins` directory. For example, create a new plugin script `plugins/custom_plugin.sh`:
+
+```bash
+#!/usr/bin/env bash
+echo "Custom plugin executed!"
+```
+
+Make the script executable:
+
+```bash
+chmod +x plugins/custom_plugin.sh
+```
+
+When you run CamSniff, the custom plugin will be executed during the scanning process.
+
 ---
 
 ## Configuration
@@ -147,11 +193,57 @@ CamSniff uses the `camcfg.json` file for scanning parameters. Example:
 - **Permission Issues:**  
   Always run as root to ensure necessary permissions for network scanning and dependency installation.
 
+- **Network Issues:**  
+  If you encounter network-related issues, ensure that your network connection is stable. You can also try restarting your network interface or router.
+
+- **Error Messages:**  
+  If you receive error messages during the scanning process, check the logs for detailed information. The logs are stored in `.log` files in the current directory.
+
 ---
 
 ## Contributing
 
 Contributions are welcome! Please submit issues or pull requests to help improve CamSniff.
+
+### Guidelines for New Contributors
+
+1. **Fork the Repository**  
+   Start by forking the CamSniff repository to your GitHub account.
+
+2. **Clone the Repository**  
+   Clone the forked repository to your local machine:
+
+   ```bash
+   git clone https://github.com/your-username/CamSniff.git
+   cd CamSniff
+   ```
+
+3. **Create a New Branch**  
+   Create a new branch for your feature or bug fix:
+
+   ```bash
+   git checkout -b feature-name
+   ```
+
+4. **Make Changes**  
+   Make your changes to the codebase. Ensure that your code follows the project's coding style and conventions.
+
+5. **Commit Changes**  
+   Commit your changes with a descriptive commit message:
+
+   ```bash
+   git commit -m "Add feature-name"
+   ```
+
+6. **Push Changes**  
+   Push your changes to your forked repository:
+
+   ```bash
+   git push origin feature-name
+   ```
+
+7. **Create a Pull Request**  
+   Open a pull request from your forked repository to the main CamSniff repository. Provide a detailed description of your changes and any relevant information.
 
 ---
 
@@ -179,3 +271,36 @@ For questions, suggestions, or issues, contact the author at john@on1.no
 ## Disclaimer
 
 This tool is intended for educational and research purposes only. Use it responsibly and ensure you have permission to scan and analyze any network or device. The authors are not responsible for any misuse. ⚠️
+
+---
+
+## Real-Time Notifications and Alerts
+
+CamSniff provides real-time notifications and alerts for detected vulnerabilities and issues. These notifications can help you stay informed about potential security risks and take immediate action.
+
+### Enabling Real-Time Notifications
+
+To enable real-time notifications, ensure that the `notifications_enabled` parameter is set to `true` in the `camcfg.json` file:
+
+```json
+{
+  "notifications_enabled": true
+}
+```
+
+### Configuring Notification Channels
+
+You can configure different notification channels to receive alerts. For example, you can set up email notifications or integrate with messaging platforms like Slack. Update the `notification_channels` parameter in the `camcfg.json` file:
+
+```json
+{
+  "notification_channels": {
+    "email": "your-email@example.com",
+    "slack": "https://hooks.slack.com/services/your/slack/webhook"
+  }
+}
+```
+
+### Viewing Alerts
+
+Real-time alerts will be displayed in the terminal during the scanning process. Additionally, you can view detailed alert logs in the `.alerts.log` file in the current directory.

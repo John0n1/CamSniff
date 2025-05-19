@@ -23,10 +23,39 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # ----------------------------------------
+# Check for apt-get availability
+# ----------------------------------------
+if ! command -v apt-get &>/dev/null; then
+  log "ERROR: apt-get is not available. Please install it and try again."
+  exit 1
+fi
+
+# ----------------------------------------
+# Retry function for network-related commands
+# ----------------------------------------
+retry() {
+  local n=1
+  local max=5
+  local delay=5
+  while true; do
+    "$@" && break || {
+      if [[ $n -lt $max ]]; then
+        ((n++))
+        log "Command failed. Attempt $n/$max:"
+        sleep $delay;
+      else
+        log "The command has failed after $n attempts."
+        return 1
+      fi
+    }
+  done
+}
+
+# ----------------------------------------
 # Apt-get update
 # ----------------------------------------
 log "Updating package list..."
-apt-get update -qq
+retry apt-get update -qq
 
 # ----------------------------------------
 # Core packages
@@ -47,7 +76,7 @@ else
       log_installed "$pkg"
     else
       log_install "$pkg"
-      apt-get install -y -qq "$pkg" || { log "ERROR: Failed to install $pkg"; exit 1; }
+      retry apt-get install -y -qq "$pkg" || { log "ERROR: Failed to install $pkg"; exit 1; }
     fi
   done
 
@@ -56,14 +85,14 @@ else
   # ----------------------------------------
   if ! command -v gh &>/dev/null; then
     log_install "GitHub CLI"
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    retry curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
       && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
       && printf 'deb [arch=%s signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main\n' \
          "$(dpkg --print-architecture)" \
       | tee /etc/apt/sources.list.d/github-cli.list >/dev/null
-    apt-get update -qq
-    apt-get install -y -qq gh
+    retry apt-get update -qq
+    retry apt-get install -y -qq gh
   else
     log_installed "GitHub CLI"
   fi
@@ -144,9 +173,9 @@ fi
 source "$VENV_DIR/bin/activate"
 
 log "Upgrading pip"
-pip install --upgrade pip --quiet
+retry pip install --upgrade pip --quiet
 
 log_install "Python packages"
-pip install --no-cache-dir wsdiscovery opencv-python --quiet
+retry pip install --no-cache-dir wsdiscovery opencv-python --quiet
 
 log "All done 🎉"

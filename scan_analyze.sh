@@ -139,6 +139,12 @@ scan_rtmp(){
   rtmp-fuzzer -u "rtmp://$1" -o "/tmp/rtmp_fuzz_$1.log" &>/dev/null && log "[FUZZ] Results saved to /tmp/rtmp_fuzz_$1.log"
 }
 
+# Function to scan MQTT
+scan_mqtt(){
+  log "[MQTT] Starting MQTT scan on $1"
+  mosquitto_sub -h "$1" -t "#" -C 1 -W 5 &>/dev/null && log "[MQTT] MQTT broker found on $1"
+}
+
 # Function to perform a sweep
 sweep(){
   log_debug "Starting sweep"
@@ -175,6 +181,7 @@ sweep(){
       554|8554|10554|5544|1055) scan_rtsp "$ip" "$port" ;;
       80|8080|8000|81|443)      scan_http "$ip" "$port" ;;
       161)                      scan_snmp "$ip"    ;;
+      1883|8883)                scan_mqtt "$ip"    ;;
     esac
   done
 
