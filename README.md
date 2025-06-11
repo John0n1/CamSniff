@@ -287,7 +287,7 @@ Contributions are welcome! Please submit issues or pull requests to help improve
    Clone the forked repository to your local machine:
 
    ```bash
-   git clone https://github.com/your-username/CamSniff.git
+   git clone https://github.com/John0m1/CamSniff.git
    cd CamSniff
    ```
 
@@ -295,7 +295,7 @@ Contributions are welcome! Please submit issues or pull requests to help improve
    Create a new branch for your feature or bug fix:
 
    ```bash
-   git checkout -b feature-name
+   git checkout -b camsniff-feature
    ```
 
 4. **Make Changes**  
@@ -305,7 +305,7 @@ Contributions are welcome! Please submit issues or pull requests to help improve
    Commit your changes with a descriptive commit message:
 
    ```bash
-   git commit -m "Add feature-name"
+   git commit -m "Add camsniff-feature"
    ```
 
 6. **Push Changes**  
@@ -322,10 +322,7 @@ Contributions are welcome! Please submit issues or pull requests to help improve
 
 ## Acknowledgments
 
-- Thanks to [CamioCam](https://github.com/CamioCam) for RTSP paths and CVE database.
-- [OpenCV](https://opencv.org/) for computer vision.
-- [FFmpeg](https://ffmpeg.org/) for multimedia processing.
-- [Hydra](https://github.com/vanhauser-thc/hydra), [Gobuster](https://github.com/OJ/gobuster), [Masscan](https://github.com/robertdavidgraham/masscan), [Nmap](https://nmap.org/), [tcpdump](https://www.tcpdump.org/), [TShark](https://www.wireshark.org/), [Arp-scan](https://nmap.org/arp-scan/), [CoAP](https://coap.technology/), [RTMPDump](https://rtmpdump.mplayerhq.hu/), and all other open-source projects that make CamSniff possible.
+Thanks to the other open-source projects that make CamSniff possible.
 
 ---
 
@@ -344,36 +341,3 @@ For questions, suggestions, or issues, contact the author at john@on1.no
 ## Disclaimer
 
 This tool is intended for educational and research purposes only. Use it responsibly and ensure you have permission to scan and analyze any network or device. The authors are not responsible for any misuse. ⚠️
-
----
-
-## Real-Time Notifications and Alerts
-
-CamSniff provides real-time notifications and alerts for detected vulnerabilities and issues. These notifications can help you stay informed about potential security risks and take immediate action.
-
-### Enabling Real-Time Notifications
-
-To enable real-time notifications, ensure that the `notifications_enabled` parameter is set to `true` in the `camcfg.json` file:
-
-```json
-{
-  "notifications_enabled": true
-}
-```
-
-### Configuring Notification Channels
-
-You can configure different notification channels to receive alerts. For example, you can set up email notifications or integrate with messaging platforms like Slack. Update the `notification_channels` parameter in the `camcfg.json` file:
-
-```json
-{
-  "notification_channels": {
-    "email": "your-email@example.com",
-    "slack": "https://hooks.slack.com/services/your/slack/webhook"
-  }
-}
-```
-
-### Viewing Alerts
-
-Real-time alerts will be displayed in the terminal during the scanning process. Additionally, you can view detailed alert logs in the `.alerts.log` file in the current directory.
