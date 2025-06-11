@@ -30,11 +30,19 @@
 
 ## Features
 
+- **Enhanced Camera Identification**  
+  Advanced fingerprinting of IP cameras with brand detection (Hikvision, Dahua, Axis, etc.)
+
 - **Network Scanning**  
   Identify active devices using tools like `fping`, `arp-scan`, `masscan`, `nmap`, `onesixtyone`, and more.
 
 - **Protocol Support**  
-  Scan and analyze RTSP, HTTP, CoAP, RTMP, and HLS protocols.
+  Scan and analyze RTSP, HTTP, CoAP, RTMP, and HLS protocols with enhanced detection methods.
+
+- **Structured Output & Reporting**  
+  - JSON and text-based summary reports
+  - Organized output directories with logs, screenshots, and analysis
+  - Real-time camera discovery tracking
 
 - **Brute-Forcing**  
   - Credentials brute-forcing with `hydra` and `medusa`.
@@ -43,11 +51,20 @@
 - **Vulnerability Analysis**  
   Automated checks for known CVEs based on device information.
 
-- **AI-Based Insights**  
-  Detect IR spots and other patterns in camera streams using OpenCV.
+- **Enhanced AI-Based Insights**  
+  - Detect IR spots and motion areas in camera streams using OpenCV
+  - Brightness analysis for night vision detection
+  - Comprehensive image analysis with structured output
 
-- **Stream Management**  
-  Display camera streams in a mosaic view using `ffmpeg` and `ffplay`.
+- **Advanced Stream Management**  
+  - Enhanced mosaic view with camera information overlay
+  - Optimal grid layouts for multiple cameras
+  - Real-time camera feed management
+
+- **Automation & Command Line Options**  
+  - Full automation mode for unattended scanning
+  - Custom target subnet specification
+  - Quiet mode and skip prompts options
 
 - **Plugin Support**  
   Extend functionality with custom Bash or Python scripts in the `plugins` directory.
@@ -123,9 +140,27 @@ To perform a basic network scan and identify cameras, simply run the following c
 sudo ./camsniff.sh
 ```
 
-This will start the tool, check for dependencies, and begin scanning your network for devices. The identified cameras will be displayed in a mosaic view.
+This will start the tool, check for dependencies, and begin scanning your network for devices. The identified cameras will be displayed in an enhanced mosaic view with comprehensive reporting.
 
-#### Example 2: Custom Configuration
+#### Example 2: Automated Scan
+
+For fully automated scanning without prompts:
+
+```bash
+sudo ./camsniff.sh --auto
+```
+
+This enables full automation mode, perfect for scheduled scans or integration with other tools.
+
+#### Example 3: Custom Target Network
+
+To scan a specific subnet:
+
+```bash
+sudo ./camsniff.sh --target 192.168.1.0/24
+```
+
+#### Example 4: Quiet Mode with Custom Configuration
 
 You can customize the scanning parameters by editing the `camcfg.json` file. For example, to change the masscan rate and the number of maximum streams, update the file as follows:
 
@@ -136,13 +171,13 @@ You can customize the scanning parameters by editing the `camcfg.json` file. For
 }
 ```
 
-Save the file and run the tool again:
+Save the file and run the tool in quiet mode:
 
 ```bash
-sudo ./camsniff.sh
+sudo ./camsniff.sh --yes --quiet
 ```
 
-#### Example 3: Using Plugins
+#### Example 5: Using Plugins
 
 To extend the functionality of CamSniff, you can add custom scripts to the `plugins` directory. For example, create a new plugin script `plugins/custom_plugin.sh`:
 
@@ -158,6 +193,44 @@ chmod +x plugins/custom_plugin.sh
 ```
 
 When you run CamSniff, the custom plugin will be executed during the scanning process.
+
+---
+
+## Enhanced Output and Reporting
+
+CamSniff 5.15.25 now provides comprehensive structured output and reporting:
+
+### Output Directory Structure
+```
+/tmp/camsniff_results_YYYYMMDD_HHMMSS/
+├── logs/           # Scan logs and debug information
+├── screenshots/    # Camera snapshots with AI analysis
+└── reports/        # Summary reports and structured data
+    ├── summary_YYYYMMDD_HHMMSS.txt    # Human-readable summary
+    ├── summary_YYYYMMDD_HHMMSS.json   # Machine-readable summary
+    ├── cameras.json                    # Detailed camera information
+    └── analysis_IP.json               # Per-camera AI analysis
+```
+
+### Camera Information
+Each discovered camera is logged with:
+- IP address and port
+- Protocol type (RTSP, HTTP, etc.)
+- Device manufacturer (when detectable)
+- Credentials used (if any)
+- AI analysis results (IR detection, motion areas, brightness)
+
+### Command Line Options
+```bash
+sudo ./camsniff.sh [OPTIONS]
+
+Options:
+  -y, --yes     Skip confirmation prompts
+  -q, --quiet   Reduce output verbosity
+  -a, --auto    Full automation mode (skip all prompts)
+  -t, --target  Specify target subnet (e.g., 192.168.1.0/24)
+  -h, --help    Show this help message
+```
 
 ---
 
