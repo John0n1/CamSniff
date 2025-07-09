@@ -11,6 +11,7 @@ override_dh_auto_clean:
 
 override_dh_auto_build:
 	# No build step needed for shell scripts
+	: # No-op to prevent make errors
 
 override_dh_auto_test:
 	# Basic syntax check
