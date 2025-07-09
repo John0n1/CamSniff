@@ -7,18 +7,18 @@ echo "=== CamSniff Package Compliance Test ==="
 # Test 1: Help functionality
 echo "Testing help functionality..."
 if ./camsniff.sh --help >/dev/null 2>&1; then
-    echo "✓ Help functionality works"
+    echo "[PASS] Help functionality works"
 else
-    echo "✗ Help functionality failed"
+    echo "[FAIL] Help functionality failed"
     exit 1
 fi
 
 # Test 2: Syntax check all scripts
 echo "Testing script syntax..."
 if bash -n *.sh; then
-    echo "✓ All scripts have valid syntax"
+    echo "[PASS] All scripts have valid syntax"
 else
-    echo "✗ Script syntax errors found"
+    echo "[FAIL] Script syntax errors found"
     exit 1
 fi
 
