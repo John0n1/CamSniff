@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################################
-# CamSniff 5.15.25 – Enhanced Camera Reconnaissance Tool
+# CamSniff 1.0.1 – Enhanced Camera Reconnaissance Tool
 # https://github.com/John0n1/CamSniff
 ###############################################################################
 set -euo pipefail
@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      echo "CamSniff 5.15.25 - Enhanced Camera Reconnaissance Tool"
+      echo "CamSniff 1.0.1 - Enhanced Camera Reconnaissance Tool"
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
@@ -83,7 +83,7 @@ if (( !QUIET_MODE )); then
 '--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------'
 
 EOF
-  echo -e "${YELLOW}CamSniff 5.15.25 – Enhanced Camera Reconnaissance${RESET}"
+  echo -e "${YELLOW}CamSniff 1.0.1 – Enhanced Camera Reconnaissance${RESET}"
   echo -e "${YELLOW}What will happen:${RESET}"
   echo -e "${CYAN}1.${RESET} Dependencies will be checked and installed if missing."
   echo -e "${CYAN}2.${RESET} Network scanning will begin to identify active devices."
@@ -170,9 +170,11 @@ VENV="$PWD/.camvenv"
 
 # Determine data directory for supporting scripts
 SCRIPT_PATH=$(readlink -f "$0")
-if [[ "$(basename "$SCRIPT_PATH")" == "camsniff" || "$(basename "$SCRIPT_PATH")" == "camsniff.sh" ]]; then
+if [[ "$(basename "$SCRIPT_PATH")" == "camsniff" && "$(dirname "$SCRIPT_PATH")" == "/usr/bin" ]]; then
+  # Running as installed package
   DATADIR="/usr/share/camsniff"
 else
+  # Running from source directory
   DATADIR="$(dirname "$SCRIPT_PATH")"
 fi
 

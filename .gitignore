@@ -1,1 +1,7 @@
-debian
+debian/
+*.deb
+build-deb.sh
+.camvenv/
+.deps_installed
+camcfg.json
+plugins/

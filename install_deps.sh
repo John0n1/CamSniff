@@ -176,6 +176,6 @@ log "Upgrading pip"
 retry pip install --upgrade pip --quiet
 
 log_install "Python packages"
-retry pip install --no-cache-dir wsdiscovery opencv-python --quiet
+retry pip install --no-cache-dir wsdiscovery opencv-python requests --quiet
 
 log "All done 🎉"

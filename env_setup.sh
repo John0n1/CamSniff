@@ -23,7 +23,9 @@ read -r -d '' DEFAULT_CFG <<'JSON'
   "masscan_rate": 20000,
   "hydra_rate": 16,
   "max_streams": 4,
-  "cve_db": "/usr/share/cve/cve-2025.json",
+  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",
+  "cve_cache_dir": "/tmp/cve_cache",
+  "cve_current_year": "2025",
   "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
   "snmp_communities": ["public", "private", "camera", "admin", "cam", "cisco", "default", "guest", "test"],
@@ -62,8 +64,14 @@ log_debug "Loaded hydra_rate: $HYDRA_RATE"
 MAX_STREAMS=$(JQ -r '.max_streams' camcfg.json) || { log_debug "Failed to load max_streams"; exit 1; }
 log_debug "Loaded max_streams: $MAX_STREAMS"
 
-CVE_DB=$(JQ -r '.cve_db' camcfg.json) || { log_debug "Failed to load cve_db"; exit 1; }
-log_debug "Loaded cve_db: $CVE_DB"
+CVE_GITHUB_REPO=$(JQ -r '.cve_github_repo' camcfg.json) || { log_debug "Failed to load cve_github_repo"; exit 1; }
+log_debug "Loaded cve_github_repo: $CVE_GITHUB_REPO"
+
+CVE_CACHE_DIR=$(JQ -r '.cve_cache_dir' camcfg.json) || { log_debug "Failed to load cve_cache_dir"; exit 1; }
+log_debug "Loaded cve_cache_dir: $CVE_CACHE_DIR"
+
+CVE_CURRENT_YEAR=$(JQ -r '.cve_current_year' camcfg.json) || { log_debug "Failed to load cve_current_year"; exit 1; }
+log_debug "Loaded cve_current_year: $CVE_CURRENT_YEAR"
 
 RTSP_LIST_URL=$(JQ -r '.dynamic_rtsp_url' camcfg.json) || { log_debug "Failed to load dynamic_rtsp_url"; exit 1; }
 log_debug "Loaded dynamic_rtsp_url: $RTSP_LIST_URL"
@@ -85,5 +93,47 @@ log_debug "SNMP_COMM_FILE created at $SNMP_COMM_FILE"
 # New: threads for Medusa fuzzing
 MEDUSA_THREADS=$(JQ -r '.medusa_threads' camcfg.json) || { log_debug "Failed to load medusa_threads"; exit 1; }
 log_debug "Loaded medusa_threads: $MEDUSA_THREADS"
+
+# Create CVE cache directory
+mkdir -p "$CVE_CACHE_DIR"
+log_debug "CVE cache directory created: $CVE_CACHE_DIR"
+
+# Initialize CVE checking system
+init_cve_system() {
+  log_debug "Initializing CVE system"
+  
+  # Create a simple index file for cached CVEs
+  CVE_INDEX_FILE="$CVE_CACHE_DIR/cve_index.json"
+  if [[ ! -f "$CVE_INDEX_FILE" ]]; then
+    echo "{}" > "$CVE_INDEX_FILE"
+    log_debug "Created CVE index file: $CVE_INDEX_FILE"
+  fi
+}
+
+# Call initialization
+init_cve_system
+
+# Validate CVE system dependencies
+validate_cve_dependencies() {
+  log_debug "Validating CVE system dependencies"
+  
+  # Check if requests library is available
+  if ! python3 -c "import requests; import json" 2>/dev/null; then
+    log_debug "WARNING: Python requests library not available, CVE checking may be limited"
+    return 1
+  fi
+  
+  # Check internet connectivity for GitHub API
+  if ! curl -sf --connect-timeout 5 "https://api.github.com" >/dev/null 2>&1; then
+    log_debug "WARNING: GitHub API not accessible, CVE checking will use cached data only"
+    return 1
+  fi
+  
+  log_debug "CVE system dependencies validated successfully"
+  return 0
+}
+
+# Call validation during initialization
+validate_cve_dependencies
 
 log_debug "Finished env_setup.sh"

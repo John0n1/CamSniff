@@ -73,7 +73,9 @@
 
 ## Requirements
 
-CamSniff is designed for Linux systems, especially Debian-based distributions (e.g., Ubuntu). All dependencies are installed automatically when you run the script.
+CamSniff is designed for Linux systems, especially Debian-based distributions (e.g., Kali Linux). All dependencies are installed automatically when you run the script.
+
+The following tools and libaries make up the core functionality of CamSniff. A big thanks to the developers of these tools for their contributions to the open-source community.
 
 **Core Tools:**  
 `bash`, `curl`, `jq`, `nc`, `ffmpeg`, `ffplay`
@@ -117,88 +119,20 @@ Download and install the latest DEB package from the [releases page](https://git
 
 ## Usage
 
-1. **Launch the Tool**  
-   Run `camsniff.sh` to start. An introduction will appear and you’ll be prompted to begin scanning.
-
-2. **Scanning**  
-   - Scan your network for devices and identify cameras.
-   - Analyze and display camera streams in a mosaic view.
-
-3. **Plugins**  
-   - Extend functionality by adding `.sh` or `.py` scripts to the `plugins` directory.
-
-4. **Logs**  
-   - All logs are stored in `.log` files for debugging and analysis.
-
-### Detailed Usage Examples
-
-#### Example 1: Basic Network Scan
-
-To perform a basic network scan and identify cameras, simply run the following command:
+Simply run the main script "`camsniff.sh`" with root privileges to start the interactive mode:
 
 ```bash
 sudo ./camsniff.sh
 ```
-
-This will start the tool, check for dependencies, and begin scanning your network for devices. The identified cameras will be displayed in an enhanced mosaic view with comprehensive reporting.
-
-#### Example 2: Automated Scan
-
-For fully automated scanning without prompts:
+If you install the DEB package, you can use the command:
 
 ```bash
-sudo ./camsniff.sh --auto
+sudo camsniff
 ```
-
-This enables full automation mode, perfect for scheduled scans or integration with other tools.
-
-#### Example 3: Custom Target Network
-
-To scan a specific subnet:
-
-```bash
-sudo ./camsniff.sh --target 192.168.1.0/24
-```
-
-#### Example 4: Quiet Mode with Custom Configuration
-
-You can customize the scanning parameters by editing the `camcfg.json` file. For example, to change the masscan rate and the number of maximum streams, update the file as follows:
-
-```json
-{
-  "masscan_rate": 50000,
-  "max_streams": 8
-}
-```
-
-Save the file and run the tool in quiet mode:
-
-```bash
-sudo ./camsniff.sh --yes --quiet
-```
-
-#### Example 5: Using Plugins
-
-To extend the functionality of CamSniff, you can add custom scripts to the `plugins` directory. For example, create a new plugin script `plugins/custom_plugin.sh`:
-
-```bash
-#!/usr/bin/env bash
-echo "Custom plugin executed!"
-```
-
-Make the script executable:
-
-```bash
-chmod +x plugins/custom_plugin.sh
-```
-
-When you run CamSniff, the custom plugin will be executed during the scanning process.
-
----
 
 ## Enhanced Output and Reporting
 
-CamSniff 5.15.25 now provides comprehensive structured output and reporting:
+CamSniff 1.0.1 now provides comprehensive structured output and reporting:
 
 ### Output Directory Structure
 ```
@@ -211,6 +145,11 @@ CamSniff 5.15.25 now provides comprehensive structured output and reporting:
     ├── cameras.json                    # Detailed camera information
     └── analysis_IP.json               # Per-camera AI analysis
 ```
+**Key Features:**
+- **Real-time CVE data**: Fetches the latest vulnerability information from [CVEProject/cvelistV5](https://github.com/CVEProject/cvelistV5)
+- **Smart caching**: Results are cached locally for 24 hours to improve performance
+- **Device-specific searches**: Automatically searches for CVEs related to detected camera brands (Hikvision, Dahua, Axis, etc.)
+- **Structured CVE data**: Parses official CVE JSON format for accurate vulnerability information
 
 ### Camera Information
 Each discovered camera is logged with:
@@ -236,7 +175,7 @@ Options:
 
 ## Configuration
 
-CamSniff uses the `camcfg.json` file for scanning parameters. Example:
+CamSniff uses `camcfg.json` for scanning parameters. Example:
 
 ```json
 {
@@ -245,7 +184,9 @@ CamSniff uses the `camcfg.json` file for scanning parameters. Example:
   "masscan_rate": 20000,
   "hydra_rate": 16,
   "max_streams": 4,
-  "cve_db": "/usr/share/cve/cve-2025.json",
+  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",
+  "cve_cache_dir": "/tmp/cve_cache",
+  "cve_current_year": "2025",
   "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
   "snmp_communities": ["public", "private", "camera", "admin"],
@@ -320,6 +261,12 @@ Contributions are welcome! Please submit issues or pull requests to help improve
 
 ---
 
+## Enhanced CVE Detection
+
+CamSniff 1.0.1 now includes dynamic CVE detection that sources vulnerability information directly from the official CVE project repository on GitHub.
+
+
+
 ## Acknowledgments
 
 Thanks to the other open-source projects that make CamSniff possible.
@@ -341,3 +288,6 @@ For questions, suggestions, or issues, contact the author at john@on1.no
 ## Disclaimer
 
 This tool is intended for educational and research purposes only. Use it responsibly and ensure you have permission to scan and analyze any network or device. The authors are not responsible for any misuse. ⚠️
+
+---
+
