@@ -1,7 +1,18 @@
-debian/
+# Build-generated debian artifacts (keep debian/ source directory)
 *.deb
 build-deb.sh
 .camvenv/
 .deps_installed
 camcfg.json
 plugins/
+
+# Build artifacts
+camsniff
+/build/
+/dist/
+
+# Temporary and cache files
+/tmp/
+*.tmp
+*.log
+*.cache

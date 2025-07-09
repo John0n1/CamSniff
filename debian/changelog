@@ -1,0 +1,11 @@
+camsniff (1.0.1-1) unstable; urgency=medium
+
+  * Initial Debian package release
+  * Enhanced camera reconnaissance tool
+  * CVE vulnerability checking integration
+  * RTSP stream identification and testing
+  * SNMP community enumeration
+  * Web interface discovery and fuzzing
+  * Comprehensive reporting and logging
+
+ -- John H. Mitander <john@on1.no>  Wed, 09 Jul 2025 20:57:00 +0000

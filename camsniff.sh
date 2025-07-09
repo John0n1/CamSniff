@@ -117,7 +117,13 @@ declare -A DEVICE_INFO
 FIRST_RUN=1
 
 # Enhanced logging and output directories
-OUTPUT_DIR="/tmp/camsniff_results_$(date +%Y%m%d_%H%M%S)"
+if [[ "$DATADIR" == "/usr/share/camsniff" ]]; then
+  # Running as installed package - use /var/log for output
+  OUTPUT_DIR="/var/log/camsniff/camsniff_results_$(date +%Y%m%d_%H%M%S)"
+else
+  # Running from source directory - use /tmp
+  OUTPUT_DIR="/tmp/camsniff_results_$(date +%Y%m%d_%H%M%S)"
+fi
 mkdir -p "$OUTPUT_DIR"/{logs,screenshots,reports}
 
 # Initialize JSON report file
@@ -187,7 +193,18 @@ fi
 
 #— Install dependencies once (requires root)
 log_debug "Checking dependencies"
-if [[ -z "${SKIP_DEPS-}" && ! -f .deps_installed ]]; then
+
+# Determine dependency tracking file location
+if [[ "$DATADIR" == "/usr/share/camsniff" ]]; then
+  # Running as installed package - dependencies handled by package manager
+  DEPS_INSTALLED_FILE="/var/lib/camsniff/.deps_installed"
+  mkdir -p "$(dirname "$DEPS_INSTALLED_FILE")" 2>/dev/null || true
+else
+  # Running from source directory
+  DEPS_INSTALLED_FILE=".deps_installed"
+fi
+
+if [[ -z "${SKIP_DEPS-}" && ! -f "$DEPS_INSTALLED_FILE" ]]; then
   log_debug "Running setup.sh, env_setup.sh, and install_deps.sh to handle dependencies"
   if (( EUID != 0 )); then
     log "ERROR: This script must be run as root to install dependencies."
@@ -211,7 +228,7 @@ if [[ -z "${SKIP_DEPS-}" && ! -f .deps_installed ]]; then
       exit 1
     fi
 
-    touch .deps_installed
+    touch "$DEPS_INSTALLED_FILE"
   fi
 fi
 
