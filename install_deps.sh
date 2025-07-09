@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
-name=""
 set -euo pipefail
 IFS=$'\n\t'
 
 # Skip if dependencies already installed
 STAMP_FILE=".deps_installed"
+
+# Detect if running from installed package
+SCRIPT_PATH="$0"
+if [[ "$SCRIPT_PATH" == *"/usr/share/camsniff/"* ]]; then
+  PACKAGE_MODE=1
+else
+  PACKAGE_MODE=0
+fi
 
 # ----------------------------------------
 # Logging helpers
@@ -105,7 +112,8 @@ else
   fi
 
   # ----------------------------------------
-  # Fuzzer installer (optional)
+  # Optional fuzzer installer (for development/advanced use)
+  # Note: These are optional tools, not packaged by Debian/Kali
   # ----------------------------------------
   install_fuzzer(){
     local name=$1 repo=$2 bin=$3 dest="/opt/$name"
@@ -113,6 +121,13 @@ else
       log_installed "$name"
       return
     fi
+    
+    # Skip installing custom tools when running as installed package
+    if (( PACKAGE_MODE )); then
+      log "Skipping optional tool $name (package installation mode)"
+      return
+    fi
+    
     log_install "$name"
     rm -rf "$dest"
     if gh repo clone "$repo" "$dest" -- --depth 1 2>/dev/null \
@@ -136,23 +151,28 @@ else
 
   # ----------------------------------------
   # Build libcoap client only (docs disabled)
+  # Note: This is for CoAP protocol support
   # ----------------------------------------
-  log_build "libcoap"
-  rm -rf /opt/libcoap.build
-  git clone --depth 1 https://github.com/obgm/libcoap.git /opt/libcoap.build
-  mkdir -p /opt/libcoap.build/build
-  pushd /opt/libcoap.build/build >/dev/null
-    cmake .. \
-      -DENABLE_CLIENT_MODE=ON \
-      -DENABLE_EXAMPLES=ON \
-      -DENABLE_DOCS=OFF \
-      -DENABLE_DTLS=OFF \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX=/usr/local
-    make -j"$(nproc)" coap-client
-    install -m755 coap-client /usr/local/bin/
-  popd >/dev/null
-  log_installed "libcoap (coap-client)"
+  if (( !PACKAGE_MODE )); then
+    log_build "libcoap"
+    rm -rf /opt/libcoap.build
+    git clone --depth 1 https://github.com/obgm/libcoap.git /opt/libcoap.build
+    mkdir -p /opt/libcoap.build/build
+    pushd /opt/libcoap.build/build >/dev/null
+      cmake .. \
+        -DENABLE_CLIENT_MODE=ON \
+        -DENABLE_EXAMPLES=ON \
+        -DENABLE_DOCS=OFF \
+        -DENABLE_DTLS=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local
+      make -j"$(nproc)" coap-client
+      install -m755 coap-client /usr/local/bin/
+    popd >/dev/null
+    log_installed "libcoap (coap-client)"
+  else
+    log "Skipping libcoap build (package installation mode - use system package if available)"
+  fi
 
   # Mark deps as installed
   touch "$STAMP_FILE"

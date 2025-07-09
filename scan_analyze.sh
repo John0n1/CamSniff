@@ -516,14 +516,22 @@ scan_snmp(){
 
 # Function to scan CoAP (enhanced for aggressive scanning)
 scan_coap(){
-  for p in .well-known/core media stream status; do
-    out=$(timeout 3 coap-client -m get -s 2 "coap://$1/$p" 2>/dev/null)
-    [[ $out ]] && log "[CoAP] coap://$1/$p → ${out:0:80}"
-  done
+  if command -v coap-client &>/dev/null; then
+    for p in .well-known/core media stream status; do
+      out=$(timeout 3 coap-client -m get -s 2 "coap://$1/$p" 2>/dev/null)
+      [[ $out ]] && log "[CoAP] coap://$1/$p → ${out:0:80}"
+    done
+  else
+    log "[CoAP] coap-client not available, skipping detailed CoAP enumeration"
+  fi
 
-  # Aggressive CoAP fuzzing
-  log "[FUZZ] Starting CoAP fuzzing on $1"
-  coap-fuzzer -u "coap://$1" -o "/tmp/coap_fuzz_$1.log" &>/dev/null && log "[FUZZ] Results saved to /tmp/coap_fuzz_$1.log"
+  # Aggressive CoAP fuzzing (optional)
+  if command -v coap-fuzzer &>/dev/null; then
+    log "[FUZZ] Starting CoAP fuzzing on $1"
+    coap-fuzzer -u "coap://$1" -o "/tmp/coap_fuzz_$1.log" &>/dev/null && log "[FUZZ] Results saved to /tmp/coap_fuzz_$1.log"
+  else
+    log "[FUZZ] coap-fuzzer not available, skipping CoAP fuzzing"
+  fi
 }
 
 # Function to scan RTMP (enhanced for aggressive scanning)
@@ -533,9 +541,13 @@ scan_rtmp(){
     timeout 4 rtmpdump --timeout 2 -r "$u" --stop 1 &>/dev/null && { log "[RTMP] $u"; add_stream "$u"; }
   done
 
-  # Aggressive RTMP fuzzing
-  log "[FUZZ] Starting RTMP fuzzing on $1"
-  rtmp-fuzzer -u "rtmp://$1" -o "/tmp/rtmp_fuzz_$1.log" &>/dev/null && log "[FUZZ] Results saved to /tmp/rtmp_fuzz_$1.log"
+  # Aggressive RTMP fuzzing (optional)
+  if command -v rtmp-fuzzer &>/dev/null; then
+    log "[FUZZ] Starting RTMP fuzzing on $1"
+    rtmp-fuzzer -u "rtmp://$1" -o "/tmp/rtmp_fuzz_$1.log" &>/dev/null && log "[FUZZ] Results saved to /tmp/rtmp_fuzz_$1.log"
+  else
+    log "[FUZZ] rtmp-fuzzer not available, skipping RTMP fuzzing"
+  fi
 }
 
 # Function to scan MQTT
