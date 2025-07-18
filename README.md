@@ -261,12 +261,6 @@ Contributions are welcome! Please submit issues or pull requests to help improve
 
 ---
 
-## Enhanced CVE Detection
-
-CamSniff 1.0.1 now includes dynamic CVE detection that sources vulnerability information directly from the official CVE project repository on GitHub.
-
-
-
 ## Acknowledgments
 
 Thanks to the other open-source projects that make CamSniff possible.
@@ -278,14 +272,6 @@ Thanks to the other open-source projects that make CamSniff possible.
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
-
-## Contact
-
-For questions, suggestions, or issues, contact the author at john@on1.no
-
----
-
-## Disclaimer
 
 This tool is intended for educational and research purposes only. Use it responsibly and ensure you have permission to scan and analyze any network or device. The authors are not responsible for any misuse. ⚠️
 
