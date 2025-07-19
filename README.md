@@ -1,4 +1,4 @@
-# CamSniff - Camera Reconnaissance 📡
+# CamSniff - Camera Reconnaissance
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/John0n1/CamSniff?style=flat-square&logo=github&label=Latest%20Release)](https://github.com/John0n1/CamSniff/releases/latest)
 [![License](https://img.shields.io/github/license/John0n1/CamSniff?style=flat-square&logo=github)](https://github.com/John0n1/CamSniff/blob/main/LICENSE)
