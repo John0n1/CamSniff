@@ -12,9 +12,8 @@ ETCDIR = /etc/camsniff
 VERSION := 1.0.1
 
 # Source files
-SCRIPTS := camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh test_cve.sh
-MAIN_SCRIPT := camsniff.sh
-CONFIG_FILES := 
+SCRIPTS := camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh
+TEST_SCRIPTS := test_cve.sh test_package_compliance.sh
 DOCS := README.md LICENSE
 
 .PHONY: all build install uninstall clean test
@@ -51,6 +50,26 @@ install: build
 	# Install man page if it exists
 	test -f camsniff.1 && install -m 644 camsniff.1 $(DESTDIR)$(MANDIR)/ || true
 	
+	# Create default configuration if it doesn't exist
+	@if [ ! -f "$(DESTDIR)$(ETCDIR)/camcfg.json" ]; then \
+		echo "Creating default configuration..."; \
+		echo '{\
+		  "sleep_seconds": 45,\
+		  "nmap_ports": "1-65535",\
+		  "masscan_rate": 20000,\
+		  "hydra_rate": 16,\
+		  "max_streams": 4,\
+		  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",\
+		  "cve_cache_dir": "/tmp/cve_cache",\
+		  "cve_current_year": "2025",\
+		  "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",\
+		  "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",\
+		  "snmp_communities": ["public", "private", "camera", "admin"],\
+		  "medusa_threads": 8\
+		}' > "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
+		chmod 644 "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
+	fi
+	
 	# Create default config directory
 	@echo "System directories created for configuration and logging"
 
@@ -74,7 +93,7 @@ clean:
 test:
 	@echo "Running tests..."
 	# Syntax check all shell scripts
-	bash -n $(SCRIPTS)
+	bash -n $(SCRIPTS) $(TEST_SCRIPTS)
 	@echo "All tests passed!"
 
 # Development targets

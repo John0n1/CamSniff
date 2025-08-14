@@ -228,7 +228,7 @@ Contributions are welcome! Please submit issues or pull requests to help improve
    Clone the forked repository to your local machine:
 
    ```bash
-   git clone https://github.com/John0m1/CamSniff.git
+   git clone https://github.com/John0n1/CamSniff.git
    cd CamSniff
    ```
 
