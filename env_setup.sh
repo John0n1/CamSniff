@@ -16,7 +16,7 @@ if ! command -v jq &>/dev/null; then
 fi
 
 # Default configuration
-read -r -d '' DEFAULT_CFG <<'JSON'
+read -r -d '' DEFAULT_CFG <<'JSON' || true
 {
   "sleep_seconds": 45,
   "nmap_ports": "1-65535",
@@ -48,8 +48,26 @@ done
 # Create configuration file if it does not exist
 if [[ -z "$CONFIG_FILE" ]]; then
   log_debug "camcfg.json not found, creating default configuration"
-  CONFIG_FILE="./camcfg.json"
-  printf '%s\n' "$DEFAULT_CFG" > "$CONFIG_FILE" || { log_debug "Failed to create $CONFIG_FILE"; exit 1; }
+  CONFIG_FILE=""
+  
+  # Try to create config file in preferred locations
+  set +e  # Temporarily disable exit on error
+  for TRY_PATH in "./camcfg.json" "$HOME/.camsniff/camcfg.json" "/tmp/camcfg.json"; do
+    TRY_DIR="$(dirname "$TRY_PATH")"
+    if mkdir -p "$TRY_DIR" 2>/dev/null; then
+      if printf '%s\n' "$DEFAULT_CFG" > "$TRY_PATH" 2>/dev/null; then
+        CONFIG_FILE="$TRY_PATH"
+        log_debug "Created default configuration at: $CONFIG_FILE"
+        break
+      fi
+    fi
+  done
+  set -e  # Re-enable exit on error
+  
+  if [[ -z "$CONFIG_FILE" ]]; then
+    log_debug "ERROR: Unable to create configuration file"
+    exit 1
+  fi
 fi
 
 log_debug "Using configuration file: $CONFIG_FILE"

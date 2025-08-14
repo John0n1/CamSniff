@@ -136,7 +136,7 @@ CamSniff 1.0.1 now provides comprehensive structured output and reporting:
 
 ### Output Directory Structure
 ```
-/tmp/camsniff_results_YYYYMMDD_HHMMSS/
+./output/results_YYYYMMDD_HHMMSS/
 ├── logs/           # Scan logs and debug information
 ├── screenshots/    # Camera snapshots with AI analysis
 └── reports/        # Summary reports and structured data

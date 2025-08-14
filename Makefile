@@ -53,20 +53,7 @@ install: build
 	# Create default configuration if it doesn't exist
 	@if [ ! -f "$(DESTDIR)$(ETCDIR)/camcfg.json" ]; then \
 		echo "Creating default configuration..."; \
-		echo '{\
-		  "sleep_seconds": 45,\
-		  "nmap_ports": "1-65535",\
-		  "masscan_rate": 20000,\
-		  "hydra_rate": 16,\
-		  "max_streams": 4,\
-		  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",\
-		  "cve_cache_dir": "/tmp/cve_cache",\
-		  "cve_current_year": "2025",\
-		  "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",\
-		  "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",\
-		  "snmp_communities": ["public", "private", "camera", "admin"],\
-		  "medusa_threads": 8\
-		}' > "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
+		printf '{\n  "sleep_seconds": 45,\n  "nmap_ports": "1-65535",\n  "masscan_rate": 20000,\n  "hydra_rate": 16,\n  "max_streams": 4,\n  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",\n  "cve_cache_dir": "/tmp/cve_cache",\n  "cve_current_year": "2025",\n  "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",\n  "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",\n  "snmp_communities": ["public", "private", "camera", "admin"],\n  "medusa_threads": 8\n}\n' > "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
 		chmod 644 "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
 	fi
 	
