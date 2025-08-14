@@ -16,7 +16,7 @@ if ! command -v jq &>/dev/null; then
 fi
 
 # Default configuration
-read -r -d '' DEFAULT_CFG <<'JSON'
+read -r -d '' DEFAULT_CFG <<'JSON' || true
 {
   "sleep_seconds": 45,
   "nmap_ports": "1-65535",
@@ -35,13 +35,42 @@ JSON
 
 log_debug "Checking for camcfg.json"
 
+# Look for config file in multiple locations
+CONFIG_FILE=""
+for CONFIG_PATH in "./camcfg.json" "/etc/camsniff/camcfg.json" "$HOME/.camsniff/camcfg.json"; do
+  if [[ -f "$CONFIG_PATH" ]]; then
+    CONFIG_FILE="$CONFIG_PATH"
+    log_debug "Found configuration at: $CONFIG_FILE"
+    break
+  fi
+done
+
 # Create configuration file if it does not exist
-if [[ ! -f camcfg.json ]]; then
+if [[ -z "$CONFIG_FILE" ]]; then
   log_debug "camcfg.json not found, creating default configuration"
-  printf '%s\n' "$DEFAULT_CFG" > camcfg.json || { log_debug "Failed to create camcfg.json"; exit 1; }
+  CONFIG_FILE=""
+  
+  # Try to create config file in preferred locations
+  set +e  # Temporarily disable exit on error
+  for TRY_PATH in "./camcfg.json" "$HOME/.camsniff/camcfg.json" "/tmp/camcfg.json"; do
+    TRY_DIR="$(dirname "$TRY_PATH")"
+    if mkdir -p "$TRY_DIR" 2>/dev/null; then
+      if printf '%s\n' "$DEFAULT_CFG" > "$TRY_PATH" 2>/dev/null; then
+        CONFIG_FILE="$TRY_PATH"
+        log_debug "Created default configuration at: $CONFIG_FILE"
+        break
+      fi
+    fi
+  done
+  set -e  # Re-enable exit on error
+  
+  if [[ -z "$CONFIG_FILE" ]]; then
+    log_debug "ERROR: Unable to create configuration file"
+    exit 1
+  fi
 fi
 
-log_debug "camcfg.json exists or was created successfully"
+log_debug "Using configuration file: $CONFIG_FILE"
 
 # Function to run jq command
 JQ(){ command jq "$@" || { log_debug "jq command failed"; exit 1; }; }
@@ -49,40 +78,40 @@ JQ(){ command jq "$@" || { log_debug "jq command failed"; exit 1; }; }
 log_debug "Loading configuration values"
 
 # Load configuration values
-SS=$(JQ -r '.sleep_seconds' camcfg.json) || { log_debug "Failed to load sleep_seconds"; exit 1; }
+SS=$(JQ -r '.sleep_seconds' "$CONFIG_FILE") || { log_debug "Failed to load sleep_seconds"; exit 1; }
 log_debug "Loaded sleep_seconds: $SS"
 
-PORTS=$(JQ -r '.nmap_ports' camcfg.json) || { log_debug "Failed to load nmap_ports"; exit 1; }
+PORTS=$(JQ -r '.nmap_ports' "$CONFIG_FILE") || { log_debug "Failed to load nmap_ports"; exit 1; }
 log_debug "Loaded nmap_ports: $PORTS"
 
-MASSCAN_RATE=$(JQ -r '.masscan_rate' camcfg.json) || { log_debug "Failed to load masscan_rate"; exit 1; }
+MASSCAN_RATE=$(JQ -r '.masscan_rate' "$CONFIG_FILE") || { log_debug "Failed to load masscan_rate"; exit 1; }
 log_debug "Loaded masscan_rate: $MASSCAN_RATE"
 
-HYDRA_RATE=$(JQ -r '.hydra_rate' camcfg.json) || { log_debug "Failed to load hydra_rate"; exit 1; }
+HYDRA_RATE=$(JQ -r '.hydra_rate' "$CONFIG_FILE") || { log_debug "Failed to load hydra_rate"; exit 1; }
 log_debug "Loaded hydra_rate: $HYDRA_RATE"
 
-MAX_STREAMS=$(JQ -r '.max_streams' camcfg.json) || { log_debug "Failed to load max_streams"; exit 1; }
+MAX_STREAMS=$(JQ -r '.max_streams' "$CONFIG_FILE") || { log_debug "Failed to load max_streams"; exit 1; }
 log_debug "Loaded max_streams: $MAX_STREAMS"
 
-CVE_GITHUB_REPO=$(JQ -r '.cve_github_repo' camcfg.json) || { log_debug "Failed to load cve_github_repo"; exit 1; }
+CVE_GITHUB_REPO=$(JQ -r '.cve_github_repo' "$CONFIG_FILE") || { log_debug "Failed to load cve_github_repo"; exit 1; }
 log_debug "Loaded cve_github_repo: $CVE_GITHUB_REPO"
 
-CVE_CACHE_DIR=$(JQ -r '.cve_cache_dir' camcfg.json) || { log_debug "Failed to load cve_cache_dir"; exit 1; }
+CVE_CACHE_DIR=$(JQ -r '.cve_cache_dir' "$CONFIG_FILE") || { log_debug "Failed to load cve_cache_dir"; exit 1; }
 log_debug "Loaded cve_cache_dir: $CVE_CACHE_DIR"
 
-CVE_CURRENT_YEAR=$(JQ -r '.cve_current_year' camcfg.json) || { log_debug "Failed to load cve_current_year"; exit 1; }
+CVE_CURRENT_YEAR=$(JQ -r '.cve_current_year' "$CONFIG_FILE") || { log_debug "Failed to load cve_current_year"; exit 1; }
 log_debug "Loaded cve_current_year: $CVE_CURRENT_YEAR"
 
-RTSP_LIST_URL=$(JQ -r '.dynamic_rtsp_url' camcfg.json) || { log_debug "Failed to load dynamic_rtsp_url"; exit 1; }
+RTSP_LIST_URL=$(JQ -r '.dynamic_rtsp_url' "$CONFIG_FILE") || { log_debug "Failed to load dynamic_rtsp_url"; exit 1; }
 log_debug "Loaded dynamic_rtsp_url: $RTSP_LIST_URL"
 
 # New: wordlist for directory brute forcing
-DIRB_WORDLIST=$(JQ -r '.dirb_wordlist' camcfg.json) || { log_debug "Failed to load dirb_wordlist"; exit 1; }
+DIRB_WORDLIST=$(JQ -r '.dirb_wordlist' "$CONFIG_FILE") || { log_debug "Failed to load dirb_wordlist"; exit 1; }
 log_debug "Loaded dirb_wordlist: $DIRB_WORDLIST"
 
 # New: SNMP communities list -> temp file for onesixtyone
 log_debug "Loading SNMP communities"
-mapfile -t SNMP_COMM_ARRAY < <(JQ -r '.snmp_communities[]' camcfg.json) || { log_debug "Failed to load snmp_communities"; exit 1; }
+mapfile -t SNMP_COMM_ARRAY < <(JQ -r '.snmp_communities[]' "$CONFIG_FILE") || { log_debug "Failed to load snmp_communities"; exit 1; }
 log_debug "Loaded SNMP communities: ${SNMP_COMM_ARRAY[*]}"
 
 SNMP_COMM_FILE=/tmp/.snmp_comms.txt
@@ -91,7 +120,7 @@ SNMP_COMMUNITIES="$SNMP_COMM_FILE"
 log_debug "SNMP_COMM_FILE created at $SNMP_COMM_FILE"
 
 # New: threads for Medusa fuzzing
-MEDUSA_THREADS=$(JQ -r '.medusa_threads' camcfg.json) || { log_debug "Failed to load medusa_threads"; exit 1; }
+MEDUSA_THREADS=$(JQ -r '.medusa_threads' "$CONFIG_FILE") || { log_debug "Failed to load medusa_threads"; exit 1; }
 log_debug "Loaded medusa_threads: $MEDUSA_THREADS"
 
 # Create CVE cache directory
