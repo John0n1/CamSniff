@@ -151,12 +151,11 @@ if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
   touch "$DEPS_INSTALLED_FILE"
 fi
 
-# Load RTSP paths
-RTSP_LIST_URL="https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv"
+# Load RTSP paths using URL from configuration
 if curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv; then
   mapfile -t RTSP_PATHS < <(awk -F'\t' '/^.*rtsp:\/\// {print $4}' /tmp/rtsp_paths.csv | sed 's/{{.*}}//g' | sort -u)
 else
-  log "ERROR: Failed to fetch RTSP paths."
+  log "ERROR: Failed to fetch RTSP paths from $RTSP_LIST_URL"
   exit 1
 fi
 
