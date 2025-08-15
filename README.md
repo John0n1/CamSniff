@@ -184,10 +184,10 @@ CamSniff uses `camcfg.json` for scanning parameters. Example:
   "masscan_rate": 20000,
   "hydra_rate": 16,
   "max_streams": 4,
-  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",
+  "cve_github_repo": "https://raw.githubusercontent.com/CVEProject/cvelistV5/tree/main/cves",
   "cve_cache_dir": "/tmp/cve_cache",
   "cve_current_year": "2025",
-  "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",
+  "dynamic_rtsp_url": "https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
   "snmp_communities": ["public", "private", "camera", "admin"],
   "medusa_threads": 8

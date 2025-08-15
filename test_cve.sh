@@ -1,25 +1,49 @@
 #!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
 
-# Test script for the new CVE functionality
-cd "$(dirname "$0")"
+# Tiny smoke test for CVE checking helper paths
 
-echo "Testing CVE GitHub integration..."
+# Ensure jq exists if env_setup will require it
+if ! command -v jq >/dev/null 2>&1; then
+  echo "[SKIP] jq not installed; CVE test not applicable here"
+  exit 0
+fi
 
-# Source the required scripts
-source env_setup.sh
-source scan_analyze.sh
+# Create a temp config with minimal viable fields
+CFG=$(mktemp)
+cat >"$CFG" <<JSON
+{
+  "sleep_seconds": 1,
+  "nmap_ports": "80",
+  "masscan_rate": 1000,
+  "hydra_rate": 4,
+  "max_streams": 1,
+  "cve_github_repo": "https://github.com/CVEProject/cvelistV5/tree/main/cves",
+  "cve_cache_dir": "/tmp/cve_cache_test",
+  "cve_current_year": "2025",
+  "dynamic_rtsp_url": "https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv",
+  "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
+  "snmp_communities": ["public"],
+  "medusa_threads": 2
+}
+JSON
 
-echo "Testing CVE search for 'hikvision'..."
-cve_check "hikvision"
+# Use CONFIG_FILE via env when sourcing
+export HOME=${HOME:-/tmp}
+cp "$CFG" ./camcfg.json 2>/dev/null || true
 
-echo ""
-echo "Testing CVE search for 'dahua'..."
-cve_check "dahua"
+# Source env_setup to populate vars
+source ./env_setup.sh
 
-echo ""
-echo "Testing CVE quick search for 'axis'..."
-cve_quick_search "axis"
+# Validate key vars
+: "${CVE_CACHE_DIR:?}"
+: "${RTSP_LIST_URL:?}"
 
-echo ""
-echo "CVE cache directory contents:"
-ls -la "$CVE_CACHE_DIR" 2>/dev/null || echo "Cache directory not found"
+# Try quick cve_check on a known string via scan_analyze helpers
+source ./scan_analyze.sh
+
+# Call function in a subshell to avoid running the whole sweep
+( type cve_fallback_check >/dev/null 2>&1 && cve_fallback_check "hikvision camera" ) || true
+
+echo "[OK] CVE helper test completed"

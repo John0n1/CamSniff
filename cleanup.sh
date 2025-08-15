@@ -2,19 +2,26 @@
 
 # Cleanup and exit handling
 
-# Ensure the script is run as root
-(( EUID == 0 )) || { echo "[-] sudo please"; exit 1; }
+## This file may be executed or sourced. When sourced, do not exit the caller.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  # Running directly: ensure we are root
+  (( EUID == 0 )) || { echo "[-] Please run with sudo"; exit 1; }
+fi
 
-# Cleanup function
+# Cleanup function exported for callers
 cleanup(){
-  log "Shutting down…"
+  echo "[+] Shutting down…"
   pkill -P $$               2>/dev/null || true
   pkill -f __camsniff_player 2>/dev/null || true
   killall avahi-daemon      2>/dev/null || true
 }
 
-# Trap signals and call cleanup function
-trap cleanup INT TERM EXIT
-trap 'cleanup; exit 0' SIGHUP
+export -f cleanup
+
+# If executed directly, install traps to run cleanup on exit
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  trap cleanup INT TERM EXIT
+  trap 'cleanup; exit 0' SIGHUP
+fi
 
 # End of script

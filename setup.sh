@@ -19,13 +19,12 @@ loading_bar(){
 }
 
 # Fallbacks for critical tools
-for tool in jq curl nc ffprobe ffplay; do
+for tool in jq curl nc ffmpeg ffplay; do
   if ! command -v "$tool" &>/dev/null; then
-    if [[ "$tool" == "jq" ]]; then
-      log "jq not found, installing…"
-      apt-get -y install jq >/dev/null 2>&1 || { log "ERROR: Failed to install jq"; exit 1; }
+    if [[ "$EUID" -ne 0 ]]; then
+      log "Warning: '$tool' not found. Please install it as root (e.g. sudo apt-get install $tool)"
     else
-      log "Warning: '$tool' not found. Installing it now…"
+      log "$tool not found, installing..."
       apt-get -y install "$tool" >/dev/null 2>&1 || { log "ERROR: Failed to install $tool"; exit 1; }
     fi
   fi

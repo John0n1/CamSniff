@@ -23,10 +23,10 @@ read -r -d '' DEFAULT_CFG <<'JSON' || true
   "masscan_rate": 20000,
   "hydra_rate": 16,
   "max_streams": 4,
-  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",
+  "cve_github_repo": "https://github.com/CVEProject/cvelistV5/tree/main/cves",
   "cve_cache_dir": "/tmp/cve_cache",
   "cve_current_year": "2025",
-  "dynamic_rtsp_url": "https://github.com/CamioCam/rtsp/blob/master/cameras/paths.csv",
+  "dynamic_rtsp_url": "https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
   "snmp_communities": ["public", "private", "camera", "admin", "cam", "cisco", "default", "guest", "test"],
   "medusa_threads": 8
@@ -105,6 +105,12 @@ log_debug "Loaded cve_current_year: $CVE_CURRENT_YEAR"
 RTSP_LIST_URL=$(JQ -r '.dynamic_rtsp_url' "$CONFIG_FILE") || { log_debug "Failed to load dynamic_rtsp_url"; exit 1; }
 log_debug "Loaded dynamic_rtsp_url: $RTSP_LIST_URL"
 
+# Auto-correct legacy RTSP URL source if found in existing configs
+if [[ "$RTSP_LIST_URL" == *"CamioCam/rtsp"* ]]; then
+  log_debug "Found legacy RTSP list URL; switching to project maintained list"
+  RTSP_LIST_URL="https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv"
+fi
+
 # New: wordlist for directory brute forcing
 DIRB_WORDLIST=$(JQ -r '.dirb_wordlist' "$CONFIG_FILE") || { log_debug "Failed to load dirb_wordlist"; exit 1; }
 log_debug "Loaded dirb_wordlist: $DIRB_WORDLIST"
@@ -166,3 +172,23 @@ validate_cve_dependencies() {
 validate_cve_dependencies
 
 log_debug "Finished env_setup.sh"
+
+# Runtime variables expected by scanners
+FIRST_RUN=${FIRST_RUN:-1}
+
+# Default credential sets for HTTP camera endpoints
+declare -a HTTP_CREDS
+HTTP_CREDS=(
+  "admin:admin"
+  "admin:12345"
+  "root:root"
+  "user:user"
+  "guest:guest"
+  ":"      # empty creds for open endpoints
+)
+
+# Optional hydra files can be overridden from environment; defaults generated on the fly
+HYDRA_USER_FILE=${HYDRA_USER_FILE:-}
+HYDRA_PASS_FILE=${HYDRA_PASS_FILE:-}
+HYDRA_COMBO_FILE=${HYDRA_COMBO_FILE:-}
+

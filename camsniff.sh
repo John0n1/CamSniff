@@ -130,7 +130,24 @@ log_device_info() {
   DEVICE_INFO["$ip"]="$type|$info"
 }
 
-# Source submodules from same dir
+###############################################
+# Dependencies install BEFORE sourcing modules #
+###############################################
+# Allow --help without sudo; require root for install and later scanning
+DEPS_INSTALLED_FILE="$SCRIPT_DIR/.deps_installed"
+if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
+  if (( EUID != 0 )); then
+    echo -e "${RED}ERROR: First run must be with sudo to install dependencies.${RESET}"
+    exit 1
+  fi
+  if [[ -f "$SCRIPT_DIR/install_deps.sh" ]]; then
+    log "Installing dependencies (first run)... this can take a while"
+    bash "$SCRIPT_DIR/install_deps.sh"
+  fi
+  touch "$DEPS_INSTALLED_FILE"
+fi
+
+# Source submodules from same dir (jq now available)
 for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh; do
   if [[ -f "$SCRIPT_DIR/$FILE" ]]; then
     log_debug "Sourcing $FILE"
@@ -141,22 +158,35 @@ for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh; do
   fi
 done
 
-# First-time dependency marker
-DEPS_INSTALLED_FILE="$SCRIPT_DIR/.deps_installed"
-if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
-  if (( EUID != 0 )); then
-    log "ERROR: Must be run as root to install dependencies."
-    exit 1
-  fi
-  touch "$DEPS_INSTALLED_FILE"
+# Enforce root for scanning operations
+if (( EUID != 0 )); then
+  log "ERROR: Must be run as root for scanning operations (sudo)."
+  exit 1
 fi
 
-# Load RTSP paths using URL from configuration
-if curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv; then
-  mapfile -t RTSP_PATHS < <(awk -F'\t' '/^.*rtsp:\/\// {print $4}' /tmp/rtsp_paths.csv | sed 's/{{.*}}//g' | sort -u)
+# Load RTSP paths from local data file if available; else fetch from URL
+LOCAL_RTSP_FILE="$SCRIPT_DIR/data/rtsp_paths.csv"
+RTSP_SOURCE=""
+if [[ -s "$LOCAL_RTSP_FILE" ]]; then
+  RTSP_SOURCE="$LOCAL_RTSP_FILE"
+elif curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv; then
+  RTSP_SOURCE="/tmp/rtsp_paths.csv"
+fi
+
+if [[ -n "$RTSP_SOURCE" ]]; then
+  # Try TSV with rtsp url in 4th column; else try CSV and extract any rtsp-like entries
+  if awk -F'\t' 'NF>=4 && $4 ~ /^rtsp:\/\//{exit 0} END{exit 1}' "$RTSP_SOURCE"; then
+    mapfile -t RTSP_PATHS < <(awk -F'\t' 'NF>=4 && $4 ~ /^rtsp:\/\//{print $4}' "$RTSP_SOURCE" | sed 's/{{.*}}//g' | sort -u)
+  else
+    mapfile -t RTSP_PATHS < <(awk -F',' '{for(i=1;i<=NF;i++) if($i ~ /rtsp:\/\//) print $i}' "$RTSP_SOURCE" | sed 's/"//g; s/{{.*}}//g' | sort -u)
+  fi
 else
-  log "ERROR: Failed to fetch RTSP paths from $RTSP_LIST_URL"
-  exit 1
+  log "WARNING: No RTSP path list available; using minimal built-in list"
+  RTSP_PATHS=(
+    "rtsp://{{ip_address}}:{{port}}/video"
+    "rtsp://{{ip_address}}:{{port}}/cam"
+    "rtsp://{{ip_address}}:{{port}}/live"
+  )
 fi
 
 # Final report on exit

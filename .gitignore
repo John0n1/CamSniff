@@ -16,3 +16,6 @@ camsniff
 *.tmp
 *.log
 *.cache
+.github
+paused.conf
+debian/*

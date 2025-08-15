@@ -2,6 +2,10 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+  return 0
+fi
+
 # Skip if dependencies already installed
 STAMP_FILE=".deps_installed"
 
@@ -116,7 +120,12 @@ else
   # Note: These are optional tools, not packaged by Debian/Kali
   # ----------------------------------------
   install_fuzzer(){
-    local name=$1 repo=$2 bin=$3 dest="/opt/$name"
+    local name="${1:-}" repo="${2:-}" bin="${3:-}"
+    if [[ -z "$name" || -z "$repo" || -z "$bin" ]]; then
+      log "Skipping optional tool (missing arguments)"
+      return
+    fi
+    local dest="/opt/$name"
     if command -v "$name" &>/dev/null; then
       log_installed "$name"
       return

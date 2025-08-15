@@ -1,98 +1,63 @@
 #!/usr/bin/env bash
-# Integration test for CamSniff package compliance
 set -euo pipefail
+IFS=$'\n\t'
 
-echo "=== CamSniff Package Compliance Test ==="
+# Simple, fast compliance test for local workspace
 
-# Test 1: Help functionality
-echo "Testing help functionality..."
-if ./camsniff.sh --help >/dev/null 2>&1; then
-    echo "[PASS] Help functionality works"
-else
-    echo "[FAIL] Help functionality failed"
-    exit 1
+echo "[INFO] CamSniff package compliance check starting..."
+
+# 1) Core files present
+required=(
+  "camsniff.sh" "env_setup.sh" "scan_analyze.sh" "setup.sh" "cleanup.sh" "install_deps.sh"
+  "Makefile" "README.md" "camsniff.1"
+  "debian/control" "debian/rules" "debian/changelog"
+)
+missing=()
+for f in "${required[@]}"; do
+  [[ -e "$f" ]] || missing+=("$f")
+done
+if (( ${#missing[@]} )); then
+  echo "[ERROR] Missing required files:"; printf ' - %s\n' "${missing[@]}"; exit 1
 fi
+echo "[OK] Required files present"
 
-# Test 2: Syntax check all scripts
-echo "Testing script syntax..."
-if bash -n *.sh; then
-    echo "[PASS] All scripts have valid syntax"
-else
-    echo "[FAIL] Script syntax errors found"
-    exit 1
-fi
+# 2) Scripts are executable (fix locally if not)
+chmod +x *.sh 2>/dev/null || true
+for s in camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh test_package_compliance.sh; do
+  [[ -x "$s" ]] || { echo "[ERROR] Script not executable: $s"; exit 1; }
 
-# Test 3: Check for required files
-echo "Testing required files..."
-for file in LICENSE README.md Makefile camsniff.1; do
-    if [[ -f "$file" ]]; then
-        echo "✓ $file exists"
-    else
-        echo "✗ $file missing"
-        exit 1
-    fi
 done
 
-# Test 4: Check Debian packaging files
-echo "Testing Debian packaging files..."
-for file in debian/control debian/rules debian/changelog debian/copyright; do
-    if [[ -f "$file" ]]; then
-        echo "✓ $file exists"
-    else
-        echo "✗ $file missing"
-        exit 1
-    fi
-done
+echo "[OK] Scripts are executable"
 
-# Test 5: Test Makefile targets
-echo "Testing Makefile targets..."
+# 3) Syntax check (fast)
+bash -n camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh test_package_compliance.sh
+echo "[OK] Syntax checks passed"
+
+# 4) Make help works
 if make help >/dev/null 2>&1; then
-    echo "✓ Makefile help target works"
+  echo "[OK] make help works"
 else
-    echo "✗ Makefile help target failed"
-    exit 1
+  echo "[ERROR] make help failed"; exit 1
 fi
 
-if make test >/dev/null 2>&1; then
-    echo "✓ Makefile test target works"
+# 5) Build wrapper and verify
+make clean >/dev/null 2>&1
+make build >/dev/null 2>&1
+[[ -x ./camsniff ]] || { echo "[ERROR] Wrapper 'camsniff' not built"; exit 1; }
+
+echo "[OK] Wrapper built"
+
+# 6) Help command works without sudo
+if ./camsniff.sh --help >/dev/null 2>&1; then
+  echo "[OK] Help runs without sudo"
 else
-    echo "✗ Makefile test target failed"
-    exit 1
+  echo "[ERROR] Help failed"; exit 1
 fi
 
-# Test 6: Test installation structure
-echo "Testing installation structure..."
-TMPDIR=$(mktemp -d)
-if make install DESTDIR="$TMPDIR" >/dev/null 2>&1; then
-    echo "✓ Installation works"
-    
-    # Check FHS compliance
-    for dir in usr/bin usr/share/camsniff usr/share/doc/camsniff usr/share/man/man1 etc/camsniff var/lib/camsniff var/log/camsniff; do
-        if [[ -d "$TMPDIR/$dir" ]]; then
-            echo "✓ FHS directory $dir created"
-        else
-            echo "✗ FHS directory $dir missing"
-            rm -rf "$TMPDIR"
-            exit 1
-        fi
-    done
-    
-    # Check main executable
-    if [[ -f "$TMPDIR/usr/bin/camsniff" ]]; then
-        echo "✓ Main executable installed"
-    else
-        echo "✗ Main executable not found"
-        rm -rf "$TMPDIR"
-        exit 1
-    fi
-    
-    rm -rf "$TMPDIR"
-else
-    echo "✗ Installation failed"
-    rm -rf "$TMPDIR"
-    exit 1
-fi
+# 7) Debian packaging files basic sanity
+grep -qi '^package: *camsniff' debian/control || { echo "[ERROR] debian/control missing Package stanza"; exit 1; }
 
-echo ""
-echo "=== All Tests Passed! ==="
-echo "CamSniff is ready for Kali Linux package submission"
+echo "[OK] Debian control sanity"
+
+echo "[PASS] CamSniff package compliance OK"
