@@ -203,7 +203,8 @@ if [[ -n "${USERNAME_WORDLIST:-}" && -f "$SCRIPT_DIR/${USERNAME_WORDLIST:-}" &&
   
   # Read usernames and passwords into arrays first
   mapfile -t top_users < <(head -5 "$SCRIPT_DIR/$USERNAME_WORDLIST" | grep -v "^#" | grep -v "^$") || true
-  mapfile -t top_passwords < <(head -8 "$SCRIPT_DIR/$PASSWORD_WORDLIST" | grep -v "^#" | grep -v "^$") || true
+  mapfile -t top_users < <(grep -v "^#" "$SCRIPT_DIR/$USERNAME_WORDLIST" | grep -v "^$" | head -5) || true
+  mapfile -t top_passwords < <(grep -v "^#" "$SCRIPT_DIR/$PASSWORD_WORDLIST" | grep -v "^$" | head -8) || true
   
   # Generate combinations if we have data
   if [[ ${#top_users[@]} -gt 0 && ${#top_passwords[@]} -gt 0 ]]; then
