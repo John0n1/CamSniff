@@ -28,6 +28,8 @@ read -r -d '' DEFAULT_CFG <<'JSON' || true
   "cve_current_year": "2025",
   "dynamic_rtsp_url": "https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
+  "password_wordlist": "data/passwords.txt",
+  "username_wordlist": "data/usernames.txt", 
   "snmp_communities": ["public", "private", "camera", "admin", "cam", "cisco", "default", "guest", "test"],
   "medusa_threads": 8
 }
@@ -115,6 +117,13 @@ fi
 DIRB_WORDLIST=$(JQ -r '.dirb_wordlist' "$CONFIG_FILE") || { log_debug "Failed to load dirb_wordlist"; exit 1; }
 log_debug "Loaded dirb_wordlist: $DIRB_WORDLIST"
 
+# New: password and username wordlists for authentication brute forcing
+PASSWORD_WORDLIST=$(JQ -r '.password_wordlist' "$CONFIG_FILE") || { log_debug "Failed to load password_wordlist"; exit 1; }
+log_debug "Loaded password_wordlist: $PASSWORD_WORDLIST"
+
+USERNAME_WORDLIST=$(JQ -r '.username_wordlist' "$CONFIG_FILE") || { log_debug "Failed to load username_wordlist"; exit 1; }
+log_debug "Loaded username_wordlist: $USERNAME_WORDLIST"
+
 # New: SNMP communities list -> temp file for onesixtyone
 log_debug "Loading SNMP communities"
 mapfile -t SNMP_COMM_ARRAY < <(JQ -r '.snmp_communities[]' "$CONFIG_FILE") || { log_debug "Failed to load snmp_communities"; exit 1; }
@@ -169,7 +178,7 @@ validate_cve_dependencies() {
 }
 
 # Call validation during initialization
-validate_cve_dependencies
+validate_cve_dependencies || true
 
 log_debug "Finished env_setup.sh"
 
@@ -178,14 +187,58 @@ FIRST_RUN=${FIRST_RUN:-1}
 
 # Default credential sets for HTTP camera endpoints
 declare -a HTTP_CREDS
-HTTP_CREDS=(
-  "admin:admin"
-  "admin:12345"
-  "root:root"
-  "user:user"
-  "guest:guest"
-  ":"      # empty creds for open endpoints
-)
+
+# Generate HTTP_CREDS from wordlists if available, otherwise use hardcoded fallback
+set +u  # Temporarily disable unset variable checking for this section
+if [[ -n "${USERNAME_WORDLIST:-}" && -f "$SCRIPT_DIR/${USERNAME_WORDLIST:-}" && 
+      -n "${PASSWORD_WORDLIST:-}" && -f "$SCRIPT_DIR/${PASSWORD_WORDLIST:-}" ]]; then
+  log_debug "Generating HTTP_CREDS from wordlists"
+  
+  # Read usernames and passwords into arrays first
+  mapfile -t top_users < <(head -5 "$SCRIPT_DIR/$USERNAME_WORDLIST" | grep -v "^#" | grep -v "^$") || true
+  mapfile -t top_passwords < <(head -8 "$SCRIPT_DIR/$PASSWORD_WORDLIST" | grep -v "^#" | grep -v "^$") || true
+  
+  # Generate combinations if we have data
+  if [[ ${#top_users[@]} -gt 0 && ${#top_passwords[@]} -gt 0 ]]; then
+    HTTP_CREDS=()
+    for user in "${top_users[@]}"; do
+      [[ "$user" == "__EMPTY__" ]] && user=""
+      for pass in "${top_passwords[@]}"; do
+        [[ "$pass" == "__EMPTY__" ]] && pass=""
+        HTTP_CREDS+=("$user:$pass")
+      done
+    done
+    
+    # Add empty credentials if they were in the original wordlists
+    if grep -q "^__EMPTY__$" "$SCRIPT_DIR/$USERNAME_WORDLIST" 2>/dev/null || 
+       grep -q "^__EMPTY__$" "$SCRIPT_DIR/$PASSWORD_WORDLIST" 2>/dev/null; then
+      HTTP_CREDS+=(":")
+    fi
+    
+    log_debug "Generated ${#HTTP_CREDS[@]} HTTP credential combinations"
+  else
+    log_debug "Failed to read wordlists, using fallback HTTP_CREDS"
+    HTTP_CREDS=(
+      "admin:admin"
+      "admin:12345"
+      "root:root"
+      "user:user"
+      "guest:guest"
+      ":"      # empty creds for open endpoints
+    )
+  fi
+else
+  log_debug "Using fallback HTTP_CREDS"
+  HTTP_CREDS=(
+    "admin:admin"
+    "admin:12345"
+    "root:root"
+    "user:user"
+    "guest:guest"
+    ":"      # empty creds for open endpoints
+  )
+fi
+set -u  # Re-enable unset variable checking
 
 # Optional hydra files can be overridden from environment; defaults generated on the fly
 HYDRA_USER_FILE=${HYDRA_USER_FILE:-}

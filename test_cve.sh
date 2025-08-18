@@ -24,6 +24,8 @@ cat >"$CFG" <<JSON
   "cve_current_year": "2025",
   "dynamic_rtsp_url": "https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
+  "password_wordlist": "data/passwords.txt",
+  "username_wordlist": "data/usernames.txt",
   "snmp_communities": ["public"],
   "medusa_threads": 2
 }

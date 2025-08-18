@@ -44,9 +44,15 @@
   - Organized output directories with logs, screenshots, and analysis
   - Real-time camera discovery tracking
 
+- **Enhanced Password Search**  
+  - Comprehensive camera-specific password wordlists (95+ passwords, 65+ usernames)
+  - Brand-specific default credentials for major manufacturers
+  - Smart credential combination testing for improved success rates
+
 - **Brute-Forcing**  
   - Credentials brute-forcing with `hydra` and `medusa`.
   - Directory brute-forcing with `gobuster`.
+  - Enhanced wordlist-driven authentication testing.
 
 - **Vulnerability Analysis**  
   Automated checks for known CVEs based on device information.
@@ -189,6 +195,8 @@ CamSniff uses `camcfg.json` for scanning parameters. Example:
   "cve_current_year": "2025",
   "dynamic_rtsp_url": "https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
+  "password_wordlist": "data/passwords.txt",
+  "username_wordlist": "data/usernames.txt",
   "snmp_communities": ["public", "private", "camera", "admin"],
   "medusa_threads": 8
 }
