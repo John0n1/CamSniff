@@ -23,10 +23,10 @@ read -r -d '' DEFAULT_CFG <<'JSON' || true
   "masscan_rate": 20000,
   "hydra_rate": 16,
   "max_streams": 4,
-  "cve_github_repo": "https://github.com/CVEProject/cvelistV5/tree/main/cves",
+  "cve_github_repo": "https://github.com/CVEProject/cvelistV5/tree/0c81b12af2cabcadb83f312d4d81dc99008235c9/cves/",
   "cve_cache_dir": "/tmp/cve_cache",
   "cve_current_year": "2025",
-  "dynamic_rtsp_url": "https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv",
+  "dynamic_rtsp_url": "https://github.com/John0n1/CamSniff/blob/4d682edf7b4512562d24ccdf863332952637094d/data/rtsp_paths.csv",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
   "password_wordlist": "data/passwords.txt",
   "username_wordlist": "data/usernames.txt", 
@@ -110,7 +110,7 @@ log_debug "Loaded dynamic_rtsp_url: $RTSP_LIST_URL"
 # Auto-correct legacy RTSP URL source if found in existing configs
 if [[ "$RTSP_LIST_URL" == *"CamioCam/rtsp"* ]]; then
   log_debug "Found legacy RTSP list URL; switching to project maintained list"
-  RTSP_LIST_URL="https://raw.githubusercontent.com/John0n1/CamSniff/main/data/rtsp_paths.csv"
+  RTSP_LIST_URL="https://github.com/John0n1/CamSniff/blob/4d682edf7b4512562d24ccdf863332952637094d/data/rtsp_paths.csv"
 fi
 
 # New: wordlist for directory brute forcing
