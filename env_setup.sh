@@ -178,7 +178,14 @@ validate_cve_dependencies() {
 }
 
 # Call validation during initialization
-validate_cve_dependencies || true
+if ! validate_cve_dependencies; then
+  CVE_CHECK_LIMITED=1
+  export CVE_CHECK_LIMITED
+  log_debug "CVE system dependencies validation failed. CVE checking will be limited."
+else
+  CVE_CHECK_LIMITED=0
+  export CVE_CHECK_LIMITED
+fi
 
 log_debug "Finished env_setup.sh"
 
