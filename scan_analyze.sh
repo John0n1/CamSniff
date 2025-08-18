@@ -517,7 +517,7 @@ scan_http(){
           -n "$PASSWORD_WORDLIST" && -f "$SCRIPT_DIR/$PASSWORD_WORDLIST" ]]; then
       
       # Create combo file by combining usernames and passwords
-      # Limit to most common combinations for performance (top 10 users x top 15 passwords)
+      # Limit to most common combinations for performance (top 10 users × top 15 passwords)
       {
         while IFS= read -r user; do
           [[ "$user" == "__EMPTY__" ]] && user=""
