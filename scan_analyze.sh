@@ -442,10 +442,28 @@ scan_rtsp(){
     local users_file="${HYDRA_USER_FILE:-}"
     local pass_file="${HYDRA_PASS_FILE:-}"
     if [[ -z "$users_file" || -z "$pass_file" || ! -s "$users_file" || ! -s "$pass_file" ]]; then
-      # Fallback small lists
+      # Use enhanced wordlists if available
       users_file="/tmp/.camsniff_users.txt"; pass_file="/tmp/.camsniff_passwords.txt"
-      printf "%s\n" admin root user guest >"$users_file" 2>/dev/null || true
-      printf "%s\n" admin 12345 123456 password root guest >"$pass_file" 2>/dev/null || true
+      
+      # Load usernames from wordlist or use fallback
+      if [[ -n "$USERNAME_WORDLIST" && -f "$SCRIPT_DIR/$USERNAME_WORDLIST" ]]; then
+        # Filter out empty username marker and copy to temp file
+        grep -v "^__EMPTY__$" "$SCRIPT_DIR/$USERNAME_WORDLIST" > "$users_file" 2>/dev/null || true
+        # Add empty username if it was in the original list
+        grep -q "^__EMPTY__$" "$SCRIPT_DIR/$USERNAME_WORDLIST" 2>/dev/null && echo "" >> "$users_file"
+      else
+        printf "%s\n" admin root user guest >"$users_file" 2>/dev/null || true
+      fi
+      
+      # Load passwords from wordlist or use fallback  
+      if [[ -n "$PASSWORD_WORDLIST" && -f "$SCRIPT_DIR/$PASSWORD_WORDLIST" ]]; then
+        # Filter out empty password marker and copy to temp file
+        grep -v "^__EMPTY__$" "$SCRIPT_DIR/$PASSWORD_WORDLIST" > "$pass_file" 2>/dev/null || true
+        # Add empty password if it was in the original list
+        grep -q "^__EMPTY__$" "$SCRIPT_DIR/$PASSWORD_WORDLIST" 2>/dev/null && echo "" >> "$pass_file"
+      else
+        printf "%s\n" admin 12345 123456 password root guest >"$pass_file" 2>/dev/null || true
+      fi
     fi
     hydra -L "$users_file" -P "$pass_file" -s "$port" "$ip" rtsp -t "$HYDRA_RATE" &>/dev/null && {
       log "[HYDRA-RTSP] $ip:$port - Credentials found"
@@ -493,15 +511,34 @@ scan_http(){
   local combo_file="${HYDRA_COMBO_FILE:-}"
   if [[ -z "$combo_file" || ! -s "$combo_file" ]]; then
     combo_file="/tmp/.camsniff_combos.txt"
-    {
-      echo admin:admin
-      echo admin:12345
-      echo root:root
-      echo user:user
-      echo guest:guest
-      echo admin:
-      echo :
-    } >"$combo_file" 2>/dev/null || true
+    
+    # Generate combo file from wordlists if available
+    if [[ -n "$USERNAME_WORDLIST" && -f "$SCRIPT_DIR/$USERNAME_WORDLIST" && 
+          -n "$PASSWORD_WORDLIST" && -f "$SCRIPT_DIR/$PASSWORD_WORDLIST" ]]; then
+      
+      # Create combo file by combining usernames and passwords
+      # Limit to most common combinations for performance (top 10 users × top 15 passwords)
+      {
+        while IFS= read -r user; do
+          [[ "$user" == "__EMPTY__" ]] && user=""
+          while IFS= read -r pass; do
+            [[ "$pass" == "__EMPTY__" ]] && pass=""
+            echo "$user:$pass"
+          done < <(head -15 "$SCRIPT_DIR/$PASSWORD_WORDLIST" | grep -v "^#")
+        done < <(head -10 "$SCRIPT_DIR/$USERNAME_WORDLIST" | grep -v "^#")
+      } >"$combo_file" 2>/dev/null || true
+    else
+      # Fallback to hardcoded combos
+      {
+        echo admin:admin
+        echo admin:12345
+        echo root:root
+        echo user:user
+        echo guest:guest
+        echo admin:
+        echo :
+      } >"$combo_file" 2>/dev/null || true
+    fi
   fi
   hydra -C "$combo_file" -s "$port" http-get://"$ip" -t "$HYDRA_RATE" &>/dev/null && {
     log "[HYDRA-HTTP] $ip:$port - Access granted"
