@@ -76,11 +76,13 @@ if [[ -f "$STAMP_FILE" ]]; then
 else
   packages=(
     fping masscan nmap hydra fzf tcpdump tshark arp-scan
-    avahi-daemon avahi-discover ffmpeg curl jq snmp
+  avahi-daemon avahi-discover avahi-utils ffmpeg curl jq snmp
     python3 python3-venv python3-pip python3-opencv
-    git rtmpdump build-essential cmake pkg-config autoconf
+  git rtmpdump build-essential cmake pkg-config autoconf
     automake libtool chafa gobuster medusa onesixtyone
-    libssl-dev doxygen
+  libssl-dev doxygen
+  bluez bluez-tools
+  wireless-tools iw network-manager
   )
   for pkg in "${packages[@]}"; do
     if dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
@@ -205,6 +207,6 @@ log "Upgrading pip"
 retry pip install --upgrade pip --quiet
 
 log_install "Python packages"
-retry pip install --no-cache-dir wsdiscovery opencv-python requests --quiet
+retry pip install --no-cache-dir wsdiscovery opencv-python requests flask --quiet
 
 log "All done 🎉"

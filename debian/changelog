@@ -1,11 +1,23 @@
+camsniff (1.0.2-1) unstable; urgency=medium
+
+  * Enable all features by default in configuration
+  * Add Web UI and IoT enumeration dependencies to debian/control
+  * Improve SNMP temp file handling for non-root runs
+  * Keep Makefile default config in sync with env_setup
+  * Switch to debhelper-compat (= 12) and set Rules-Requires-Root: no
+  * Add debian/source/format (3.0 native); bump Standards-Version 4.7.0
+  * Harden banner animations for non-TTY environments
+
+ -- John H. Mitander <john@on1.no>  Tue, 19 Aug 2025 10:42:00 +0000
+
 camsniff (1.0.1-1) unstable; urgency=medium
 
   * Initial Debian package release
-  * Enhanced camera reconnaissance tool
+  *  camera reconnaissance tool
   * CVE vulnerability checking integration
   * RTSP stream identification and testing
   * SNMP community enumeration
   * Web interface discovery and fuzzing
-  * Comprehensive reporting and logging
+  * Reporting and logging
 
  -- John H. Mitander <john@on1.no>  Wed, 09 Jul 2025 20:57:00 +0000

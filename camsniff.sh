@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################################
-# CamSniff 1.0.1 – Camera Reconnaissance & Scanner
+# CamSniff 1.0.2 – Camera Reconnaissance & Scanner
 # https://github.com/John0n1/CamSniff
 ###############################################################################
 set -euo pipefail
@@ -19,7 +19,7 @@ while [[ $# -gt 0 ]]; do
     -a|--auto) AUTO_MODE=1; SKIP_PROMPT=1; shift ;;
     -t|--target) TARGET_SUBNET="$2"; shift 2 ;;
     -h|--help)
-      echo "CamSniff 1.0.1 - Camera Reconnaissance Tool & Scanner"
+  echo "CamSniff 1.0.2 - Camera Reconnaissance Tool & Scanner"
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
@@ -46,31 +46,83 @@ YELLOW='\033[33m'
 CYAN='\033[36m'
 RESET='\033[0m'
 
-# Display banner
+# Animation functions
+animate_text_from_side() {
+  local text="$1"
+  local delay="${2:-0.05}"
+  # Skip animation if not a TTY or disabled
+  if [[ ! -t 1 || "${NO_ANIM:-0}" == "1" ]]; then
+    printf "%s\n" "$text"
+    return 0
+  fi
+  local width
+  width=$(tput cols 2>/dev/null || echo 80)
+  local padding=$((width - ${#text}))
+  (( padding < 0 )) && padding=0
+  
+  for ((i=padding; i>=0; i--)); do
+    printf "\r%*s%s" $i "" "$text"
+    sleep "$delay"
+  done
+  echo
+}
+
+rain_ascii_art() {
+  local delay="${1:-0.03}"
+  # Only show fancy art on interactive terminals and when not disabled
+  if [[ ! -t 1 || "${NO_ANIM:-0}" == "1" ]]; then
+    printf "CamSniff by John0n1\n"
+    return 0
+  fi
+  local art=(
+    "╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗"
+    "║                                            John0n1 Proudly Presents                                            ║"
+    "║                                                                                                                ║"
+    "║           ██████╗     █████╗     ███╗   ███╗    ███████╗    ███╗   ██╗    ██╗    ███████╗    ███████╗          ║"
+    "║          ██╔════╝    ██╔══██╗    ████╗ ████║    ██╔════╝    ████╗  ██║    ██║    ██╔════╝    ██╔════╝          ║"
+    "║          ██║         ███████║    ██╔████╔██║    ███████╗    ██╔██╗ ██║    ██║    █████╗      █████╗            ║"
+    "║          ██║         ██╔══██║    ██║╚██╔╝██║    ╚════██║    ██║╚██╗██║    ██║    ██╔══╝      ██╔══╝            ║"
+    "║          ╚██████╗    ██║  ██║    ██║ ╚═╝ ██║    ███████║    ██║ ╚████║    ██║    ██║         ██║               ║"
+    "║           ╚═════╝    ╚═╝  ╚═╝    ╚═╝     ╚═╝    ╚══════╝    ╚═╝  ╚═══╝    ╚═╝    ╚═╝         ╚═╝               ║"
+    "║                                           ██╗    ██████╗    ██████╗                                            ║"
+    "║                                          ███║   ██╔═████╗   ╚════██╗                                           ║"
+    "║                                          ╚██║   ██║██╔██║    █████╔╝                                           ║"
+    "║                                           ██║   ████╔╝██║   ██╔═══╝                                            ║"
+    "║                                           ██║██╗╚██████╔╝██╗███████╗                                           ║"
+    "║                                           ╚═╝╚═╝ ╚═════╝ ╚═╝╚══════╝                                           ║"
+    "║                                                                                                                ║"
+    "╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝"
+  )
+  
+  for line in "${art[@]}"; do
+    echo "$line"
+    sleep "$delay"
+  done
+}
+
+# Display banner with animations
 if (( !QUIET_MODE )); then
-  echo -e "${CYAN}CamSniff is a powerful tool designed to:${RESET}"
-  echo -e "${GREEN}- Discover and analyze network-connected cameras."
-  echo -e "- Perform RTSP, HTTP, CoAP, and RTMP scans."
-  echo -e "- Identify vulnerabilities and brute-force credentials."
-  echo -e "- Generate AI-based insights from camera streams.${RESET}"
-  cat << 'EOF'
-.--------------. | .--------------. | .--------------. | .--------------. | .--------------. | .--------------. | .--------------. | .--------------. 
-|     ______   | | |      __      | | | ____    ____ | | |    _______   | | | ____  _____  | | |     _____    | | |  _________   | | |  _________   |
-|   .' ___  |  | | |     /  \     | | ||_   \  /   _|| | |   /  ___  |  | | ||_   \|_   _| | | |    |_   _|   | | | |_   ___  |  | | | |_   ___  |  |
-|  / .'   \_|  | | |    / /\ \    | | |  |   \/   |  | | |  |  (__ \_|  | | |  |   \ | |   | | |      | |     | | |   | |_  \_|  | | |   | |_  \_|  |
-|  | |         | | |   / ____ \   | | |  | |\  /| |  | | |   '.___`-.   | | |  | |\ \| |   | | |      | |     | | |   |  _|      | | |   |  _|      |
-|  `.___.'\    | | | _/ /    \ \_ | | | _| |_\/_| |_ | | |  |`\____) |  | | | _| |_\   |_  | | |     _| |_    | | |  _| |_       | | |  _| |_       |
-|   `._____.'  | | ||____|  |____|| | ||_____||_____|| | |  |_______.'  | | ||_____|\____| | | |    |_____|   | | | |_____|      | | | |_____|      |
-|              | | |              | | |              | | |              | | |              | | |              | | |              | | |              |
-'--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------' | '--------------'
-EOF
-  echo -e "${YELLOW}CamSniff 1.0.1 – Camera Reconnaissance${RESET}"
-  echo -e "${YELLOW}What will happen:${RESET}"
-  echo -e "${CYAN}1.${RESET} Dependencies will be checked and installed if missing."
-  echo -e "${CYAN}2.${RESET} Network scanning will begin to identify active devices."
-  echo -e "${CYAN}3.${RESET} Camera streams will be analyzed and displayed."
-  echo -e "${CYAN}4.${RESET} Results will be saved to structured output directory."
-  echo -e "${CYAN}5.${RESET} You can choose to start the scan or exit at any time."
+  [[ -t 1 ]] && clear || true
+  
+  printf "${CYAN}CamSniff is a powerful tool designed to:${RESET}\n"
+  printf "${GREEN}- Discover, analyze and display network-connected cameras${RESET}\n"
+  printf "${GREEN}- Perform RTSP, HTTP, CoAP, RTMP, MQTT and more${RESET}\n"
+  printf "${GREEN}- Identify vulnerabilities and test common credentials${RESET}\n"
+  printf "${GREEN}- Generate AI-based insights from camera streams${RESET}\n"
+  
+  echo
+  sleep 0.5
+  
+  # Rain down ASCII art (TTY only)
+  rain_ascii_art 0.2
+  
+  echo
+  printf "${YELLOW}What will happen:${RESET}\n"
+  printf "${CYAN}1.${RESET} Dependencies will be checked and installed if missing.\n"
+  printf "${CYAN}2.${RESET} Network scanning will begin to identify active devices.\n"
+  printf "${CYAN}3.${RESET} Camera streams will be analyzed and displayed.\n"
+  printf "${CYAN}4.${RESET} Results will be saved to structured output directory.\n"
+  printf "${CYAN}5.${RESET} You can choose to start the scan or exit at any time.\n"
 fi
 
 # Confirmation prompt
@@ -79,7 +131,7 @@ if (( !SKIP_PROMPT )); then
     read -rp "$(echo -e "${CYAN}Start CamSniff? (Y/N): ${RESET}")" yn
     case $yn in
       [Yy]*) break ;;
-      [Nn]*) echo -e "${RED}Exiting. Goodbye!${RESET}"; exit 0 ;;
+      [Nn]*) echo -e "${RED}Exiting. Sniff will miss you. 😢 Goodbye!${RESET}"; exit 0 ;;
       *) echo -e "${YELLOW}Please press 'Y' to start or 'N' to exit.${RESET}" ;;
     esac
   done
@@ -97,6 +149,11 @@ DATADIR="$SCRIPT_DIR"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 OUTPUT_DIR="$SCRIPT_DIR/output/results_$TIMESTAMP"
 mkdir -p "$OUTPUT_DIR"/{logs,screenshots,reports}
+
+# Helper to colorize ON/OFF
+flag_str(){
+  local v="$1"; if [[ "$v" == "1" ]]; then echo -e "${GREEN}ON${RESET}"; else echo -e "${RED}OFF${RESET}"; fi
+}
 
 # Python venv path
 VENV="$SCRIPT_DIR/.camvenv"
@@ -123,6 +180,9 @@ log_camera_found() {
 },
 EOF
   CAMERAS_FOUND["$ip:$port"]="$protocol|$url|$creds"
+  # Alert log
+  printf '{"type":"camera_found","timestamp":"%s","ip":"%s","port":"%s","protocol":"%s","url":"%s"}\n' \
+    "$ts" "$ip" "$port" "$protocol" "$url" >> "$OUTPUT_DIR/reports/alerts.log" 2>/dev/null || true
 }
 log_device_info() {
   local ip="$1" info="$2" type="${3:-unknown}"
@@ -148,7 +208,7 @@ if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
 fi
 
 # Source submodules from same dir (jq now available)
-for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh; do
+for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh iot_enumerate.sh; do
   if [[ -f "$SCRIPT_DIR/$FILE" ]]; then
     log_debug "Sourcing $FILE"
     source "$SCRIPT_DIR/$FILE"
@@ -162,6 +222,11 @@ done
 if (( EUID != 0 )); then
   log "ERROR: Must be run as root for scanning operations (sudo)."
   exit 1
+fi
+
+# Show dynamic runtime info banner (post env setup)
+if (( !QUIET_MODE )); then
+  echo -e "${CYAN}Runtime:${RESET} $(date -Iseconds) | Version: 1.0.2"
 fi
 
 # Load RTSP paths from local data file if available; else fetch from URL
@@ -189,6 +254,11 @@ else
   )
 fi
 
+if (( !QUIET_MODE )); then
+  echo -e "${CYAN}RTSP Source:${RESET} ${RTSP_SOURCE:-built-in}"
+  echo -e "${CYAN}Web UI:${RESET} run ./webui.sh (default http://localhost:8088)"
+fi
+
 # Final report on exit
 finalize_reports() {
   sed -i '$ s/,$//' "$OUTPUT_DIR/reports/cameras.json" 2>/dev/null || true
@@ -205,6 +275,22 @@ SUBNET=${TARGET_SUBNET:-$(ip -o -f inet addr show "$IF" | awk '{print $4}')}
 log "Interface: $IF"
 log "Subnet: $SUBNET"
 
+# Present summary of feature flags and output paths
+if (( !QUIET_MODE )); then
+  echo -e "${YELLOW}Config Summary:${RESET}"
+  echo -e "  Output Dir : $OUTPUT_DIR"
+  echo -e "  IoT Enum   : $(flag_str "${ENABLE_IOT_ENUMERATION:-0}")"
+  echo -e "  PCAP Cap   : $(flag_str "${ENABLE_PCAP_CAPTURE:-0}")"
+  echo -e "  WiFi Scan  : $(flag_str "${ENABLE_WIFI_SCAN:-0}")"
+  echo -e "  BLE Scan   : $(flag_str "${ENABLE_BLE_SCAN:-0}")"
+  echo -e "  Zigbee/Z-W : $(flag_str "${ENABLE_ZIGBEE_ZWAVE_SCAN:-0}")"
+  echo -e "  Stealth    : $(flag_str "${STEALTH_MODE:-0}")"
+  echo -e "  Nmap Vuln  : $(flag_str "${ENABLE_NMAP_VULN:-0}")"
+  # Tool availability quick check (silent)
+  have(){ command -v "$1" &>/dev/null && echo yes || echo no; }
+  echo -e "${YELLOW}Tools:${RESET} masscan($(have masscan)) nmap($(have nmap)) ffmpeg($(have ffmpeg)) hydra($(have hydra)) tshark($(have tshark)) avahi-browse($(have avahi-browse))"
+fi
+
 # Sniffing tools
 tcpdump -i "$IF" -l -n -q '(arp or (udp port 67 or udp port 68))' >/dev/null 2>&1 &
 tcpdump -i "$IF" -l -n -q '(udp port 5353 or udp port 3702)' >/dev/null 2>&1 &
@@ -215,6 +301,18 @@ log_debug "Entering main scanning loop"
 while true; do
   log "===== SWEEP $(date '+%F %T') ====="
   sweep
-  log "Sleeping ${SS:-60}s..."
-  sleep "${SS:-60}"
+  # Extended IoT enumeration and topology after each sweep
+  if type iot_enumeration_cycle >/dev/null 2>&1; then
+    log_debug "Running IoT enumeration cycle"
+    iot_enumeration_cycle || true
+  fi
+  # Stealth mode: jittered sleep to evade simple detection
+  if [[ "${STEALTH_MODE:-0}" -eq 1 ]]; then
+    base=${SS:-60}; jitter=$((RANDOM % 11 - 5)); next=$((base + jitter)); (( next<5 )) && next=5
+    log "Stealth sleep ${next}s (base ${base}s, jitter ${jitter}s)"
+    sleep "$next"
+  else
+    log "Sleeping ${SS:-60}s..."
+    sleep "${SS:-60}"
+  fi
 done

@@ -1,16 +1,21 @@
-# Build-generated debian artifacts (keep debian/ source directory)
-*.deb
-build-deb.sh
+
+# Debian packaging outputs / build artifacts (generated)
+debian/camsniff/
+debian/.debhelper/generated/
+debian/files
+debian/debhelper-build-stamp
+debian/*.substvars
+
+# Virtualenv / local deps
 .camvenv/
 .deps_installed
-camcfg.json
-plugins/
 
 # Build artifacts
-camsniff
+*.deb
+build-deb.sh
 /build/
 /dist/
-
+output/*
 # Temporary and cache files
 /tmp/
 *.tmp
@@ -18,4 +23,3 @@ camsniff
 *.cache
 .github
 paused.conf
-debian/*

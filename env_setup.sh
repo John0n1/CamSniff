@@ -31,7 +31,14 @@ read -r -d '' DEFAULT_CFG <<'JSON' || true
   "password_wordlist": "data/passwords.txt",
   "username_wordlist": "data/usernames.txt", 
   "snmp_communities": ["public", "private", "camera", "admin", "cam", "cisco", "default", "guest", "test"],
-  "medusa_threads": 8
+  "medusa_threads": 8,
+  "enable_iot_enumeration": true,
+  "enable_pcap_capture": true,
+  "enable_wifi_scan": true,
+  "enable_ble_scan": true,
+  "enable_zigbee_zwave_scan": true,
+  "stealth_mode": true,
+  "enable_nmap_vuln": true
 }
 JSON
 
@@ -129,14 +136,30 @@ log_debug "Loading SNMP communities"
 mapfile -t SNMP_COMM_ARRAY < <(JQ -r '.snmp_communities[]' "$CONFIG_FILE") || { log_debug "Failed to load snmp_communities"; exit 1; }
 log_debug "Loaded SNMP communities: ${SNMP_COMM_ARRAY[*]}"
 
+# Create SNMP community file in /tmp; fall back to a unique file if needed
 SNMP_COMM_FILE=/tmp/.snmp_comms.txt
-printf "%s\n" "${SNMP_COMM_ARRAY[@]}" > "$SNMP_COMM_FILE" || { log_debug "Failed to write SNMP_COMM_FILE"; exit 1; }
+if ! printf "%s\n" "${SNMP_COMM_ARRAY[@]}" > "$SNMP_COMM_FILE" 2>/dev/null; then
+  # If the default path is not writable (e.g., owned by root), create a unique temp file
+  SNMP_COMM_FILE=$(mktemp /tmp/.snmp_comms.XXXXXX)
+  printf "%s\n" "${SNMP_COMM_ARRAY[@]}" > "$SNMP_COMM_FILE" || { log_debug "Failed to write SNMP_COMM_FILE"; exit 1; }
+fi
 SNMP_COMMUNITIES="$SNMP_COMM_FILE"
 log_debug "SNMP_COMM_FILE created at $SNMP_COMM_FILE"
 
 # New: threads for Medusa fuzzing
 MEDUSA_THREADS=$(JQ -r '.medusa_threads' "$CONFIG_FILE") || { log_debug "Failed to load medusa_threads"; exit 1; }
 log_debug "Loaded medusa_threads: $MEDUSA_THREADS"
+
+# Feature flags
+ENABLE_IOT_ENUMERATION=$(JQ -r '.enable_iot_enumeration // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
+ENABLE_PCAP_CAPTURE=$(JQ -r '.enable_pcap_capture // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
+ENABLE_WIFI_SCAN=$(JQ -r '.enable_wifi_scan // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
+ENABLE_BLE_SCAN=$(JQ -r '.enable_ble_scan // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
+ENABLE_ZIGBEE_ZWAVE_SCAN=$(JQ -r '.enable_zigbee_zwave_scan // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
+STEALTH_MODE=$(JQ -r '.stealth_mode // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
+ENABLE_NMAP_VULN=$(JQ -r '.enable_nmap_vuln // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
+export ENABLE_IOT_ENUMERATION ENABLE_PCAP_CAPTURE ENABLE_WIFI_SCAN ENABLE_BLE_SCAN ENABLE_ZIGBEE_ZWAVE_SCAN STEALTH_MODE ENABLE_NMAP_VULN
+log_debug "Feature flags: IoT=$ENABLE_IOT_ENUMERATION PCAP=$ENABLE_PCAP_CAPTURE WiFi=$ENABLE_WIFI_SCAN BLE=$ENABLE_BLE_SCAN Zig=$ENABLE_ZIGBEE_ZWAVE_SCAN Stealth=$STEALTH_MODE NmapVuln=$ENABLE_NMAP_VULN"
 
 # Create CVE cache directory
 mkdir -p "$CVE_CACHE_DIR"

@@ -2,8 +2,9 @@ Source: camsniff
 Section: net
 Priority: optional
 Maintainer: John H. Mitander <john@on1.no>
-Build-Depends: debhelper (>= 10)
-Standards-Version: 4.6.0
+Build-Depends: debhelper-compat (= 12)
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
 Homepage: https://github.com/John0n1/CamSniff
 Vcs-Git: https://github.com/John0n1/CamSniff.git
 Vcs-Browser: https://github.com/John0n1/CamSniff
@@ -21,7 +22,7 @@ Depends: ${misc:Depends},
          tshark,
          arp-scan,
          avahi-daemon,
-         avahi-discover,
+         avahi-utils,
          ffmpeg,
          curl,
          jq,
@@ -30,6 +31,7 @@ Depends: ${misc:Depends},
          python3-venv,
          python3-pip,
          python3-opencv,
+         python3-flask,
          git,
          rtmpdump,
          build-essential,
@@ -43,8 +45,13 @@ Depends: ${misc:Depends},
          medusa,
          onesixtyone,
          libssl-dev,
-         doxygen
-Description: Enhanced Camera Reconnaissance Tool
+         doxygen,
+         bluez,
+         bluez-tools,
+         wireless-tools,
+         iw,
+         network-manager
+Description: Camera Reconnaissance Tool
  CamSniff is a powerful reconnaissance tool designed for security professionals
  and researchers. It specializes in identifying and analyzing IP cameras and 
  other network devices, providing deep insights into their configuration and
@@ -57,6 +64,6 @@ Description: Enhanced Camera Reconnaissance Tool
   * CVE vulnerability checking
   * SNMP community enumeration
   * Web interface discovery and fuzzing
-  * Comprehensive reporting and logging
+  * Reporting and logging
  .
  This tool is intended for educational and research purposes only.

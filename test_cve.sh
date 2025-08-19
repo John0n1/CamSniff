@@ -3,7 +3,6 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # Tiny smoke test for CVE checking helper paths
-
 # Ensure jq exists if env_setup will require it
 if ! command -v jq >/dev/null 2>&1; then
   echo "[SKIP] jq not installed; CVE test not applicable here"

@@ -9,7 +9,7 @@ run_plugins(){
   for p in plugins/*.py; do [[ -x $p ]] && python3 "$p" & done
 }
 
-# Function to add stream with enhanced tracking
+# Function to add stream with  tracking
 add_stream(){ 
   if (( ${#STREAMS[@]:-0} < MAX_STREAMS )); then
     STREAMS["$1"]=1
@@ -26,16 +26,16 @@ add_stream(){
   fi
 }
 
-# Function to launch mosaic with enhanced display
+# Function to launch mosaic with  display
 launch_mosaic(){
   (( ${#STREAMS[@]:-0} )) || return
   
-  log "Preparing enhanced mosaic display for ${#STREAMS[@]} camera(s)..."
+  log "Preparing  mosaic display for ${#STREAMS[@]} camera(s)..."
   
   # Create camera info overlay
   local info_file="$OUTPUT_DIR/reports/mosaic_info.txt"
   {
-    echo "CamSniff 1.0.1 - Live Camera Mosaic"
+  echo "CamSniff 1.0.2 - Live Camera Mosaic"
     echo "Cameras Active: ${#STREAMS[@]}"
     echo "Scan Time: $(date)"
     echo "================================"
@@ -67,14 +67,14 @@ launch_mosaic(){
     inputs+=(-i "$u")
   done
   
-  # Enhanced mosaic with overlay
+  #  mosaic with overlay
   log "Starting mosaic display (${cols}x${rows} grid)..."
   
   # Create the mosaic layout
   if (( ${#inputs[@]} > 2 )); then
     ffmpeg "${inputs[@]}" \
       -filter_complex "xstack=inputs=${#STREAMS[@]:-0}:layout=0_0|w0_0|0_h0|w0_h0[mosaic];[mosaic]drawtext=fontsize=20:fontcolor=white:box=1:boxcolor=black@0.5:text='CamSniff Live Feed - ${#STREAMS[@]} Cameras':x=10:y=10[out]" \
-      -map "[out]" -f matroska - 2>/dev/null | ffplay -window_title "CamSniff Enhanced Mosaic" -loglevel error - &
+      -map "[out]" -f matroska - 2>/dev/null | ffplay -window_title "CamSniff  Mosaic" -loglevel error - &
   else
     # Simple display for 1-2 cameras: expand keys safely
     urls=()
@@ -104,7 +104,7 @@ screenshot_and_analyze(){
   ffmpeg -rtsp_transport tcp -i "$u" -frames:v 1 -q:v 2 -y "$out" &>/dev/null && {
     log "[SNAP] $u → $out"
     
-    # Enhanced AI analysis
+    #  AI analysis
     python3 - <<PY 2>/dev/null
 import cv2
 import json
@@ -135,16 +135,25 @@ try:
         "image_path": "$out"
     }
     
-    if ir_count > 50:
-        print(f"[AI] IR spots detected ({ir_count}px) - Night vision camera likely")
-    if motion_areas > 5:
-        print(f"[AI] Multiple motion areas detected ({motion_areas}) - Active surveillance")
-    if brightness < 50:
-        print(f"[AI] Low light conditions detected - IR camera active")
+  alert_lines = []
+  if ir_count > 50:
+    msg = f"IR spots detected ({ir_count}px) - Night vision likely"; print(f"[AI] {msg}"); alert_lines.append(msg)
+  if motion_areas > 5:
+    msg = f"Multiple motion areas ({motion_areas}) - Active scene"; print(f"[AI] {msg}"); alert_lines.append(msg)
+  if brightness < 50:
+    msg = "Low light - IR camera may be active"; print(f"[AI] {msg}"); alert_lines.append(msg)
         
     # Save analysis
-    with open("$OUTPUT_DIR/reports/analysis_${ip}.json", "w") as f:
+  with open("$OUTPUT_DIR/reports/analysis_${ip}.json", "w") as f:
         json.dump(analysis, f, indent=2)
+
+  # Append alerts to alerts.log if any
+  if alert_lines:
+    import time
+    ts = time.strftime('%Y-%m-%dT%H:%M:%S')
+    with open("$OUTPUT_DIR/reports/alerts.log", "a") as af:
+      for m in alert_lines:
+        af.write(json.dumps({"type":"ai_notice","timestamp":ts,"ip":"$ip","message":m})+"\n")
         
 except Exception as e:
     print(f"[AI] Analysis failed: {e}")
@@ -152,7 +161,7 @@ PY
   }
 }
 
-# Enhanced CVE checking function using GitHub CVE repository
+#  CVE checking function using GitHub CVE repository
 cve_check() {
   local search_term="$1"
   log_debug "Starting CVE check for: $search_term"
@@ -300,9 +309,9 @@ else:
 FALLBACK_CVE
 }
 
-# Enhanced ONVIF discovery
+#  ONVIF discovery
 discover_onvif(){
-  log_debug "Starting enhanced ONVIF discovery"
+  log_debug "Starting  ONVIF discovery"
   python3 - <<PY 2>/dev/null
 import socket
 import time
@@ -385,9 +394,9 @@ scan_hls(){ for p in live index stream playlist master; do
   curl -sfI "$url" | grep -qi 'application/vnd.apple.mpegurl' && { log "[HLS] $url"; add_stream "$url"; return; }
 done }
 
-# Function to scan RTSP (enhanced for aggressive scanning)
+# Function to scan RTSP ( for aggressive scanning)
 scan_rtsp(){
-  log_debug "Starting enhanced RTSP scan for $1:$2"
+  log_debug "Starting  RTSP scan for $1:$2"
   local ip="$1" port="$2" found=0
   
   # Test common RTSP paths first
@@ -418,9 +427,9 @@ scan_rtsp(){
     fi
   done
   
-  # If no common paths worked, try the comprehensive list
+  # If no common paths worked, try the  list
   if (( !found )); then
-    log_debug "Testing comprehensive RTSP paths for $ip:$port"
+    log_debug "Testing  RTSP paths for $ip:$port"
     for rtsp_path in "${RTSP_PATHS[@]:0:20}"; do  # Limit to first 20 for speed
       # Replace placeholders in the RTSP path
       u=$(echo "$rtsp_path" | sed "s/{{username}}/admin/g; s/{{password}}/admin/g; s/{{ip_address}}/$ip/g; s/{{port}}/$port/g")
@@ -435,14 +444,14 @@ scan_rtsp(){
     done
   fi
 
-  # Enhanced brute-force if no stream found
+  #  brute-force if no stream found
   if (( !found )); then
     log_debug "Starting RTSP brute-force for $ip:$port"
     # Use dedicated user/password lists if available
     local users_file="${HYDRA_USER_FILE:-}"
     local pass_file="${HYDRA_PASS_FILE:-}"
     if [[ -z "$users_file" || -z "$pass_file" || ! -s "$users_file" || ! -s "$pass_file" ]]; then
-      # Use enhanced wordlists if available
+      # Use  wordlists if available
       users_file="/tmp/.camsniff_users.txt"; pass_file="/tmp/.camsniff_passwords.txt"
       
       # Load usernames from wordlist or use fallback
@@ -472,12 +481,12 @@ scan_rtsp(){
   fi
 }
 
-# Function to scan HTTP (enhanced for aggressive scanning)
+# Function to scan HTTP ( for aggressive scanning)
 scan_http(){
   local ip="$1" port="$2"
-  log_debug "Starting enhanced HTTP scan for $ip:$port"
+  log_debug "Starting  HTTP scan for $ip:$port"
   
-  # Enhanced camera-specific paths
+  #  camera-specific paths
   local camera_paths=(
     "/video" "/cam" "/stream" "/live" "/mjpeg" "/cgi-bin/mjpeg"
     "/axis-cgi/mjpg/video.cgi" "/cgi-bin/camera" "/webcam.cgi"
@@ -545,7 +554,7 @@ scan_http(){
     log_device_info "$ip" "HTTP authentication bypassed" "web_device"
   }
   
-  # Enhanced server fingerprinting
+  #  server fingerprinting
   hdr=$(curl -sI "http://$ip:$port" 2>/dev/null | grep -i '^Server:' | cut -d' ' -f2-)
   if [[ $hdr ]]; then
     cve_check "$hdr"
@@ -568,7 +577,7 @@ scan_http(){
   fi
 }
 
-# Function to scan SNMP (enhanced for aggressive scanning)
+# Function to scan SNMP ( for aggressive scanning)
 scan_snmp(){
   for com in "${SNMP_COMM_ARRAY[@]}"; do
     out=$(snmpwalk -v2c -c "$com" -Ovq -t1 -r0 "$1" sysDescr.0 2>/dev/null)
@@ -580,7 +589,7 @@ scan_snmp(){
   onesixtyone -c "$SNMP_COMM_FILE" "$1" &>/dev/null && log "[SNMP-BRUTE] Results saved to /tmp/snmp_brute_$1.log"
 }
 
-# Function to scan CoAP (enhanced for aggressive scanning)
+# Function to scan CoAP ( for aggressive scanning)
 scan_coap(){
   if command -v coap-client &>/dev/null; then
     for p in .well-known/core media stream status; do
@@ -600,7 +609,7 @@ scan_coap(){
   fi
 }
 
-# Function to scan RTMP (enhanced for aggressive scanning)
+# Function to scan RTMP ( for aggressive scanning)
 scan_rtmp(){
   for p in live/stream live cam play h264; do
     u="rtmp://$1/$p"
@@ -662,6 +671,14 @@ sweep(){
     esac
   done
 
+  # Optional targeted nmap vuln scripts on identified devices
+  if [[ "${ENABLE_NMAP_VULN:-0}" -eq 1 && ${#HOSTS_SCANNED[@]} -gt 0 ]]; then
+    log "Running targeted nmap vuln scan on discovered hosts"
+    local target_list=()
+    for h in "${!HOSTS_SCANNED[@]}"; do target_list+=("$h"); done
+    nmap -Pn -T3 --script vuln,default -oN "$OUTPUT_DIR/logs/nmap_vuln_$(date +%H%M%S).txt" "${target_list[@]}" >/dev/null 2>&1 || true
+  fi
+
   discover_onvif; discover_ssdp
 
   for ip in "${ALIVE[@]}"; do scan_coap "$ip"; done
@@ -688,14 +705,14 @@ sweep(){
   printf "\r\033[K"
 }
 
-# Generate comprehensive summary report
+# Generate  summary report
 generate_summary_report(){
   local report_file="$OUTPUT_DIR/reports/summary_$(date +%Y%m%d_%H%M%S).txt"
   local json_file="$OUTPUT_DIR/reports/summary_$(date +%Y%m%d_%H%M%S).json"
   
   {
     echo "=============================================="
-    echo "CamSniff 1.0.1 - Enhanced Camera Discovery"
+  echo "CamSniff 1.0.2 -  Camera Discovery"
     echo "Scan completed: $(date)"
     echo "=============================================="
     echo
@@ -736,7 +753,7 @@ generate_summary_report(){
   {
     echo "{"
     echo "  \"scan_info\": {"
-    echo "    \"version\": \"1.0.1\","
+  echo "    \"version\": \"1.0.2\"," 
     echo "    \"timestamp\": \"$(date -Iseconds)\","
     echo "    \"output_dir\": \"$OUTPUT_DIR\""
     echo "  },"
@@ -789,26 +806,39 @@ generate_summary_report(){
   log "JSON report saved: $json_file"
 }
 
-# Add trap to terminate scan_animation
+# Add trap to terminate scan_animation safely
 scan_animation() {
-    local len=8
-    local red='\033[31m'
-    local reset='\033[0m'
-    trap "exit" INT TERM
-    while :; do
-        for ((i=0; i<len; i++)); do
-            local line=""
-            for ((j=0; j<len; j++)); do
-                if (( j == i )); then
-                    line+="${red}~${reset}"
-                elif (( j < i )); then
-                    line+=" "
-                else
-                    line+="${red}~${reset}"
-                fi
-            done
-            echo -en "\rScanning... $line"
-            sleep 0.1
-        done
+  # Respect NO_ANIM and non-interactive environments
+  if [[ "${NO_ANIM:-0}" == "1" || ! -t 1 ]]; then
+    echo -en "Scanning..."
+    return 0
+  fi
+
+  local len=10
+  local reset='\033[0m'
+  local red='\033[31m'
+
+  cleanup() {
+    # Clear the line and move to next line
+    echo -en "\r\033[K"
+    trap - INT TERM EXIT
+    exit 0
+  }
+
+  trap cleanup INT TERM EXIT
+
+  while :; do
+    for ((i=0; i<len; i++)); do
+      local line=""
+      for ((j=0; j<len; j++)); do
+        if (( j == i )); then
+          line+="${red}•${reset}"
+        else
+          line+="·"
+        fi
+      done
+      echo -en "\rScanning... $line"
+      sleep 0.1
     done
+  done
 }

@@ -1,7 +1,5 @@
 #!/bin/sh
-set -e
-
-case "$1" in
+set -ecase "$1" in
     purge)
         # Only remove directories on purge, not on regular removal
         # This preserves user data during package upgrades
@@ -15,6 +13,4 @@ case "$1" in
         echo "postrm called with unknown argument \`$1'" >&2
         exit 1
         ;;
-esac
-
-exit 0
+esacexit 0

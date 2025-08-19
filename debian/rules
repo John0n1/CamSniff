@@ -3,17 +3,16 @@
 %:
 	dh $@
 
+override_dh_auto_build:
+	@:
+
+override_dh_auto_test:
+	set -e; \
+	bash -n camsniff.sh; \
+	for f in *.sh; do bash -n "$${f}"; done
+
 override_dh_auto_install:
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/camsniff
 
 override_dh_auto_clean:
 	$(MAKE) clean || true
-
-override_dh_auto_build:
-	# No build step needed for shell scripts
-	: # No-op to prevent make errors
-
-override_dh_auto_test:
-	# Basic syntax check
-	bash -n camsniff.sh
-	bash -n *.sh

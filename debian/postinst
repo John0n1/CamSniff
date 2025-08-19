@@ -1,18 +1,10 @@
 #!/bin/sh
-set -e
-
-# Create system directories with proper permissions
+set -e# Create system directories with proper permissions
 if [ ! -d "/var/lib/camsniff" ]; then
     mkdir -p /var/lib/camsniff
     chmod 755 /var/lib/camsniff
-fi
-
-if [ ! -d "/var/log/camsniff" ]; then
+fiif [ ! -d "/var/log/camsniff" ]; then
     mkdir -p /var/log/camsniff
     chmod 755 /var/log/camsniff
-fi
-
-# Add user to necessary groups for network tools (if needed)
-# Note: Most network tools require root anyway, so this is informational
-
-exit 0
+fi# Add user to necessary groups for network tools (if needed)
+# Note: Most network tools require root anyway, so this is informationalexit 0

@@ -3,7 +3,6 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # Simple, fast compliance test for local workspace
-
 echo "[INFO] CamSniff package compliance check starting..."
 
 # 1) Core files present
@@ -25,13 +24,12 @@ echo "[OK] Required files present"
 chmod +x *.sh 2>/dev/null || true
 for s in camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh test_package_compliance.sh; do
   [[ -x "$s" ]] || { echo "[ERROR] Script not executable: $s"; exit 1; }
-
 done
-
 echo "[OK] Scripts are executable"
 
 # 3) Syntax check (fast)
-bash -n camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh test_package_compliance.sh
+bash -n camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh test_package_compliance.sh || {
+  echo "[ERROR] Syntax check failed"; exit 1; }
 echo "[OK] Syntax checks passed"
 
 # 4) Make help works
@@ -45,7 +43,6 @@ fi
 make clean >/dev/null 2>&1
 make build >/dev/null 2>&1
 [[ -x ./camsniff ]] || { echo "[ERROR] Wrapper 'camsniff' not built"; exit 1; }
-
 echo "[OK] Wrapper built"
 
 # 6) Help command works without sudo
@@ -57,7 +54,5 @@ fi
 
 # 7) Debian packaging files basic sanity
 grep -qi '^package: *camsniff' debian/control || { echo "[ERROR] debian/control missing Package stanza"; exit 1; }
-
 echo "[OK] Debian control sanity"
-
 echo "[PASS] CamSniff package compliance OK"

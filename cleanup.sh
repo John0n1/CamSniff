@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+
+
 # Cleanup and exit handling
 
 ## This file may be executed or sourced. When sourced, do not exit the caller.
