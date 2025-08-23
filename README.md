@@ -19,6 +19,9 @@
 
 **CamSniff** is a sophisticated reconnaissance and analysis tool designed for IP cameras and associated IoT devices. It efficiently discovers devices, enumerates services, identifies common camera endpoints, captures snapshots for lightweight AI-driven analysis, and highlights potential vulnerabilities. The integrated Web UI provides real-time visualization of results, including camera feeds, network topology, maps, and alerts.
 
+![sc](https://github.com/user-attachments/assets/1ec79521-c935-4e29-bb54-b3316d978787)
+
+
 ---
 
 ## Features
