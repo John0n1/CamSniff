@@ -37,7 +37,7 @@
 - **Automation**: Features auto/quiet modes, target subnet selection, and plugin hooks for streamlined operations.
 ---
 
-CamSniff is optimized for Linux environments, with testing focused on Debian-based distributions such as Kali, Parrot, and Ubuntu. The script automatically installs required tools during the initial run when executed with root privileges.
+CamSniff is optimized for Linux environments, with testing focused on Debian-based distributions such as Kali, Debian and Ubuntu. The script automatically installs required tools during the initial run when executed with root privileges.
 
 **⚠️📜 Please note that some of the following tools and libraries come with their own licenses and terms of use. Be sure to review and comply with these licenses when using CamSniff. CamSniff itself only automates the use of these tools and does not modify them.**
 
