@@ -4,9 +4,8 @@
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/John0n1/CamSniff?style=flat-square&logo=github&color=neon&label=Latest%20Release)](https://github.com/John0n1/CamSniff/releases/latest) 
 [![License](https://img.shields.io/github/license/John0n1/CamSniff?style=flat-square&logo=github&color=blue)](https://github.com/John0n1/CamSniff/blob/main/LICENSE)
 
----
-
-- **[Requirements](#requirements)**
+- **[Introduction](#introduction)**
+- **[Features](#features)**
 - **[Installation](#installation)**
 - **[Usage](#usage)**
 - **[Configuration](#configuration)**
@@ -16,16 +15,16 @@
 ---
 
 ## Introduction
-
 **CamSniff** is a sophisticated reconnaissance and analysis tool designed for IP cameras and associated IoT devices. It efficiently discovers devices, enumerates services, identifies common camera endpoints, captures snapshots for lightweight AI-driven analysis, and highlights potential vulnerabilities. The integrated Web UI provides real-time visualization of results, including camera feeds, network topology, maps, and alerts.
 
-![sc](https://github.com/user-attachments/assets/1ec79521-c935-4e29-bb54-b3316d978787)
-
-
 ---
+<p align="center">
+   <img src="https://github.com/user-attachments/assets/1ec79521-c935-4e29-bb54-b3316d978787" alt="CamSniff Screenshot" style="border: 2px solid #333; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+</p>
+
+
 
 ## Features
-
 - **Camera Identification**: Advanced fingerprinting with brand-specific hints (e.g., Hikvision, Dahua, Axis, Vivotek, Foscam, and more).
 - **Network Scanning**: Utilizes tools such as `fping`, `arp-scan`, `masscan`, `nmap`, `onesixtyone`, and others for  scanning.
 - **Protocols**: Supports RTSP, HTTP/MJPEG/HLS, CoAP, RTMP, and MQTT protocols.
@@ -36,10 +35,7 @@
 - **AI Snapshot Analysis**: Applies IR spot detection, motion, and brightness heuristics using OpenCV on captured frames.
 - **Mosaic View**: Supports multi-camera layouts with basic overlays.
 - **Automation**: Features auto/quiet modes, target subnet selection, and plugin hooks for streamlined operations.
-
 ---
-
-## Requirements
 
 CamSniff is optimized for Linux environments, with testing focused on Debian-based distributions such as Kali, Parrot, and Ubuntu. The script automatically installs required tools during the initial run when executed with root privileges.
 
@@ -98,7 +94,7 @@ sudo apt install -y ./camsniff*.deb
 or
 
 ```bash
-gdebi ./camsniff_1.0.2_all.deb
+gdebi ./camsniff*.deb
 ```
 This installation places the launcher at `/usr/bin/camsniff` and the default configuration at `/etc/camsniff/camcfg.json`.
 
@@ -114,12 +110,6 @@ This installation places the launcher at `/usr/bin/camsniff` and the default con
    ```bash
    chmod +x *.sh
    ```
-
-3. Run the launcher:
-   ```bash
-   sudo ./camsniff.sh
-   ```
-
 ---
 
 ## Usage
@@ -130,39 +120,29 @@ Launch the main script `camsniff.sh` with root privileges to enter interactive m
 sudo ./camsniff.sh
 ```
 
-If installed via the DEB package, use the following command:
+or if installed via the DEB package, use the following command:
 
 ```bash
 sudo camsniff
 ```
 
-### Optional Web Dashboard
+## Output and Reporting
 
-Initiate the lightweight dashboard during or after scans to visualize cameras, maps, and alerts:
+CamSniff 1.0.2 delivers structured outputs and reports via:
 
+1. Web UI launch command:
 ```bash
 ./webui.sh
 ```
+   Access the Web UI at `http://localhost:5000` to view real-time results, camera feeds, topology maps, and alerts.
 
-This launches a Flask server accessible at `http://localhost:8088` (customizable via `CAMSNIFF_WEB_PORT`). It automatically loads the latest output folder from `./output/`.
-
-## Output and Reporting
-
-CamSniff 1.0.2 now delivers a improved, , structured outputs and reports:
+2. Directly accessing the output directory:
 
 ```bash
-./webui.sh
-```
-
-This launches a Flask server accessible at `http://localhost:8088` (customizable via `CAMSNIFF_WEB_PORT`). It automatically loads the latest output folder from `./output/`.
-
-## Output and Reporting
-
-CamSniff 1.0.2 now delivers a improved, , structured outputs and reports:
-
-### Output Directory Structure
-```
 ./output/results_YYYYMMDD_HHMMSS/
+```
+Folder structure:
+```
 ├── logs/           # Scan logs and debug information
 ├── screenshots/    # Camera snapshots with AI analysis
 └── reports/        # Summary reports and structured data
@@ -177,12 +157,6 @@ CamSniff 1.0.2 now delivers a improved, , structured outputs and reports:
   ├── topology.json                  # Simple network graph snapshot
   └── logs/nmap_vuln_*.txt           # Optional nmap vuln outputs
 ```
-
-**Key Features:**
-- **Real-time CVE data**: Fetches the latest vulnerability information from [CVEProject/cvelistV5](https://github.com/CVEProject/cvelistV5)
-- **Smart caching**: Results are cached locally for 24 hours to improve performance
-- **Device-specific searches**: Automatically searches for CVEs related to detected camera brands (Hikvision, Dahua, Axis, etc.)
-- **Structured CVE data**: Parses official CVE JSON format for accurate vulnerability information
 
 ### Camera Information
 Each discovered camera is logged with:
@@ -208,7 +182,7 @@ Options:
 
 ## Configuration
 
-CamSniff loads its configuration from `camcfg.json` (prioritizing `/etc/camsniff/camcfg.json` if installed). Below is an example with default settings (all features enabled in version 1.0.2):
+CamSniff loads its configuration from `camcfg.json` (prioritizing `/etc/camsniff/camcfg.json` if installed).
 
 **Everything has a default value but can be customized:**
 
@@ -312,8 +286,8 @@ We extend our thanks to the open-source projects that underpin CamSniff's capabi
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
----
+### Disclaimer ⚠️
+- This tool is intended for educational and research purposes only.
+- Use it responsibly and ensure you have permission to scan and analyze any network or device.
+- The authors are not responsible for any misuse. 
 
-This tool is intended for educational and research purposes only. Use it responsibly and ensure you have permission to scan and analyze any network or device. The authors are not responsible for any misuse. ⚠️
-
----

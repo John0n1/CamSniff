@@ -78,7 +78,7 @@ else
     fping masscan nmap hydra fzf tcpdump tshark arp-scan
   avahi-daemon avahi-discover avahi-utils ffmpeg curl jq snmp
     python3 python3-venv python3-pip python3-opencv
-  git rtmpdump build-essential cmake pkg-config autoconf
+  git rtmpdump build-essential cmake pkgconf autoconf
     automake libtool chafa gobuster medusa onesixtyone
   libssl-dev doxygen
   bluez bluez-tools

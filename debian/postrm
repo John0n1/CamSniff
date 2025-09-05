@@ -1,16 +1,16 @@
 #!/bin/sh
-set -ecase "$1" in
+set -e
+
+case "$1" in
     purge)
-        # Only remove directories on purge, not on regular removal
-        # This preserves user data during package upgrades
         rm -rf /var/lib/camsniff 2>/dev/null || true
-        # Note: We preserve /var/log/camsniff for forensic purposes
         ;;
     remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
-        # Do nothing on regular remove/upgrade
         ;;
     *)
-        echo "postrm called with unknown argument \`$1'" >&2
+        echo "postrm called with unknown argument '$1'" >&2
         exit 1
         ;;
-esacexit 0
+esac
+
+exit 0
