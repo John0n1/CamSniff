@@ -101,7 +101,7 @@ rain_ascii_art() {
 
 # Display banner with animations
 if (( !QUIET_MODE )); then
-  [[ -t 1 ]] && clear || true
+  if [[ -t 1 ]]; then clear; fi
 
   printf "%sCamSniff is a powerful tool designed to:%s\n" "$CYAN" "$RESET"
   printf "%s- Discover, analyze and display network-connected cameras%s\n" "$GREEN" "$RESET"
@@ -144,8 +144,7 @@ fi
 # Get directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Base working data directory
-DATADIR="$SCRIPT_DIR"
+## Base working data directory (unused; removed to satisfy ShellCheck)
 
 # Output directory now relative to script dir
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -157,8 +156,7 @@ flag_str(){
   local v="$1"; if [[ "$v" == "1" ]]; then echo -e "${GREEN}ON${RESET}"; else echo -e "${RED}OFF${RESET}"; fi
 }
 
-# Python venv path
-VENV="$SCRIPT_DIR/.camvenv"
+## Python venv path (unused in this script; removed to satisfy ShellCheck)
 
 # Structured JSON log file (append-only)
 JSON_LOG_FILE="$OUTPUT_DIR/logs/scan.jsonl"
@@ -313,7 +311,9 @@ if [[ -s "$LOCAL_RTSP_FILE" ]]; then
 else
   # Fallback to configured URL only if local list is missing
   if [[ -n "${RTSP_LIST_URL:-}" ]]; then
-    curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv && RTSP_SOURCE="/tmp/rtsp_paths.csv" || true
+    if curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv; then
+      RTSP_SOURCE="/tmp/rtsp_paths.csv"
+    fi
   fi
 fi
 

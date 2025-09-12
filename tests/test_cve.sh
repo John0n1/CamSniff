@@ -30,6 +30,7 @@ cat > ./camcfg.json <<'JSON'
 JSON
 
 # Source env_setup to populate vars
+# shellcheck disable=SC1091
 source ../core/env_setup.sh
 
 # Validate key vars
@@ -37,6 +38,7 @@ source ../core/env_setup.sh
 [[ -z "${RTSP_LIST_URL:-}" ]] || { echo "[ERROR] RTSP_LIST_URL not empty in offline mode"; exit 1; }
 
 # Try quick cve_check on a known string via scan_analyze helpers
+# shellcheck disable=SC1091
 source ../core/scan_analyze.sh
 
 python3 ../python_core/cve_quick_search.py hikvision >/dev/null 2>&1 || true

@@ -153,7 +153,6 @@ if ! printf "%s\n" "${SNMP_COMM_ARRAY[@]}" > "$SNMP_COMM_FILE" 2>/dev/null; then
   SNMP_COMM_FILE=$(mktemp /tmp/.snmp_comms.XXXXXX)
   printf "%s\n" "${SNMP_COMM_ARRAY[@]}" > "$SNMP_COMM_FILE" || { log_debug "Failed to write SNMP_COMM_FILE"; exit 1; }
 fi
-SNMP_COMMUNITIES="$SNMP_COMM_FILE"
 log_debug "SNMP_COMM_FILE created at $SNMP_COMM_FILE"
 
 # New: threads for Medusa fuzzing

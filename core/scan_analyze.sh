@@ -714,6 +714,7 @@ scan_animation() {
   stop_anim=0
 
   cleanup() {
+    # shellcheck disable=SC2317
     # Clear the line and move to next line
     echo -en "\r\033[K"
     trap - INT TERM EXIT

@@ -40,6 +40,7 @@ cat > ./camcfg.json <<'JSON'
 JSON
 
 # Source and check values (should prefer ./camcfg.json)
+# shellcheck disable=SC1091
 source ../core/env_setup.sh
 
 [[ -n "${CVE_CACHE_DIR:-}" ]] || { echo "[ERROR] CVE_CACHE_DIR not set"; exit 1; }

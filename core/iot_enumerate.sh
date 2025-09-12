@@ -76,7 +76,9 @@ detect_zigbee_zwave(){
   log_iot "Detecting Zigbee/Z-Wave adapters"
   local out_file="$IOT_REPORT_DIR/zigbee_zwave_adapters.txt"
   : >"$out_file"
-  ls -l /dev/ttyACM* /dev/ttyUSB* 2>/dev/null | tee -a "$out_file" >/dev/null || true
+  # Prefer find over ls to handle unusual filenames
+  find /dev -maxdepth 1 \( -name 'ttyACM*' -o -name 'ttyUSB*' \) -printf '%f\n' 2>/dev/null \
+    | sed 's/^/[DEV] /' | tee -a "$out_file" >/dev/null || true
   dmesg | grep -iE 'zigbee|zwave|z-wave|ncp|silicon labs|cc2531|cc2652|zwave' \
     | tail -n 100 | tee -a "$out_file" >/dev/null || true
 }
