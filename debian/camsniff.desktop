@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=CamSniff
+Comment=Camera Reconnaissance Tool
+Exec=camsniff
+Icon=camsniff
+Categories=Network;Security;
+Terminal=true

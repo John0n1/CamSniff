@@ -2,7 +2,8 @@ Source: camsniff
 Section: net
 Priority: optional
 Maintainer: John H. Mitander <john@on1.no>
-Build-Depends: debhelper-compat (= 12)
+Build-Depends: debhelper-compat (= 13),
+ icoutils
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Homepage: https://github.com/John0n1/CamSniff

@@ -48,17 +48,19 @@ retry() {
   local n=1
   local max=5
   local delay=5
+  # Usage: retry <command ...>
+  # Retries the given command with exponential backoff up to <max> times
   while true; do
-    "$@" && break || {
-      if [[ $n -lt $max ]]; then
-        ((n++))
-        log "Command failed. Attempt $n/$max:"
-        sleep $delay;
-      else
-        log "The command has failed after $n attempts."
-        return 1
-      fi
-    }
+    "$@" && return 0
+    local rc=$?
+    if (( n >= max )); then
+      log "Command failed after ${max} attempts: $* (rc=$rc)"
+      return $rc
+    fi
+    log "Retry $n/$max failed (rc=$rc). Sleeping ${delay}s and retrying..."
+    sleep "$delay"
+    n=$(( n+1 ))
+    delay=$(( delay*2 ))
   done
 }
 
@@ -194,19 +196,45 @@ fi
 # ----------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.camvenv"
-if [[ -d $VENV_DIR ]]; then
+USE_VENV=1
+if [[ -d "$VENV_DIR" && -f "$VENV_DIR/bin/activate" ]]; then
   log_installed "Python virtualenv"
 else
   log_build "Python virtualenv"
-  python3 -m venv "$VENV_DIR"
+  rm -rf "$VENV_DIR" 2>/dev/null || true
+  if ! python3 -m venv "$VENV_DIR" 2>/dev/null; then
+    log "WARNING: Failed to create virtualenv; proceeding without venv"
+    USE_VENV=0
+  fi
 fi
 
-source "$VENV_DIR/bin/activate"
+if (( USE_VENV )) && [[ -f "$VENV_DIR/bin/activate" ]]; then
+  # shellcheck disable=SC1091
+  source "$VENV_DIR/bin/activate"
+else
+  log "Proceeding with system Python packages"
+fi
 
 log "Upgrading pip"
-retry pip install --upgrade pip --quiet
+if (( USE_VENV )); then
+  retry pip install --upgrade pip --quiet
+else
+  retry pip3 install --upgrade pip --quiet || true
+fi
 
 log_install "Python packages"
-retry pip install --no-cache-dir wsdiscovery opencv-python requests flask --quiet
+if [[ -f "$SCRIPT_DIR/requirements.txt" ]]; then
+  if (( USE_VENV )); then
+    retry pip install --no-cache-dir -r "$SCRIPT_DIR/requirements.txt" --quiet
+  else
+    retry pip3 install --user --no-cache-dir -r "$SCRIPT_DIR/requirements.txt" --quiet || true
+  fi
+else
+  if (( USE_VENV )); then
+    retry pip install --no-cache-dir wsdiscovery opencv-python requests flask --quiet
+  else
+    retry pip3 install --user --no-cache-dir wsdiscovery opencv-python requests flask --quiet || true
+  fi
+fi
 
 log "All done 🎉"

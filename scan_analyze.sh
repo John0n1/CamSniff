@@ -103,65 +103,11 @@ screenshot_and_analyze(){
   
   ffmpeg -rtsp_transport tcp -i "$u" -frames:v 1 -q:v 2 -y "$out" &>/dev/null && {
     log "[SNAP] $u → $out"
-    
-    #  AI analysis
-    python3 - <<PY 2>/dev/null
-import cv2
-import json
-import sys
-
-try:
-    img = cv2.imread("$out", 0)
-    if img is None:
-        sys.exit(1)
-        
-    # IR spot detection
-    _, th = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY)
-    ir_count = cv2.countNonZero(th)
-    
-    # Motion detection areas
-    contours, _ = cv2.findContours(th, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    motion_areas = len([c for c in contours if cv2.contourArea(c) > 100])
-    
-    # Brightness analysis
-    brightness = cv2.mean(img)[0]
-    
-    analysis = {
-        "ip": "$ip",
-        "timestamp": "$(date -Iseconds)",
-        "ir_spots": ir_count,
-        "motion_areas": motion_areas,
-        "brightness": round(brightness, 2),
-        "image_path": "$out"
-    }
-    
-  alert_lines = []
-  if ir_count > 50:
-    msg = f"IR spots detected ({ir_count}px) - Night vision likely"; print(f"[AI] {msg}"); alert_lines.append(msg)
-  if motion_areas > 5:
-    msg = f"Multiple motion areas ({motion_areas}) - Active scene"; print(f"[AI] {msg}"); alert_lines.append(msg)
-  if brightness < 50:
-    msg = "Low light - IR camera may be active"; print(f"[AI] {msg}"); alert_lines.append(msg)
-        
-    # Save analysis
-  with open("$OUTPUT_DIR/reports/analysis_${ip}.json", "w") as f:
-        json.dump(analysis, f, indent=2)
-
-  # Append alerts to alerts.log if any
-  if alert_lines:
-    import time
-    ts = time.strftime('%Y-%m-%dT%H:%M:%S')
-    with open("$OUTPUT_DIR/reports/alerts.log", "a") as af:
-      for m in alert_lines:
-        af.write(json.dumps({"type":"ai_notice","timestamp":ts,"ip":"$ip","message":m})+"\n")
-        
-except Exception as e:
-    print(f"[AI] Analysis failed: {e}")
-PY
+    python3 "$SCRIPT_DIR/scripts/ai_analyze.py" "$out" "$ip" "$OUTPUT_DIR/reports/alerts.log" "$OUTPUT_DIR/reports/analysis_${ip}.json" 2>/dev/null || true
   }
 }
 
-#  CVE checking function using GitHub CVE repository
+#  CVE checking function using local CVE data
 cve_check() {
   local search_term="$1"
   log_debug "Starting CVE check for: $search_term"
@@ -172,33 +118,8 @@ cve_check() {
     return
   fi
   
-  # Create a sanitized filename for caching
-  local cache_key=$(echo "$search_term" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')
-  local cache_file="$CVE_CACHE_DIR/${cache_key}.json"
-  
-  # Check if we have cached results (valid for 24 hours)
-  if [[ -f "$cache_file" ]] && [[ $(find "$cache_file" -mtime -1 2>/dev/null) ]]; then
-    log_debug "Using cached CVE results for: $search_term"
-    if [[ -s "$cache_file" ]]; then
-      local cached_results=$(cat "$cache_file")
-      if [[ "$cached_results" != "[]" ]]; then
-        echo "$cached_results" | jq -r '.[] | "[CVE] \(.cve_id): \(.title // .description)"' 2>/dev/null | head -3 | while read -r line; do
-          log "$line"
-        done
-      fi
-    fi
-    return
-  fi
-  
-  log_debug "Searching GitHub CVE repository for: $search_term"
-  
-  # Try quick search first (using GitHub search API)
-  if command -v python3 >/dev/null && python3 -c "import requests" 2>/dev/null; then
-    cve_quick_search "$search_term"
-  else
-    log_debug "GitHub API not available, using fallback CVE check"
-    cve_fallback_check "$search_term"
-  fi
+  # Prefer local quick search first; fallback to hardcoded hints
+  cve_quick_search "$search_term"
 }
 
 # Quick CVE search using GitHub search API (faster alternative)
@@ -206,54 +127,16 @@ cve_quick_search() {
   local search_term="$1"
   log_debug "Quick CVE search for: $search_term"
   
-  python3 - <<QUICK_SEARCH 2>/dev/null
-import json
-import requests
-import sys
-import re
-
-search_term = "$search_term"
-
-try:
-    # Use GitHub search API to find CVE files
-    clean_term = re.sub(r'[^\w\s-]', '', search_term.lower())
-    
-    # Search for CVE files containing the term
-    search_query = f"repo:CVEProject/cvelistV5 filename:CVE extension:json {clean_term}"
-    search_url = f"https://api.github.com/search/code?q={requests.utils.quote(search_query)}&per_page=5"
-    
-    response = requests.get(search_url, timeout=10)
-    if response.status_code == 200:
-        search_results = response.json()
-        
-        for item in search_results.get('items', [])[:3]:  # Limit to 3 results
-            # Extract CVE ID from filename
-            cve_filename = item.get('name', '')
-            cve_id = cve_filename.replace('.json', '')
-            
-            # Get the actual CVE content
-            download_url = item.get('download_url', '')
-            if download_url:
-                cve_response = requests.get(download_url, timeout=5)
-                if cve_response.status_code == 200:
-                    try:
-                        cve_data = cve_response.json()
-                        containers = cve_data.get('containers', {})
-                        cna = containers.get('cna', {})
-                        title = cna.get('title', 'No title available')
-                        
-                        print(f"[CVE] {cve_id}: {title}")
-                        
-                    except json.JSONDecodeError:
-                        print(f"[CVE] {cve_id}: Found in CVE database")
-                        
-    else:
-        print(f"[DEBUG] GitHub search API returned status: {response.status_code}", file=sys.stderr)
-        
-except Exception as e:
-    print(f"[DEBUG] Quick CVE search failed: {e}", file=sys.stderr)
-
-QUICK_SEARCH
+  local results
+  results=$(python3 "$SCRIPT_DIR/scripts/cve_quick_search.py" "$search_term" 2>/dev/null || true)
+  if [[ -n "$results" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && log "$line"
+    done <<< "$results"
+  else
+    log_debug "No local CVE matches found, using fallback check"
+    cve_fallback_check "$search_term"
+  fi
 }
 
 # Fallback CVE check using local wordlist (when GitHub API is unavailable)
@@ -444,8 +327,8 @@ scan_rtsp(){
     done
   fi
 
-  #  brute-force if no stream found
-  if (( !found )); then
+  #  brute-force if no stream found (guarded by ENABLE_BRUTE_FORCE)
+  if (( !found )) && [[ "${ENABLE_BRUTE_FORCE:-0}" -eq 1 ]]; then
     log_debug "Starting RTSP brute-force for $ip:$port"
     # Use dedicated user/password lists if available
     local users_file="${HYDRA_USER_FILE:-}"
@@ -516,9 +399,9 @@ scan_http(){
   # Scan for HLS streams
   scan_hls "$ip" "$port"
   
-  # General HTTP brute-force
+  # General HTTP brute-force (guarded by ENABLE_BRUTE_FORCE)
   local combo_file="${HYDRA_COMBO_FILE:-}"
-  if [[ -z "$combo_file" || ! -s "$combo_file" ]]; then
+  if [[ "${ENABLE_BRUTE_FORCE:-0}" -eq 1 && ( -z "$combo_file" || ! -s "$combo_file" ) ]]; then
     combo_file="/tmp/.camsniff_combos.txt"
     
     # Generate combo file from wordlists if available
@@ -549,10 +432,12 @@ scan_http(){
       } >"$combo_file" 2>/dev/null || true
     fi
   fi
-  hydra -C "$combo_file" -s "$port" http-get://"$ip" -t "$HYDRA_RATE" &>/dev/null && {
+  if [[ "${ENABLE_BRUTE_FORCE:-0}" -eq 1 ]]; then
+    hydra -C "$combo_file" -s "$port" http-get://"$ip" -t "$HYDRA_RATE" &>/dev/null && {
     log "[HYDRA-HTTP] $ip:$port - Access granted"
     log_device_info "$ip" "HTTP authentication bypassed" "web_device"
-  }
+    }
+  fi
   
   #  server fingerprinting
   hdr=$(curl -sI "http://$ip:$port" 2>/dev/null | grep -i '^Server:' | cut -d' ' -f2-)

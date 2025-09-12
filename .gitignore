@@ -5,17 +5,24 @@ debian/.debhelper/generated/
 debian/files
 debian/debhelper-build-stamp
 debian/*.substvars
-
-# Virtualenv / local deps
-.camvenv/
-.deps_installed
-
-# Build artifacts
 *.deb
 build-deb.sh
 /build/
 /dist/
 output/*
+*.buildinfo
+*.changes
+
+# Virtualenv / local deps
+.debhelper/
+.camvenv/
+.deps_installed
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.vscode/
+
 # Temporary and cache files
 /tmp/
 *.tmp
@@ -23,3 +30,8 @@ output/*
 *.cache
 .github
 paused.conf
+egg-info/
+*.egg-info/
+
+MANIFEST.in
+*.egg

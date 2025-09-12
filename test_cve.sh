@@ -9,19 +9,18 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 
-# Create a temp config with minimal viable fields
-CFG=$(mktemp)
-cat >"$CFG" <<JSON
+export HOME=${HOME:-/tmp}
+cat > ./camcfg.json <<'JSON'
 {
   "sleep_seconds": 1,
   "nmap_ports": "80",
   "masscan_rate": 1000,
   "hydra_rate": 4,
   "max_streams": 1,
-  "cve_github_repo": "https://github.com/CVEProject/cvelistV5/tree/0c81b12af2cabcadb83f312d4d81dc99008235c9/cves/",
-  "cve_cache_dir": "/tmp/cve_cache_test",
+  "cve_github_repo": "",
+  "cve_cache_dir": "data/cves",
   "cve_current_year": "2025",
-  "dynamic_rtsp_url": "https://github.com/John0n1/CamSniff/blob/4d682edf7b4512562d24ccdf863332952637094d/data/rtsp_paths.csv",
+  "dynamic_rtsp_url": "",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
   "password_wordlist": "data/passwords.txt",
   "username_wordlist": "data/usernames.txt",
@@ -30,21 +29,19 @@ cat >"$CFG" <<JSON
 }
 JSON
 
-# Use CONFIG_FILE via env when sourcing
-export HOME=${HOME:-/tmp}
-cp "$CFG" ./camcfg.json 2>/dev/null || true
-
 # Source env_setup to populate vars
 source ./env_setup.sh
 
 # Validate key vars
 : "${CVE_CACHE_DIR:?}"
-: "${RTSP_LIST_URL:?}"
+[[ -z "${RTSP_LIST_URL:-}" ]] || { echo "[ERROR] RTSP_LIST_URL not empty in offline mode"; exit 1; }
 
 # Try quick cve_check on a known string via scan_analyze helpers
 source ./scan_analyze.sh
 
-# Call function in a subshell to avoid running the whole sweep
+python3 scripts/cve_quick_search.py hikvision >/dev/null 2>&1 || true
+
+# Call fallback in a subshell to avoid running the whole sweep
 ( type cve_fallback_check >/dev/null 2>&1 && cve_fallback_check "hikvision camera" ) || true
 
 echo "[OK] CVE helper test completed"

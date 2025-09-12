@@ -1,3 +1,12 @@
+camsniff (1.0.3-1) unstable; urgency=medium
+
+  * Add capitalized CamSniff executable alongside camsniff
+  * Install desktop entry and icon; use PNG when icotool available
+  * Harden installer venv handling; add typer to requirements
+  * Structured JSON logging and minor UX improvements
+
+ -- John H. Mitander <john@on1.no>  Thu, 11 Sep 2025 21:50:00 +0000
+
 camsniff (1.0.2-1) unstable; urgency=medium
 
   * Enable all features by default in configuration

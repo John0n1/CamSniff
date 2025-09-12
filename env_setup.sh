@@ -9,6 +9,16 @@ log_debug() {
 
 log_debug "Starting env_setup.sh"
 
+# Ensure SCRIPT_DIR is set (works when sourced directly or via wrapper)
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+  if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  else
+    SCRIPT_DIR="$(pwd)"
+  fi
+fi
+export SCRIPT_DIR
+
 # Ensure jq is installed
 if ! command -v jq &>/dev/null; then
   log_debug "ERROR: jq is not installed. Please install it and try again."
@@ -23,10 +33,10 @@ read -r -d '' DEFAULT_CFG <<'JSON' || true
   "masscan_rate": 20000,
   "hydra_rate": 16,
   "max_streams": 4,
-  "cve_github_repo": "https://github.com/CVEProject/cvelistV5/tree/0c81b12af2cabcadb83f312d4d81dc99008235c9/cves/",
-  "cve_cache_dir": "/tmp/cve_cache",
+  "cve_github_repo": "",
+  "cve_cache_dir": "data/cves",
   "cve_current_year": "2025",
-  "dynamic_rtsp_url": "https://github.com/John0n1/CamSniff/blob/4d682edf7b4512562d24ccdf863332952637094d/data/rtsp_paths.csv",
+  "dynamic_rtsp_url": "",
   "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
   "password_wordlist": "data/passwords.txt",
   "username_wordlist": "data/usernames.txt", 
@@ -158,7 +168,8 @@ ENABLE_BLE_SCAN=$(JQ -r '.enable_ble_scan // true' "$CONFIG_FILE" | sed 's/true/
 ENABLE_ZIGBEE_ZWAVE_SCAN=$(JQ -r '.enable_zigbee_zwave_scan // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
 STEALTH_MODE=$(JQ -r '.stealth_mode // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
 ENABLE_NMAP_VULN=$(JQ -r '.enable_nmap_vuln // true' "$CONFIG_FILE" | sed 's/true/1/; s/false/0/')
-export ENABLE_IOT_ENUMERATION ENABLE_PCAP_CAPTURE ENABLE_WIFI_SCAN ENABLE_BLE_SCAN ENABLE_ZIGBEE_ZWAVE_SCAN STEALTH_MODE ENABLE_NMAP_VULN
+ENABLE_BRUTE_FORCE=${ENABLE_BRUTE_FORCE:-1}
+export ENABLE_IOT_ENUMERATION ENABLE_PCAP_CAPTURE ENABLE_WIFI_SCAN ENABLE_BLE_SCAN ENABLE_ZIGBEE_ZWAVE_SCAN STEALTH_MODE ENABLE_NMAP_VULN ENABLE_BRUTE_FORCE
 log_debug "Feature flags: IoT=$ENABLE_IOT_ENUMERATION PCAP=$ENABLE_PCAP_CAPTURE WiFi=$ENABLE_WIFI_SCAN BLE=$ENABLE_BLE_SCAN Zig=$ENABLE_ZIGBEE_ZWAVE_SCAN Stealth=$STEALTH_MODE NmapVuln=$ENABLE_NMAP_VULN"
 
 # Create CVE cache directory
@@ -220,14 +231,24 @@ declare -a HTTP_CREDS
 
 # Generate HTTP_CREDS from wordlists if available, otherwise use hardcoded fallback
 set +u  # Temporarily disable unset variable checking for this section
-if [[ -n "${USERNAME_WORDLIST:-}" && -f "$SCRIPT_DIR/${USERNAME_WORDLIST:-}" && 
-      -n "${PASSWORD_WORDLIST:-}" && -f "$SCRIPT_DIR/${PASSWORD_WORDLIST:-}" ]]; then
+
+# Resolve wordlist paths: support absolute paths, CWD paths, and repo-relative under SCRIPT_DIR
+resolve_path(){
+  local p="$1"
+  if [[ -z "$p" ]]; then return 1; fi
+  if [[ -f "$p" ]]; then printf "%s" "$p"; return 0; fi
+  if [[ -f "$SCRIPT_DIR/$p" ]]; then printf "%s" "$SCRIPT_DIR/$p"; return 0; fi
+  return 1
+}
+
+USERLIST_PATH=""; PASSLIST_PATH=""
+if USERLIST_PATH="$(resolve_path "${USERNAME_WORDLIST:-}")" && \
+   PASSLIST_PATH="$(resolve_path "${PASSWORD_WORDLIST:-}")"; then
   log_debug "Generating HTTP_CREDS from wordlists"
   
   # Read usernames and passwords into arrays first
-  mapfile -t top_users < <(head -5 "$SCRIPT_DIR/$USERNAME_WORDLIST" | grep -v "^#" | grep -v "^$") || true
-  mapfile -t top_users < <(grep -v "^#" "$SCRIPT_DIR/$USERNAME_WORDLIST" | grep -v "^$" | head -5) || true
-  mapfile -t top_passwords < <(grep -v "^#" "$SCRIPT_DIR/$PASSWORD_WORDLIST" | grep -v "^$" | head -8) || true
+  mapfile -t top_users < <(grep -v "^#" "$USERLIST_PATH" | grep -v "^$" | head -5) || true
+  mapfile -t top_passwords < <(grep -v "^#" "$PASSLIST_PATH" | grep -v "^$" | head -8) || true
   
   # Generate combinations if we have data
   if [[ ${#top_users[@]} -gt 0 && ${#top_passwords[@]} -gt 0 ]]; then
@@ -241,8 +262,8 @@ if [[ -n "${USERNAME_WORDLIST:-}" && -f "$SCRIPT_DIR/${USERNAME_WORDLIST:-}" &&
     done
     
     # Add empty credentials if they were in the original wordlists
-    if grep -q "^__EMPTY__$" "$SCRIPT_DIR/$USERNAME_WORDLIST" 2>/dev/null || 
-       grep -q "^__EMPTY__$" "$SCRIPT_DIR/$PASSWORD_WORDLIST" 2>/dev/null; then
+    if grep -q "^__EMPTY__$" "$USERLIST_PATH" 2>/dev/null || 
+       grep -q "^__EMPTY__$" "$PASSLIST_PATH" 2>/dev/null; then
       HTTP_CREDS+=(":")
     fi
     

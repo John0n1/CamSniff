@@ -1,0 +1,11 @@
+wsdiscovery>=2.0
+opencv-python>=4.8
+requests>=2.31
+flask>=2.3
+aiohttp>=3.9
+fastapi>=0.114
+uvicorn>=0.30
+pre-commit>=3.7
+ruff>=0.6
+black>=24.8
+typer

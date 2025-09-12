@@ -5,17 +5,23 @@ PREFIX ?= /usr
 BINDIR = $(PREFIX)/bin
 SHAREDIR = $(PREFIX)/share
 DOCDIR = $(SHAREDIR)/doc/camsniff
+APPSDIR = $(SHAREDIR)/applications
+ICONSDIR = $(SHAREDIR)/icons/hicolor/256x256/apps
+PIXMAPSDIR = $(SHAREDIR)/pixmaps
 MANDIR = $(SHAREDIR)/man/man1
 ETCDIR = /etc/camsniff
 
 # Version information
-VERSION := 1.0.2
+VERSION := 1.0.3
 
 # Source files
 SCRIPTS := camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh iot_enumerate.sh
-TEST_SCRIPTS := test_cve.sh test_package_compliance.sh
+SCRIPTS_PY := scripts/ai_analyze.py scripts/cve_quick_search.py
+PY_CORE := python_core/cli.py python_core/web_backend.py python_core/__init__.py
+TEST_SCRIPTS := test_cve.sh test_package_compliance.sh test_rtsp_paths.sh test_env_setup.sh test_python_core.sh test_rtsp_subst.sh
 DOCS := README.md LICENSE
-WEB := web/app.py webui.sh
+WEB := web/app.py webui.sh web/CamSniff.ico
+EXTRA := doctor.sh requirements.txt
 
 .PHONY: all build install uninstall clean test
 
@@ -27,6 +33,10 @@ build:
 	@echo '#!/bin/bash' > camsniff
 	@echo 'exec /usr/share/camsniff/camsniff.sh "$$@"' >> camsniff
 	@chmod +x camsniff
+	# Create capitalized wrapper for convenience and desktop Exec
+	@echo '#!/bin/bash' > CamSniff
+	@echo 'exec /usr/share/camsniff/camsniff.sh "$$@"' >> CamSniff
+	@chmod +x CamSniff
 
 install: build
 	@echo "Installing CamSniff $(VERSION)..."
@@ -34,6 +44,9 @@ install: build
 	install -d $(DESTDIR)$(BINDIR)
 	install -d $(DESTDIR)$(SHAREDIR)/camsniff
 	install -d $(DESTDIR)$(SHAREDIR)/camsniff/web
+	install -d $(DESTDIR)$(APPSDIR)
+	install -d $(DESTDIR)$(ICONSDIR)
+	install -d $(DESTDIR)$(PIXMAPSDIR)
 	install -d $(DESTDIR)$(DOCDIR)
 	install -d $(DESTDIR)$(MANDIR)
 	install -d $(DESTDIR)$(ETCDIR)
@@ -42,18 +55,60 @@ install: build
 	
 	# Install main wrapper script
 	install -m 755 camsniff $(DESTDIR)$(BINDIR)/camsniff
+	# Also install capitalized convenience executable
+	install -m 755 CamSniff $(DESTDIR)$(BINDIR)/CamSniff
 	
 		# Install all scripts to share directory
 		install -m 755 $(SCRIPTS) $(DESTDIR)$(SHAREDIR)/camsniff/
+		install -d $(DESTDIR)$(SHAREDIR)/camsniff/scripts
+		install -m 644 $(SCRIPTS_PY) $(DESTDIR)$(SHAREDIR)/camsniff/scripts/
+		# Install python core package files (for local runs)
+		install -d $(DESTDIR)$(SHAREDIR)/camsniff/python_core
+		install -m 644 $(PY_CORE) $(DESTDIR)$(SHAREDIR)/camsniff/python_core/
 		# Install web files (preserve structure for app.py)
 		install -m 755 web/app.py $(DESTDIR)$(SHAREDIR)/camsniff/web/
+		install -m 644 web/CamSniff.ico $(DESTDIR)$(SHAREDIR)/camsniff/web/
 		install -m 755 webui.sh $(DESTDIR)$(SHAREDIR)/camsniff/
+		# Install extra helper files
+		install -m 755 doctor.sh $(DESTDIR)$(SHAREDIR)/camsniff/
+		install -m 644 requirements.txt $(DESTDIR)$(SHAREDIR)/camsniff/
+
+	# Desktop entry for launcher
+	printf "[Desktop Entry]\n" > $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Type=Application\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Name=CamSniff\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Comment=Camera Reconnaissance Tool\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Exec=CamSniff\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Icon=camsniff\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Categories=Network;Security;\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Keywords=camera;ip;network;security;scanner;rtsp;onvif;\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+	printf "Terminal=true\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
+
+	# Install icon: prefer PNG in hicolor; always install ICO to pixmaps as fallback
+	@tmpicons=$$(mktemp -d); \
+	if command -v icotool >/dev/null 2>&1; then \
+		icotool -x -o "$$tmpicons" web/CamSniff.ico >/dev/null 2>&1 || true; \
+		png=$$(ls -1 "$$tmpicons"/*256*.png 2>/dev/null | head -n1 || true); \
+		if [ -n "$$png" ]; then \
+			install -m 644 "$$png" $(DESTDIR)$(ICONSDIR)/camsniff.png; \
+		fi; \
+	elif command -v convert >/dev/null 2>&1; then \
+		convert web/CamSniff.ico -resize 256x256 "$$tmpicons/camsniff.png" >/dev/null 2>&1 || true; \
+		if [ -f "$$tmpicons/camsniff.png" ]; then \
+			install -m 644 "$$tmpicons/camsniff.png" $(DESTDIR)$(ICONSDIR)/; \
+		fi; \
+	fi; \
+	install -m 644 web/CamSniff.ico $(DESTDIR)$(PIXMAPSDIR)/camsniff.ico; \
+	rm -rf "$$tmpicons" 2>/dev/null || true
 	
 	# Install documentation
 	install -m 644 $(DOCS) $(DESTDIR)$(DOCDIR)/
 	
-	# Install man page if it exists
-	test -f camsniff.1 && install -m 644 camsniff.1 $(DESTDIR)$(MANDIR)/ || true
+	# Install man page if it exists (and provide CamSniff.1 symlink)
+	@if [ -f camsniff.1 ]; then \
+		install -m 644 camsniff.1 $(DESTDIR)$(MANDIR)/; \
+		ln -sf camsniff.1 $(DESTDIR)$(MANDIR)/CamSniff.1; \
+	fi || true
 	
 	# Create default configuration if it doesn't exist
 	@if [ ! -f "$(DESTDIR)$(ETCDIR)/camcfg.json" ]; then \
@@ -108,7 +163,42 @@ test:
 	@echo "Running tests..."
 	# Syntax check all shell scripts
 	bash -n $(SCRIPTS) $(TEST_SCRIPTS)
+	chmod +x $(TEST_SCRIPTS) 2>/dev/null || true
+	./test_env_setup.sh
+	./test_rtsp_paths.sh
+	./test_cve.sh
+	./test_python_core.sh
+	./test_rtsp_subst.sh
 	@echo "All tests passed!"
+
+.PHONY: format lint hooks
+format:
+	@echo "Formatting shell and python..."
+	@command -v shfmt >/dev/null 2>&1 && shfmt -w -i 2 -ci *.sh || true
+	@command -v black >/dev/null 2>&1 && black . || true
+
+lint:
+	@echo "Linting shell and python..."
+	@command -v shellcheck >/dev/null 2>&1 && shellcheck -x *.sh || true
+	@command -v ruff >/dev/null 2>&1 && ruff check . || true
+
+hooks:
+	@echo "Installing pre-commit hooks..."
+	@pre-commit install -t pre-commit -t commit-msg || true
+
+.PHONY: core web-backend
+core:
+	@echo "Running Python core CLI (initdb)..."
+	@python3 python_core/cli.py initdb
+
+web-backend:
+	@echo "Starting FastAPI backend on :8089..."
+	@python3 python_core/web_backend.py
+
+.PHONY: doctor
+doctor:
+	@chmod +x doctor.sh 2>/dev/null || true
+	@./doctor.sh
 
 # Development targets
 dev-install: build
@@ -119,7 +209,10 @@ dev-uninstall:
 
 # Package building
 deb: clean
-	dpkg-buildpackage -us -uc -b
+	@bash -eu -c 'TMP=$$(mktemp -d /tmp/camsniff-pkg-XXXXXX); \
+		rsync -a --delete --exclude ".git" "$(CURDIR)/" "$$TMP/"; \
+		cd "$$TMP"; dpkg-buildpackage -us -uc -b; \
+		cp -f ../camsniff_* "$(CURDIR)/" || true; echo "Built packages staged back to $(CURDIR)"'
 
 .PHONY: help
 help:

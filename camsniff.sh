@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################################
-# CamSniff 1.0.2 – Camera Reconnaissance & Scanner
+# CamSniff 1.0.3 – Camera Reconnaissance & Scanner
 # https://github.com/John0n1/CamSniff
 ###############################################################################
 set -euo pipefail
@@ -19,7 +19,7 @@ while [[ $# -gt 0 ]]; do
     -a|--auto) AUTO_MODE=1; SKIP_PROMPT=1; shift ;;
     -t|--target) TARGET_SUBNET="$2"; shift 2 ;;
     -h|--help)
-  echo "CamSniff 1.0.2 - Camera Reconnaissance Tool & Scanner"
+  echo "CamSniff 1.0.3 - Camera Reconnaissance Tool & Scanner"
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
@@ -75,23 +75,24 @@ rain_ascii_art() {
     return 0
   fi
   local art=(
-    "╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗"
-    "║                                            John0n1 Proudly Presents                                            ║"
-    "║                                                                                                                ║"
-    "║           ██████╗     █████╗     ███╗   ███╗    ███████╗    ███╗   ██╗    ██╗    ███████╗    ███████╗          ║"
-    "║          ██╔════╝    ██╔══██╗    ████╗ ████║    ██╔════╝    ████╗  ██║    ██║    ██╔════╝    ██╔════╝          ║"
-    "║          ██║         ███████║    ██╔████╔██║    ███████╗    ██╔██╗ ██║    ██║    █████╗      █████╗            ║"
-    "║          ██║         ██╔══██║    ██║╚██╔╝██║    ╚════██║    ██║╚██╗██║    ██║    ██╔══╝      ██╔══╝            ║"
-    "║          ╚██████╗    ██║  ██║    ██║ ╚═╝ ██║    ███████║    ██║ ╚████║    ██║    ██║         ██║               ║"
-    "║           ╚═════╝    ╚═╝  ╚═╝    ╚═╝     ╚═╝    ╚══════╝    ╚═╝  ╚═══╝    ╚═╝    ╚═╝         ╚═╝               ║"
-    "║                                           ██╗    ██████╗    ██████╗                                            ║"
-    "║                                          ███║   ██╔═████╗   ╚════██╗                                           ║"
-    "║                                          ╚██║   ██║██╔██║    █████╔╝                                           ║"
-    "║                                           ██║   ████╔╝██║   ██╔═══╝                                            ║"
-    "║                                           ██║██╗╚██████╔╝██╗███████╗                                           ║"
-    "║                                           ╚═╝╚═╝ ╚═════╝ ╚═╝╚══════╝                                           ║"
-    "║                                                                                                                ║"
-    "╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝"
+"┌───────────────────────────────────────────────────────────────────────────────────────────────┐
+|                                     John0n1 Proudly Presents!                                 |
+|                                                                                               |
+│    ██████╗     █████╗     ███╗   ███╗    ███████╗    ███╗   ██╗    ██╗    ███████╗    ███████╗│
+│   ██╔════╝    ██╔══██╗    ████╗ ████║    ██╔════╝    ████╗  ██║    ██║    ██╔════╝    ██╔════╝│
+│   ██║         ███████║    ██╔████╔██║    ███████╗    ██╔██╗ ██║    ██║    █████╗      █████╗  │
+│   ██║         ██╔══██║    ██║╚██╔╝██║    ╚════██║    ██║╚██╗██║    ██║    ██╔══╝      ██╔══╝  │
+│   ╚██████╗    ██║  ██║    ██║ ╚═╝ ██║    ███████║    ██║ ╚████║    ██║    ██║         ██║     │
+│    ╚═════╝    ╚═╝  ╚═╝    ╚═╝     ╚═╝    ╚══════╝    ╚═╝  ╚═══╝    ╚═╝    ╚═╝         ╚═╝     │
+│                                                                                               │
+│                                   ██╗    ██████╗    ██████╗                                   │
+│                                  ███║   ██╔═████╗   ╚════██╗                                  │
+│                                  ╚██║   ██║██╔██║    █████╔╝                                  │
+│                                   ██║   ████╔╝██║    ╚═══██╗                                  │
+│                                   ██║██╗╚██████╔╝██╗██████╔╝                                  │
+│                                   ╚═╝╚═╝ ╚═════╝ ╚═╝╚═════╝                                   │
+└───────────────────────────────────────────────────────────────────────────────────────────────┘
+"
   )
   
   for line in "${art[@]}"; do
@@ -117,22 +118,25 @@ if (( !QUIET_MODE )); then
   rain_ascii_art 0.2
   
   echo
-  printf "${YELLOW}What will happen:${RESET}\n"
+  printf "${YELLOW}This will happen next:${RESET}\n"
   printf "${CYAN}1.${RESET} Dependencies will be checked and installed if missing.\n"
   printf "${CYAN}2.${RESET} Network scanning will begin to identify active devices.\n"
   printf "${CYAN}3.${RESET} Camera streams will be analyzed and displayed.\n"
   printf "${CYAN}4.${RESET} Results will be saved to structured output directory.\n"
   printf "${CYAN}5.${RESET} You can choose to start the scan or exit at any time.\n"
+  printf "${YELLOW}Press 'Y' to start, 'K' to start + CLI, or 'N' to exit.${RESET}\n"
 fi
 
 # Confirmation prompt
+LAUNCH_CLI=0
 if (( !SKIP_PROMPT )); then
   while true; do
-    read -rp "$(echo -e "${CYAN}Start CamSniff? (Y/N): ${RESET}")" yn
+    read -rp "$(echo -e "${CYAN}Start CamSniff? (Y/N/K): ${RESET}")" yn
     case $yn in
       [Yy]*) break ;;
+      [Kk]*) LAUNCH_CLI=1; break ;;
       [Nn]*) echo -e "${RED}Exiting. Sniff will miss you. 😢 Goodbye!${RESET}"; exit 0 ;;
-      *) echo -e "${YELLOW}Please press 'Y' to start or 'N' to exit.${RESET}" ;;
+      *) echo -e "${YELLOW}Please press 'Y' to start, 'K' to start + CLI, or 'N' to exit.${RESET}" ;;
     esac
   done
 else
@@ -158,12 +162,30 @@ flag_str(){
 # Python venv path
 VENV="$SCRIPT_DIR/.camvenv"
 
+# Structured JSON log file (append-only)
+JSON_LOG_FILE="$OUTPUT_DIR/logs/scan.jsonl"
+
 # Logging and output
 declare -A STREAMS HOSTS_SCANNED CAMERAS_FOUND DEVICE_INFO
 echo "[" > "$OUTPUT_DIR/reports/cameras.json"
 
-log()       { echo -e "${GREEN}[+] $*${RESET}"; }
-log_debug() { echo -e "${CYAN}[DEBUG] $*${RESET}"; }
+_ts(){ date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+_json_quote(){
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - <<'PY' 2>/dev/null "$@"
+import json,sys
+print(json.dumps(" ".join(sys.argv[1:])))
+PY
+  else
+    # Minimal shell fallback: escape backslashes and quotes
+    local s
+    s=$(printf '%s' "$*" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+    printf '"%s"' "$s"
+  fi
+}
+
+log()       { echo -e "${GREEN}[+] $*${RESET}"; printf '{"ts":"%s","level":"info","msg":%s}\n' "$(_ts)" "$(_json_quote "$@")" >> "$JSON_LOG_FILE" 2>/dev/null || true; }
+log_debug() { echo -e "${CYAN}[DEBUG] $*${RESET}"; printf '{"ts":"%s","level":"debug","msg":%s}\n' "$(_ts)" "$(_json_quote "$@")" >> "$JSON_LOG_FILE" 2>/dev/null || true; }
 log_camera_found() {
   local ip="$1" port="$2" protocol="$3" url="$4" creds="${5:-}" ts
   ts="$(date -Iseconds)"
@@ -183,6 +205,9 @@ EOF
   # Alert log
   printf '{"type":"camera_found","timestamp":"%s","ip":"%s","port":"%s","protocol":"%s","url":"%s"}\n' \
     "$ts" "$ip" "$port" "$protocol" "$url" >> "$OUTPUT_DIR/reports/alerts.log" 2>/dev/null || true
+  # Structured event
+  printf '{"ts":"%s","level":"event","event":"camera_found","ip":"%s","port":"%s","protocol":"%s","url":%s}\n' \
+    "$(_ts)" "$ip" "$port" "$protocol" "$(_json_quote "$url")" >> "$JSON_LOG_FILE" 2>/dev/null || true
 }
 log_device_info() {
   local ip="$1" info="$2" type="${3:-unknown}"
@@ -226,24 +251,51 @@ fi
 
 # Show dynamic runtime info banner (post env setup)
 if (( !QUIET_MODE )); then
-  echo -e "${CYAN}Runtime:${RESET} $(date -Iseconds) | Version: 1.0.2"
+  echo -e "${CYAN}Runtime:${RESET} $(date -Iseconds) | Version: 1.0.3"
 fi
 
-# Load RTSP paths from local data file if available; else fetch from URL
+# If 'K' was chosen, launch Python CLI helper in a new terminal/background
+if (( LAUNCH_CLI )); then
+  if command -v python3 >/dev/null 2>&1; then
+    log "Launching CamSniff Python CLI (camsniff-cli) in background"
+    if command -v camsniff-cli >/dev/null 2>&1; then
+      nohup camsniff-cli initdb >/dev/null 2>&1 &
+    else
+      nohup python3 "$SCRIPT_DIR/python_core/cli.py" initdb >/dev/null 2>&1 &
+    fi
+  else
+    log "Python3 not found; skipping CLI launch"
+  fi
+fi
+
+# Load RTSP paths from local data file first; avoid network when present
 LOCAL_RTSP_FILE="$SCRIPT_DIR/data/rtsp_paths.csv"
 RTSP_SOURCE=""
 if [[ -s "$LOCAL_RTSP_FILE" ]]; then
   RTSP_SOURCE="$LOCAL_RTSP_FILE"
-elif curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv; then
-  RTSP_SOURCE="/tmp/rtsp_paths.csv"
+else
+  # Fallback to configured URL only if local list is missing
+  if [[ -n "${RTSP_LIST_URL:-}" ]]; then
+    curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv && RTSP_SOURCE="/tmp/rtsp_paths.csv" || true
+  fi
 fi
 
 if [[ -n "$RTSP_SOURCE" ]]; then
-  # Try TSV with rtsp url in 4th column; else try CSV and extract any rtsp-like entries
-  if awk -F'\t' 'NF>=4 && $4 ~ /^rtsp:\/\//{exit 0} END{exit 1}' "$RTSP_SOURCE"; then
-    mapfile -t RTSP_PATHS < <(awk -F'\t' 'NF>=4 && $4 ~ /^rtsp:\/\//{print $4}' "$RTSP_SOURCE" | sed 's/{{.*}}//g' | sort -u)
-  else
-    mapfile -t RTSP_PATHS < <(awk -F',' '{for(i=1;i<=NF;i++) if($i ~ /rtsp:\/\//) print $i}' "$RTSP_SOURCE" | sed 's/"//g; s/{{.*}}//g' | sort -u)
+  # Prefer CSV header-based extraction of the rtsp_url column and preserve placeholders
+  mapfile -t RTSP_PATHS < <(
+    awk -F',' '
+      NR==1 {
+        for (i=1;i<=NF;i++) if ($i ~ /^rtsp_url$/) col=i; next
+      }
+      NR>1 && col>0 {
+        gsub(/^[ \"\t]+|[ \"\t]+$/, "", $col);
+        if ($col ~ /^rtsp:\/\//) print $col;
+      }
+    ' "$RTSP_SOURCE" | tr -d '"' | sort -u
+  )
+  # Fallback (no header): extract any field containing rtsp:// and keep placeholders intact
+  if (( ${#RTSP_PATHS[@]} == 0 )); then
+    mapfile -t RTSP_PATHS < <(awk -F',' '{for(i=1;i<=NF;i++) if($i ~ /rtsp:\/\//) print $i}' "$RTSP_SOURCE" | tr -d '"' | sort -u)
   fi
 else
   log "WARNING: No RTSP path list available; using minimal built-in list"
@@ -286,6 +338,7 @@ if (( !QUIET_MODE )); then
   echo -e "  Zigbee/Z-W : $(flag_str "${ENABLE_ZIGBEE_ZWAVE_SCAN:-0}")"
   echo -e "  Stealth    : $(flag_str "${STEALTH_MODE:-0}")"
   echo -e "  Nmap Vuln  : $(flag_str "${ENABLE_NMAP_VULN:-0}")"
+  echo -e "  Bruteforce : $(flag_str \"${ENABLE_BRUTE_FORCE:-0}\")"
   # Tool availability quick check (silent)
   have(){ command -v "$1" &>/dev/null && echo yes || echo no; }
   echo -e "${YELLOW}Tools:${RESET} masscan($(have masscan)) nmap($(have nmap)) ffmpeg($(have ffmpeg)) hydra($(have hydra)) tshark($(have tshark)) avahi-browse($(have avahi-browse))"
