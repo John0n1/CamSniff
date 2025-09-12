@@ -15,7 +15,9 @@ ETCDIR = /etc/camsniff
 VERSION := 1.0.3
 
 # Source files
-SCRIPTS := camsniff.sh core/env_setup.sh core/scan_analyze.sh core/setup.sh core/cleanup.sh core/install_deps.sh core/iot_enumerate.sh
+ROOT_SCRIPTS := camsniff.sh
+CORE_SCRIPTS := core/env_setup.sh core/scan_analyze.sh core/setup.sh core/cleanup.sh core/install_deps.sh core/iot_enumerate.sh
+SCRIPTS := $(ROOT_SCRIPTS) $(CORE_SCRIPTS)
 SCRIPTS_PY := python_core/ai_analyze.py python_core/cve_quick_search.py
 PY_CORE := python_core/cli.py python_core/web_backend.py python_core/__init__.py
 TEST_SCRIPTS := tests/test_cve.sh tests/test_package_compliance.sh tests/test_rtsp_paths.sh tests/test_env_setup.sh tests/test_python_core.sh tests/test_rtsp_subst.sh
