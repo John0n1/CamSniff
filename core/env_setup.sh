@@ -215,7 +215,7 @@ validate_cve_dependencies() {
 if ! validate_cve_dependencies; then
   CVE_CHECK_LIMITED=1
   export CVE_CHECK_LIMITED
-  log_debug "CVE system dependencies validation failed. CVE checking will be limited."
+  log_debug "CVE checking will use cached data only (Use data/cves and data/rtsp_paths where applicable)"
 else
   CVE_CHECK_LIMITED=0
   export CVE_CHECK_LIMITED
