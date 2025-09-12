@@ -84,4 +84,4 @@ OUT="$SCRIPT_DIR/output"
 mkdir -p "$OUT"/{logs,reports,screenshots} 2>/dev/null || true
 ok "Output directories look good at $OUT"
 
-echo "\nDiagnostics completed."
+printf "\nDiagnostics completed.\n"

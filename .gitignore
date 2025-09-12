@@ -33,7 +33,6 @@ __pycache__/
 *.tmp
 *.log
 *.cache
-.github
 paused.conf
 egg-info/
 *.egg-info/

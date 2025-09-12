@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
 
 # Scanning and analysis functions
 
@@ -15,12 +17,15 @@ add_stream(){
     STREAMS["$1"]=1
     # Extract IP and port for tracking
     local url="$1"
-    local ip=$(echo "$url" | sed -n 's|.*://\([^:/]*\).*|\1|p')
-    local port=$(echo "$url" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+    local ip
+    local port
+    ip=$(echo "$url" | sed -n 's|.*://\([^:/]*\).*|\1|p')
+    port=$(echo "$url" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
     [[ -z "$port" ]] && port="554"  # Default RTSP port
     
     # Determine protocol
-    local protocol=$(echo "$url" | sed -n 's|\([^:]*\)://.*|\1|p')
+    local protocol
+    protocol=$(echo "$url" | sed -n 's|\([^:]*\)://.*|\1|p')
     
     log_camera_found "$ip" "$port" "$protocol" "$url"
   fi
@@ -42,8 +47,10 @@ launch_mosaic(){
     
     local i=1
     for u in "${!STREAMS[@]:-}"; do
-      local ip=$(echo "$u" | sed -n 's|.*://\([^:/]*\).*|\1|p')
-      local protocol=$(echo "$u" | sed -n 's|\([^:]*\)://.*|\1|p')
+      local ip
+      local protocol
+      ip=$(echo "$u" | sed -n 's|.*://\([^:/]*\).*|\1|p')
+      protocol=$(echo "$u" | sed -n 's|\([^:]*\)://.*|\1|p')
       echo "[$i] $ip ($protocol)"
       ((i++))
     done
@@ -380,7 +387,7 @@ scan_http(){
   # Test for camera-specific HTTP endpoints
   for path in "${camera_paths[@]}"; do
     for cred in "${HTTP_CREDS[@]}"; do
-      IFS=: read u p <<<"$cred"
+      IFS=: read -r u p <<<"$cred"
       url="http://$ip:$port$path"
       
       response=$(curl -su "$u:$p" -m3 -I "$url" 2>/dev/null)
@@ -458,7 +465,7 @@ scan_http(){
   # Aggressive directory brute-forcing for cameras
   log_debug "Starting camera-specific directory scan on $ip:$port"
   if command -v gobuster &>/dev/null; then
-    gobuster dir -u "http://$ip:$port" -w "$DIRB_WORDLIST" -q -o "$OUTPUT_DIR/logs/dirb_$ip_$port.txt" 2>/dev/null &
+    gobuster dir -u "http://$ip:$port" -w "$DIRB_WORDLIST" -q -o "$OUTPUT_DIR/logs/dirb_${ip}_${port}.txt" 2>/dev/null &
   fi
 }
 
@@ -522,7 +529,7 @@ sweep(){
   # Start scan animation in background
   scan_animation &
   local anim_pid=$!
-  trap "kill $anim_pid 2>/dev/null" RETURN
+  trap 'kill $anim_pid 2>/dev/null' RETURN
 
   # Suppress fping and arp-scan output
   mapfile -t ALIVE < <(fping -a -g "$SUBNET" 2>/dev/null)
@@ -592,8 +599,10 @@ sweep(){
 
 # Generate  summary report
 generate_summary_report(){
-  local report_file="$OUTPUT_DIR/reports/summary_$(date +%Y%m%d_%H%M%S).txt"
-  local json_file="$OUTPUT_DIR/reports/summary_$(date +%Y%m%d_%H%M%S).json"
+  local report_file
+  local json_file
+  report_file="$OUTPUT_DIR/reports/summary_$(date +%Y%m%d_%H%M%S).txt"
+  json_file="$OUTPUT_DIR/reports/summary_$(date +%Y%m%d_%H%M%S).json"
   
   {
     echo "=============================================="

@@ -338,7 +338,7 @@ if (( !QUIET_MODE )); then
   echo -e "  Zigbee/Z-W : $(flag_str "${ENABLE_ZIGBEE_ZWAVE_SCAN:-0}")"
   echo -e "  Stealth    : $(flag_str "${STEALTH_MODE:-0}")"
   echo -e "  Nmap Vuln  : $(flag_str "${ENABLE_NMAP_VULN:-0}")"
-  echo -e "  Bruteforce : $(flag_str \"${ENABLE_BRUTE_FORCE:-0}\")"
+  echo -e "  Bruteforce : $(flag_str "${ENABLE_BRUTE_FORCE:-0}")"
   # Tool availability quick check (silent)
   have(){ command -v "$1" &>/dev/null && echo yes || echo no; }
   echo -e "${YELLOW}Tools:${RESET} masscan($(have masscan)) nmap($(have nmap)) ffmpeg($(have ffmpeg)) hydra($(have hydra)) tshark($(have tshark)) avahi-browse($(have avahi-browse))"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-
-
+set -euo pipefail
+IFS=$'\n\t'
 
 # Cleanup and exit handling
 
