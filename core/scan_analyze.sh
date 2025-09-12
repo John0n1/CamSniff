@@ -716,9 +716,11 @@ scan_animation() {
   cleanup() {
     # shellcheck disable=SC2317
     # Clear the line and move to next line
-    echo -en "\r\033[K"
-    trap - INT TERM EXIT
-    stop_anim=1
+  echo -en "\r\033[K"
+  # shellcheck disable=SC2317
+  trap - INT TERM EXIT
+  # shellcheck disable=SC2317
+  stop_anim=1
   }
 
   trap cleanup INT TERM EXIT
