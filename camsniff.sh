@@ -50,7 +50,6 @@ RESET='\033[0m'
 animate_text_from_side() {
   local text="$1"
   local delay="${2:-0.05}"
-  # Skip animation if not a TTY or disabled
   if [[ ! -t 1 || "${NO_ANIM:-0}" == "1" ]]; then
     printf "%s\n" "$text"
     return 0
@@ -59,7 +58,7 @@ animate_text_from_side() {
   width=$(tput cols 2>/dev/null || echo 80)
   local padding=$((width - ${#text}))
   (( padding < 0 )) && padding=0
-  
+
   for ((i=padding; i>=0; i--)); do
     printf "\r%*s%s" $i "" "$text"
     sleep "$delay"
@@ -69,7 +68,6 @@ animate_text_from_side() {
 
 rain_ascii_art() {
   local delay="${1:-0.03}"
-  # Only show fancy art on interactive terminals and when not disabled
   if [[ ! -t 1 || "${NO_ANIM:-0}" == "1" ]]; then
     printf "CamSniff by John0n1\n"
     return 0
@@ -93,8 +91,7 @@ rain_ascii_art() {
 │                                   ╚═╝╚═╝ ╚═════╝ ╚═╝╚═════╝                                   │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
 "
-  )
-  
+ )
   for line in "${art[@]}"; do
     echo "$line"
     sleep "$delay"
@@ -104,27 +101,26 @@ rain_ascii_art() {
 # Display banner with animations
 if (( !QUIET_MODE )); then
   [[ -t 1 ]] && clear || true
-  
-  printf "${CYAN}CamSniff is a powerful tool designed to:${RESET}\n"
-  printf "${GREEN}- Discover, analyze and display network-connected cameras${RESET}\n"
-  printf "${GREEN}- Perform RTSP, HTTP, CoAP, RTMP, MQTT and more${RESET}\n"
-  printf "${GREEN}- Identify vulnerabilities and test common credentials${RESET}\n"
-  printf "${GREEN}- Generate AI-based insights from camera streams${RESET}\n"
-  
+
+  printf "%sCamSniff is a powerful tool designed to:%s\n" "$CYAN" "$RESET"
+  printf "%s- Discover, analyze and display network-connected cameras%s\n" "$GREEN" "$RESET"
+  printf "%s- Perform RTSP, HTTP, CoAP, RTMP, MQTT and more%s\n" "$GREEN" "$RESET"
+  printf "%s- Identify vulnerabilities and test common credentials%s\n" "$GREEN" "$RESET"
+  printf "%s- Generate AI-based insights from camera streams%s\n" "$GREEN" "$RESET"
+
   echo
   sleep 0.5
-  
-  # Rain down ASCII art (TTY only)
+
   rain_ascii_art 0.2
-  
+
   echo
-  printf "${YELLOW}This will happen next:${RESET}\n"
-  printf "${CYAN}1.${RESET} Dependencies will be checked and installed if missing.\n"
-  printf "${CYAN}2.${RESET} Network scanning will begin to identify active devices.\n"
-  printf "${CYAN}3.${RESET} Camera streams will be analyzed and displayed.\n"
-  printf "${CYAN}4.${RESET} Results will be saved to structured output directory.\n"
-  printf "${CYAN}5.${RESET} You can choose to start the scan or exit at any time.\n"
-  printf "${YELLOW}Press 'Y' to start, 'K' to start + CLI, or 'N' to exit.${RESET}\n"
+  printf "%sThis will happen next:%s\n" "$YELLOW" "$RESET"
+  printf "%s1.%s Dependencies will be checked and installed if missing.\n" "$CYAN" "$RESET"
+  printf "%s2.%s Network scanning will begin to identify active devices.\n" "$CYAN" "$RESET"
+  printf "%s3.%s Camera streams will be analyzed and displayed.\n" "$CYAN" "$RESET"
+  printf "%s4.%s Results will be saved to structured output directory.\n" "$CYAN" "$RESET"
+  printf "%s5.%s You can choose to start the scan or exit at any time.\n" "$CYAN" "$RESET"
+  printf "%sPress 'Y' to start, 'K' to start + CLI, or 'N' to exit.%s\n" "$YELLOW" "$RESET"
 fi
 
 # Confirmation prompt
@@ -142,6 +138,7 @@ if (( !SKIP_PROMPT )); then
 else
   echo -e "${GREEN}Auto-mode enabled, starting scan...${RESET}"
 fi
+
 
 # Get directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
