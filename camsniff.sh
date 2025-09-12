@@ -227,7 +227,7 @@ if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
   fi
   if [[ -f "$SCRIPT_DIR/core/install_deps.sh" ]]; then
     log "Installing dependencies (first run)... this can take a while"
-    bash "$SCRIPT_DIR/core/install_deps.sh"
+    bash "$(printf "%s/core/install_deps.sh" "$SCRIPT_DIR")"
   fi
   touch "$DEPS_INSTALLED_FILE"
 fi
