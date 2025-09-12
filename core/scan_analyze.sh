@@ -711,7 +711,7 @@ scan_animation() {
   local len=10
   local reset='\033[0m'
   local red='\033[31m'
-  stop_anim=0
+  local stop_anim=0
 
   cleanup() {
     # shellcheck disable=SC2317
