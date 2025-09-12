@@ -9,14 +9,14 @@ IFS=$'\n\t'
 # Command line options parsing
 SKIP_PROMPT=0
 QUIET_MODE=0
-AUTO_MODE=0
+_AUTO_MODE=0
 TARGET_SUBNET=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     -y|--yes) SKIP_PROMPT=1; shift ;;
     -q|--quiet) QUIET_MODE=1; shift ;;
-    -a|--auto) AUTO_MODE=1; SKIP_PROMPT=1; shift ;;
+  -a|--auto) _AUTO_MODE=1; SKIP_PROMPT=1; shift ;;
     -t|--target) TARGET_SUBNET="$2"; shift 2 ;;
     -h|--help)
   echo "CamSniff 1.0.3 - Camera Reconnaissance Tool & Scanner"
@@ -230,15 +230,54 @@ if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
 fi
 
 # Source submodules from same dir (jq now available)
-for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh iot_enumerate.sh; do
-  if [[ -f "$SCRIPT_DIR/core/$FILE" ]]; then
-    log_debug "Sourcing $FILE"
-    source "$SCRIPT_DIR/core/$FILE"
-  else
-    log "ERROR: Missing file $FILE in \"$SCRIPT_DIR/core\""
-    exit 1
-  fi
-done
+# Use explicit source paths so ShellCheck can follow them.
+if [[ -f "$SCRIPT_DIR/core/setup.sh" ]]; then
+  log_debug "Sourcing setup.sh"
+  # shellcheck source=core/setup.sh
+  source "$SCRIPT_DIR/core/setup.sh"
+else
+  log "ERROR: Missing file setup.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/env_setup.sh" ]]; then
+  log_debug "Sourcing env_setup.sh"
+  # shellcheck source=core/env_setup.sh
+  source "$SCRIPT_DIR/core/env_setup.sh"
+else
+  log "ERROR: Missing file env_setup.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/install_deps.sh" ]]; then
+  log_debug "Sourcing install_deps.sh"
+  # shellcheck source=core/install_deps.sh
+  source "$SCRIPT_DIR/core/install_deps.sh"
+else
+  log "ERROR: Missing file install_deps.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/scan_analyze.sh" ]]; then
+  log_debug "Sourcing scan_analyze.sh"
+  # shellcheck source=core/scan_analyze.sh
+  source "$SCRIPT_DIR/core/scan_analyze.sh"
+else
+  log "ERROR: Missing file scan_analyze.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/cleanup.sh" ]]; then
+  log_debug "Sourcing cleanup.sh"
+  # shellcheck source=core/cleanup.sh
+  source "$SCRIPT_DIR/core/cleanup.sh"
+else
+  log "ERROR: Missing file cleanup.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/iot_enumerate.sh" ]]; then
+  log_debug "Sourcing iot_enumerate.sh"
+  # shellcheck source=core/iot_enumerate.sh
+  source "$SCRIPT_DIR/core/iot_enumerate.sh"
+else
+  log "ERROR: Missing file iot_enumerate.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
 
 # Enforce root for scanning operations
 if (( EUID != 0 )); then

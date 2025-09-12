@@ -12,6 +12,7 @@ build-deb.sh
 output/*
 *.buildinfo
 *.changes
+tests/output/*
 
 # Build wrapper artifacts
 camsniff
@@ -27,6 +28,7 @@ __pycache__/
 *.pyo
 *.pyd
 .vscode/
+.venv/
 
 # Temporary and cache files
 /tmp/

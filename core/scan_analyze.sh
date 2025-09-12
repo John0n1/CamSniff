@@ -711,18 +711,21 @@ scan_animation() {
   local len=10
   local reset='\033[0m'
   local red='\033[31m'
+  stop_anim=0
 
   cleanup() {
     # Clear the line and move to next line
     echo -en "\r\033[K"
     trap - INT TERM EXIT
-    exit 0
+    stop_anim=1
   }
 
   trap cleanup INT TERM EXIT
 
   while :; do
+    (( stop_anim == 1 )) && break
     for ((i=0; i<len; i++)); do
+      (( stop_anim == 1 )) && break
       local line=""
       for ((j=0; j<len; j++)); do
         if (( j == i )); then
