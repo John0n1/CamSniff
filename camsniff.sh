@@ -144,8 +144,6 @@ fi
 # Get directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-## Base working data directory (unused; removed to satisfy ShellCheck)
-
 # Output directory now relative to script dir
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 OUTPUT_DIR="$SCRIPT_DIR/output/results_$TIMESTAMP"
