@@ -160,6 +160,33 @@ Options:
 
 Wireless features require compatible hardware; disable in config if unsupported.
 
+## Project Structure
+
+```
+├── camsniff.sh          # Main entry point script
+├── core/                # Core functionality scripts
+│   ├── env_setup.sh     # Environment configuration
+│   ├── scan_analyze.sh  # Scanning and analysis logic
+│   ├── setup.sh         # Initial setup functions
+│   ├── cleanup.sh       # Cleanup operations
+│   ├── install_deps.sh  # Dependency installation
+│   ├── iot_enumerate.sh # IoT device enumeration
+│   ├── webui.sh         # Web interface launcher
+│   └── doctor.sh        # System diagnostics
+├── python_core/         # Python modules and scripts
+│   ├── __init__.py      # Package initialization
+│   ├── cli.py           # Command-line interface
+│   ├── web_backend.py   # FastAPI backend
+│   ├── ai_analyze.py    # AI analysis functions
+│   └── cve_quick_search.py # CVE search functionality
+├── tests/               # Test suite
+│   ├── test_*.sh        # Individual test scripts
+│   └── ...
+├── data/                # Data files (RTSP paths, wordlists)
+├── web/                 # Web interface files
+└── debian/              # Debian packaging files
+```
+
 ---
 
 ## Output and Reporting
@@ -177,7 +204,7 @@ Results saved in `output/results_YYYYMMDD_HHMMSS/`:
   - `topology.json`: Network map
   - `logs/nmap_vuln_*.txt`: Vulnerability scans (if enabled)
 
-**Web Interface:** Start with `./webui.sh` or `camsniff-web`. Access at `http://localhost:8088` (configurable via `CAMSNIFF_WEB_PORT`).
+**Web Interface:** Start with `./core/webui.sh` or `camsniff-web`. Access at `http://localhost:8088` (configurable via `CAMSNIFF_WEB_PORT`).
 
 ---
 

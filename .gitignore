@@ -13,6 +13,11 @@ output/*
 *.buildinfo
 *.changes
 
+# Build wrapper artifacts
+camsniff
+CamSniff
+camcfg.json
+
 # Virtualenv / local deps
 .debhelper/
 .camvenv/
