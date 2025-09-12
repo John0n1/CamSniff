@@ -156,7 +156,6 @@ flag_str(){
   local v="$1"; if [[ "$v" == "1" ]]; then echo -e "${GREEN}ON${RESET}"; else echo -e "${RED}OFF${RESET}"; fi
 }
 
-## Python venv path (unused in this script; removed to satisfy ShellCheck)
 
 # Structured JSON log file (append-only)
 JSON_LOG_FILE="$OUTPUT_DIR/logs/scan.jsonl"
