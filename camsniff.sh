@@ -9,14 +9,15 @@ IFS=$'\n\t'
 # Command line options parsing
 SKIP_PROMPT=0
 QUIET_MODE=0
-AUTO_MODE=0
+_AUTO_MODE=0
 TARGET_SUBNET=""
+
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     -y|--yes) SKIP_PROMPT=1; shift ;;
     -q|--quiet) QUIET_MODE=1; shift ;;
-    -a|--auto) AUTO_MODE=1; SKIP_PROMPT=1; shift ;;
+  -a|--auto) _AUTO_MODE=1; SKIP_PROMPT=1; shift ;;
     -t|--target) TARGET_SUBNET="$2"; shift 2 ;;
     -h|--help)
   echo "CamSniff 1.0.3 - Camera Reconnaissance Tool & Scanner"
@@ -50,7 +51,6 @@ RESET='\033[0m'
 animate_text_from_side() {
   local text="$1"
   local delay="${2:-0.05}"
-  # Skip animation if not a TTY or disabled
   if [[ ! -t 1 || "${NO_ANIM:-0}" == "1" ]]; then
     printf "%s\n" "$text"
     return 0
@@ -59,7 +59,7 @@ animate_text_from_side() {
   width=$(tput cols 2>/dev/null || echo 80)
   local padding=$((width - ${#text}))
   (( padding < 0 )) && padding=0
-  
+
   for ((i=padding; i>=0; i--)); do
     printf "\r%*s%s" $i "" "$text"
     sleep "$delay"
@@ -69,7 +69,6 @@ animate_text_from_side() {
 
 rain_ascii_art() {
   local delay="${1:-0.03}"
-  # Only show fancy art on interactive terminals and when not disabled
   if [[ ! -t 1 || "${NO_ANIM:-0}" == "1" ]]; then
     printf "CamSniff by John0n1\n"
     return 0
@@ -93,8 +92,7 @@ rain_ascii_art() {
 │                                   ╚═╝╚═╝ ╚═════╝ ╚═╝╚═════╝                                   │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
 "
-  )
-  
+ )
   for line in "${art[@]}"; do
     echo "$line"
     sleep "$delay"
@@ -103,28 +101,27 @@ rain_ascii_art() {
 
 # Display banner with animations
 if (( !QUIET_MODE )); then
-  [[ -t 1 ]] && clear || true
-  
-  printf "${CYAN}CamSniff is a powerful tool designed to:${RESET}\n"
-  printf "${GREEN}- Discover, analyze and display network-connected cameras${RESET}\n"
-  printf "${GREEN}- Perform RTSP, HTTP, CoAP, RTMP, MQTT and more${RESET}\n"
-  printf "${GREEN}- Identify vulnerabilities and test common credentials${RESET}\n"
-  printf "${GREEN}- Generate AI-based insights from camera streams${RESET}\n"
-  
+  if [[ -t 1 ]]; then clear; fi
+
+  printf "%sCamSniff is a powerful tool designed to:%s\n" "$CYAN" "$RESET"
+  printf "%s- Discover, analyze and display network-connected cameras%s\n" "$GREEN" "$RESET"
+  printf "%s- Perform RTSP, HTTP, CoAP, RTMP, MQTT and more%s\n" "$GREEN" "$RESET"
+  printf "%s- Identify vulnerabilities and test common credentials%s\n" "$GREEN" "$RESET"
+  printf "%s- Generate AI-based insights from camera streams%s\n" "$GREEN" "$RESET"
+
   echo
   sleep 0.5
-  
-  # Rain down ASCII art (TTY only)
+
   rain_ascii_art 0.2
-  
+
   echo
-  printf "${YELLOW}This will happen next:${RESET}\n"
-  printf "${CYAN}1.${RESET} Dependencies will be checked and installed if missing.\n"
-  printf "${CYAN}2.${RESET} Network scanning will begin to identify active devices.\n"
-  printf "${CYAN}3.${RESET} Camera streams will be analyzed and displayed.\n"
-  printf "${CYAN}4.${RESET} Results will be saved to structured output directory.\n"
-  printf "${CYAN}5.${RESET} You can choose to start the scan or exit at any time.\n"
-  printf "${YELLOW}Press 'Y' to start, 'K' to start + CLI, or 'N' to exit.${RESET}\n"
+  printf "%sThis will happen next:%s\n" "$YELLOW" "$RESET"
+  printf "%s1.%s Dependencies will be checked and installed if missing.\n" "$CYAN" "$RESET"
+  printf "%s2.%s Network scanning will begin to identify active devices.\n" "$CYAN" "$RESET"
+  printf "%s3.%s Camera streams will be analyzed and displayed.\n" "$CYAN" "$RESET"
+  printf "%s4.%s Results will be saved to structured output directory.\n" "$CYAN" "$RESET"
+  printf "%s5.%s You can choose to start the scan or exit at any time.\n" "$CYAN" "$RESET"
+  printf "%sPress 'Y' to start, 'K' to start + CLI, or 'N' to exit.%s\n" "$YELLOW" "$RESET"
 fi
 
 # Confirmation prompt
@@ -143,11 +140,9 @@ else
   echo -e "${GREEN}Auto-mode enabled, starting scan...${RESET}"
 fi
 
+
 # Get directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Base working data directory
-DATADIR="$SCRIPT_DIR"
 
 # Output directory now relative to script dir
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -159,8 +154,6 @@ flag_str(){
   local v="$1"; if [[ "$v" == "1" ]]; then echo -e "${GREEN}ON${RESET}"; else echo -e "${RED}OFF${RESET}"; fi
 }
 
-# Python venv path
-VENV="$SCRIPT_DIR/.camvenv"
 
 # Structured JSON log file (append-only)
 JSON_LOG_FILE="$OUTPUT_DIR/logs/scan.jsonl"
@@ -233,15 +226,54 @@ if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
 fi
 
 # Source submodules from same dir (jq now available)
-for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh iot_enumerate.sh; do
-  if [[ -f "$SCRIPT_DIR/core/$FILE" ]]; then
-    log_debug "Sourcing $FILE"
-    source "$SCRIPT_DIR/core/$FILE"
-  else
-    log "ERROR: Missing file $FILE in \"$SCRIPT_DIR/core\""
-    exit 1
-  fi
-done
+# Use explicit source paths so ShellCheck can follow them.
+if [[ -f "$SCRIPT_DIR/core/setup.sh" ]]; then
+  log_debug "Sourcing setup.sh"
+  # shellcheck source=core/setup.sh
+  source "$SCRIPT_DIR/core/setup.sh"
+else
+  log "ERROR: Missing file setup.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/env_setup.sh" ]]; then
+  log_debug "Sourcing env_setup.sh"
+  # shellcheck source=core/env_setup.sh
+  source "$SCRIPT_DIR/core/env_setup.sh"
+else
+  log "ERROR: Missing file env_setup.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/install_deps.sh" ]]; then
+  log_debug "Sourcing install_deps.sh"
+  # shellcheck source=core/install_deps.sh
+  source "$SCRIPT_DIR/core/install_deps.sh"
+else
+  log "ERROR: Missing file install_deps.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/scan_analyze.sh" ]]; then
+  log_debug "Sourcing scan_analyze.sh"
+  # shellcheck source=core/scan_analyze.sh
+  source "$SCRIPT_DIR/core/scan_analyze.sh"
+else
+  log "ERROR: Missing file scan_analyze.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/cleanup.sh" ]]; then
+  log_debug "Sourcing cleanup.sh"
+  # shellcheck source=core/cleanup.sh
+  source "$SCRIPT_DIR/core/cleanup.sh"
+else
+  log "ERROR: Missing file cleanup.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/core/iot_enumerate.sh" ]]; then
+  log_debug "Sourcing iot_enumerate.sh"
+  # shellcheck source=core/iot_enumerate.sh
+  source "$SCRIPT_DIR/core/iot_enumerate.sh"
+else
+  log "ERROR: Missing file iot_enumerate.sh in \"$SCRIPT_DIR/core\""; exit 1
+fi
 
 # Enforce root for scanning operations
 if (( EUID != 0 )); then
@@ -276,7 +308,9 @@ if [[ -s "$LOCAL_RTSP_FILE" ]]; then
 else
   # Fallback to configured URL only if local list is missing
   if [[ -n "${RTSP_LIST_URL:-}" ]]; then
-    curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv && RTSP_SOURCE="/tmp/rtsp_paths.csv" || true
+    if curl -sfL "$RTSP_LIST_URL" -o /tmp/rtsp_paths.csv; then
+      RTSP_SOURCE="/tmp/rtsp_paths.csv"
+    fi
   fi
 fi
 
@@ -338,7 +372,7 @@ if (( !QUIET_MODE )); then
   echo -e "  Zigbee/Z-W : $(flag_str "${ENABLE_ZIGBEE_ZWAVE_SCAN:-0}")"
   echo -e "  Stealth    : $(flag_str "${STEALTH_MODE:-0}")"
   echo -e "  Nmap Vuln  : $(flag_str "${ENABLE_NMAP_VULN:-0}")"
-  echo -e "  Bruteforce : $(flag_str \"${ENABLE_BRUTE_FORCE:-0}\")"
+  echo -e "  Bruteforce : $(flag_str "${ENABLE_BRUTE_FORCE:-0}")"
   # Tool availability quick check (silent)
   have(){ command -v "$1" &>/dev/null && echo yes || echo no; }
   echo -e "${YELLOW}Tools:${RESET} masscan($(have masscan)) nmap($(have nmap)) ffmpeg($(have ffmpeg)) hydra($(have hydra)) tshark($(have tshark)) avahi-browse($(have avahi-browse))"

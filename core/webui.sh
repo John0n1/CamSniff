@@ -8,6 +8,7 @@ export CAMSNIFF_OUTPUT="$ROOT_DIR/output"
 export CAMSNIFF_WEB_PORT="${CAMSNIFF_WEB_PORT:-8088}"
 
 if [[ -d "$VENV_DIR" ]]; then
+  # shellcheck disable=SC1091
   source "$VENV_DIR/bin/activate"
 fi
 

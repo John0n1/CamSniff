@@ -147,9 +147,11 @@ else
        || git clone --depth 1 "https://github.com/$repo.git" "$dest" &>/dev/null; then
       pushd "$dest" >/dev/null
         if [[ -f Makefile ]]; then
-          make && install -m755 "$bin" "/usr/local/bin/$name" \
-            && log_installed "$name" \
-            || log "Build failed for $name, skipping"
+          if make && install -m755 "$bin" "/usr/local/bin/$name"; then
+            log_installed "$name"
+          else
+            log "Build failed for $name, skipping"
+          fi
         else
           log "No Makefile in $name, skipping build"
         fi

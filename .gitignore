@@ -12,11 +12,13 @@ build-deb.sh
 output/*
 *.buildinfo
 *.changes
+tests/output/*
 
 # Build wrapper artifacts
 camsniff
 CamSniff
-camcfg.json
+*camcfg.json*
+tests/data/*
 
 # Virtualenv / local deps
 .debhelper/
@@ -27,13 +29,13 @@ __pycache__/
 *.pyo
 *.pyd
 .vscode/
+.venv/
 
 # Temporary and cache files
 /tmp/
 *.tmp
 *.log
 *.cache
-.github
 paused.conf
 egg-info/
 *.egg-info/

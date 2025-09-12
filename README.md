@@ -1,10 +1,9 @@
 # CamSniff - IP Camera Reconnaissance Tool
 
-[![Last Commit](https://img.shields.io/github/last-commit/John0n1/CamSniff?style=flat-square&logo=github&color=red)](https://github.com/John0n1/CamSniff/commits/main)
 [![Latest Release](https://img.shields.io/github/v/release/John0n1/CamSniff?style=flat-square&logo=github&color=brightgreen&label=Latest%20Release)](https://github.com/John0n1/CamSniff/releases/latest)
-[![PyPI](https://img.shields.io/pypi/v/camsniff?style=flat-square&logo=python&color=yellowgreen)](https://pypi.org/project/camsniff)
-[![License](https://img.shields.io/github/license/John0n1/CamSniff?style=flat-square&logo=github&color=blue)](https://github.com/John0n1/CamSniff/blob/main/LICENSE)
-[![Stars](https://img.shields.io/github/stars/John0n1/CamSniff?style=social)](https://github.com/John0n1/CamSniff/stargazers)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/ci.yml?style=flat-square&logo=github&label=Build)](https://github.com/John0n1/CamSniff/actions) [![License](https://img.shields.io/github/license/John0n1/CamSniff?style=flat-square&logo=github&color=blue)](https://github.com/John0n1/CamSniff/blob/main/LICENSE)
+
+
 
 - **[Introduction](#introduction)**
 - **[Features](#features)**
@@ -18,9 +17,10 @@
 - **[Acknowledgments](#acknowledgments)**
 - **[License](#license)**
 
+[![Stars](https://img.shields.io/github/stars/John0n1/CamSniff?style=for-the-badge)](https://github.com/John0n1/CamSniff/stargazers)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/John0n1)
 
----
+
 
 ## Introduction
 **CamSniff is a powerful reconnaissance tool for discovering, analyzing and displaying IP cameras and IoT devices.**
@@ -39,7 +39,6 @@
 
 **Disclaimer:** This tool is for educational and research purposes only. Use responsibly and with explicit permission. The authors are not liable for any misuse.
 
----
 
 ## Features
 
@@ -54,13 +53,11 @@
 - **Multi-View Support:** Mosaic layouts with overlays for multiple cameras.
 - **Automation:** Auto/quiet modes, subnet targeting, stealth delays, and plugin extensibility.
 
----
-
 ## Dependencies
 
 CamSniff depends on various open-source tools and libraries, auto-installed on first run with `sudo`. Review their licenses individually.
 
-### Core Utilities
+### Core Utilities 🛠
 - [Bash](https://www.gnu.org/software/bash/) - Scripting shell
 - [curl](https://curl.se/) - Data transfer
 - [jq](https://jqlang.github.io/jq/) - JSON processing
@@ -68,7 +65,7 @@ CamSniff depends on various open-source tools and libraries, auto-installed on f
 - [FFmpeg](https://ffmpeg.org/) - Multimedia handling
 - [FFplay](https://ffmpeg.org/ffplay.html) - Media playback
 
-### Network Scanning
+### Network Scanning 🔍
 - [fping](https://fping.org/) - ICMP ping
 - [masscan](https://github.com/robertdavidgraham/masscan) - Fast port scanner
 - [Nmap](https://nmap.org/) - Network mapping
@@ -77,28 +74,26 @@ CamSniff depends on various open-source tools and libraries, auto-installed on f
 - [tshark](https://www.wireshark.org/docs/man-pages/tshark.html) - Protocol analysis
 - [arp-scan](https://github.com/royhills/arp-scan) - ARP scanning
 
-### Python Components
+### Python Components 🐍
 - [Python 3](https://www.python.org/) - Core language
 - [venv](https://docs.python.org/3/library/venv.html) - Virtual environments
 - [pip](https://pip.pypa.io/) - Package manager
 - [OpenCV](https://github.com/opencv/opencv-python) - Computer vision
 - [Flask](https://flask.palletsprojects.com/) - Web framework
 
-### Additional Tools
+### Additional Tools 🧰
 - [Gobuster](https://github.com/OJ/gobuster) - Directory enumeration
 - [Medusa](https://github.com/jmk-foofus/medusa) - Brute-force
 - [onesixtyone](https://github.com/trailofbits/onesixtyone) - SNMP scanner
 - [libcoap](https://libcoap.net/) - CoAP client
 - [rtmpdump](https://rtmpdump.mplayerhq.hu/) - RTMP streaming
 
-### IoT Discovery
+### IoT Discovery 📡
 - [Avahi](https://www.avahi.org/) - mDNS/DNS-SD
 - [BlueZ](https://www.bluez.org/) - Bluetooth/BLE
 - [NetworkManager](https://networkmanager.dev/) - Wi-Fi tools (`iw`, `nmcli`)
 
 Recommended: `avahi-utils`, `bluez`, `bluez-tools`, `wireless-tools`, `iw`, `network-manager`.
-
----
 
 ## Installation
 
@@ -139,8 +134,6 @@ pip install camsniff
 ```
 
 Provides `camsniff-cli` and `camsniff-web`. Does not include full Bash orchestrator or system tools.
-
----
 
 ## Usage
 
@@ -192,8 +185,6 @@ Wireless features require compatible hardware; disable in config if unsupported.
 └── debian/              # Debian packaging files
 ```
 
----
-
 ## Output and Reporting
 
 Results saved in `output/results_YYYYMMDD_HHMMSS/`:
@@ -210,8 +201,6 @@ Results saved in `output/results_YYYYMMDD_HHMMSS/`:
   - `logs/nmap_vuln_*.txt`: Vulnerability scans (if enabled)
 
 **Web Interface:** Start with `./core/webui.sh` or `camsniff-web`. Access at `http://localhost:8088` (configurable via `CAMSNIFF_WEB_PORT`).
-
----
 
 ## Configuration
 
@@ -247,8 +236,6 @@ Edit `camcfg.json` (defaults: `/etc/camsniff/camcfg.json`):
 - `enable_nmap_vuln`: Enables detailed vuln scans (slower).
 - Offline-first: Uses local files for RTSP/CVEs.
 
----
-
 ## Troubleshooting
 
 - **Dependencies:** Use `sudo` for auto-install.
@@ -257,8 +244,6 @@ Edit `camcfg.json` (defaults: `/etc/camsniff/camcfg.json`):
 - **Animations:** Set `NO_ANIM=1` for non-interactive.
 - **IoT Scans:** Disable unsupported features in config.
 - **Logs:** Check `output/*/logs/` and `alerts.log`.
-
----
 
 ## Contributing
 
@@ -286,13 +271,9 @@ Edit `camcfg.json` (defaults: `/etc/camsniff/camcfg.json`):
 
 Try to follow simimar coding patterns.
 
----
-
 ## Acknowledgments
 
 Gratitude to open-source tool developers powering CamSniff.
-
----
 
 ## License
 

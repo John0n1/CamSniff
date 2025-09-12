@@ -47,6 +47,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.camvenv"
 if [[ -d "$VENV_DIR" ]]; then
+  # shellcheck disable=SC1091
   source "$VENV_DIR/bin/activate"
   ok "Virtualenv found"
   # Check packages
@@ -84,4 +85,4 @@ OUT="$SCRIPT_DIR/output"
 mkdir -p "$OUT"/{logs,reports,screenshots} 2>/dev/null || true
 ok "Output directories look good at $OUT"
 
-echo "\nDiagnostics completed."
+printf "\nDiagnostics completed.\n"
