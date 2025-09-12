@@ -17,7 +17,8 @@ tests/output/*
 # Build wrapper artifacts
 camsniff
 CamSniff
-camcfg.json
+*camcfg.json*
+tests/data/*
 
 # Virtualenv / local deps
 .debhelper/

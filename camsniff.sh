@@ -12,6 +12,7 @@ QUIET_MODE=0
 _AUTO_MODE=0
 TARGET_SUBNET=""
 
+
 while [[ $# -gt 0 ]]; do
   case $1 in
     -y|--yes) SKIP_PROMPT=1; shift ;;
