@@ -238,7 +238,7 @@ for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh iot
     log_debug "Sourcing $FILE"
     source "$SCRIPT_DIR/core/$FILE"
   else
-    log "ERROR: Missing file $FILE in $SCRIPT_DIR/core"
+    log "ERROR: Missing file $FILE in \"$SCRIPT_DIR/core\""
     exit 1
   fi
 done
