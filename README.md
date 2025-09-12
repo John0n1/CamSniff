@@ -23,14 +23,19 @@
 ---
 
 ## Introduction
+**CamSniff is a powerful reconnaissance tool for discovering, analyzing and displaying IP cameras and IoT devices.**
 
-CamSniff is a powerful reconnaissance tool for discovering and analyzing IP cameras and IoT devices. It performs device fingerprinting, service enumeration, endpoint detection, snapshot capture for AI analysis, and vulnerability scanning. The built-in web interface provides real-time visualizations, including camera feeds, network maps, geographic locations, and alerts.
+- **It performs device fingerprinting, service enumeration, endpoint detection, snapshot capture for AI analysis, and vulnerability scanning.**
+
+- **The built-in web interface provides real-time visualizations, including camera feeds, network maps, geographic locations, and alerts.**
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1ec79521-c935-4e29-bb54-b3316d978787" alt="CamSniff Screenshot" style="border: 2px solid #333; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); max-width: 80%;">
 </p>
 
-Primarily tested on Debian-based Linux distributions (e.g., Kali, Debian, Ubuntu), CamSniff auto-installs dependencies on first run with admin privileges. It uses local datasets for RTSP paths (`data/rtsp_paths.csv`) and CVEs (`data/cves`) by default, avoiding network downloads. Radio-based features (Wi-Fi, BLE, Zigbee, Z-Wave) may not work on WSL due to hardware limitations.
+**Primarily built for Debian-based Linux distributions, CamSniff auto-installs dependencies on first run with admin privileges.**
+
+- **It uses local datasets for RTSP paths (`data/rtsp_paths.csv`) and CVEs (`data/cves`) by default, avoiding network downloads. Radio-based features (Wi-Fi, BLE, Zigbee, Z-Wave) may not work on WSL due to hardware limitations.**
 
 **Disclaimer:** This tool is for educational and research purposes only. Use responsibly and with explicit permission. The authors are not liable for any misuse.
 
@@ -38,7 +43,7 @@ Primarily tested on Debian-based Linux distributions (e.g., Kali, Debian, Ubuntu
 
 ## Features
 
-- **Device Fingerprinting:** Supports major brands like Hikvision, Dahua, Axis, Vivotek, and Foscam.
+- **Device Fingerprinting:** Supports major brands like Hikvision, D-Link, TP-Link, Samsung, Panasonic, Dahua, Axis, Vivotek, and Foscam.
 - **Network Scanning:** Uses `fping`, `arp-scan`, `masscan`, `nmap`, and `onesixtyone` for host discovery and port scanning.
 - **Protocol Handling:** RTSP, HTTP (MJPEG/HLS), CoAP, RTMP, and MQTT.
 - **IoT Enumeration:** UPnP/SSDP, mDNS, BLE, Zigbee/Z-Wave, Wi-Fi OUI lookup, and network topology mapping.
@@ -279,7 +284,7 @@ Edit `camcfg.json` (defaults: `/etc/camsniff/camcfg.json`):
 
 4. Open a PR with details.
 
-Follow coding standards.
+Try to follow simimar coding patterns.
 
 ---
 
