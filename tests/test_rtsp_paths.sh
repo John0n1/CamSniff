@@ -9,7 +9,7 @@ SRC="../data/rtsp_paths.csv"
 mapfile -t URLS < <(
   awk -F',' '
     NR==1 { for(i=1;i<=NF;i++) if($i ~ /^rtsp_url$/) col=i; next }
-    NR>1 && col>0 { gsub(/^[ "\t]+|[ "\t]+$/, "", $col); if($col ~ /^rtsp:\/\//) print $col }
+    NR>1 && col>0 { gsub(/^[ \\\"\t]+|[ \\\"\t]+$/, "", $col); if($col ~ /^rtsp:\/\//) print $col }
   ' "$SRC" | tr -d '"' | sort -u
 )
 if (( ${#URLS[@]} == 0 )); then
