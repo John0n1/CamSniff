@@ -225,20 +225,20 @@ if [[ ! -f "$DEPS_INSTALLED_FILE" ]]; then
     echo -e "${RED}ERROR: First run must be with sudo to install dependencies.${RESET}"
     exit 1
   fi
-  if [[ -f "$SCRIPT_DIR/install_deps.sh" ]]; then
+  if [[ -f "$SCRIPT_DIR/core/install_deps.sh" ]]; then
     log "Installing dependencies (first run)... this can take a while"
-    bash "$SCRIPT_DIR/install_deps.sh"
+    bash "$SCRIPT_DIR/core/install_deps.sh"
   fi
   touch "$DEPS_INSTALLED_FILE"
 fi
 
 # Source submodules from same dir (jq now available)
 for FILE in setup.sh env_setup.sh install_deps.sh scan_analyze.sh cleanup.sh iot_enumerate.sh; do
-  if [[ -f "$SCRIPT_DIR/$FILE" ]]; then
+  if [[ -f "$SCRIPT_DIR/core/$FILE" ]]; then
     log_debug "Sourcing $FILE"
-    source "$SCRIPT_DIR/$FILE"
+    source "$SCRIPT_DIR/core/$FILE"
   else
-    log "ERROR: Missing file $FILE in $SCRIPT_DIR"
+    log "ERROR: Missing file $FILE in $SCRIPT_DIR/core"
     exit 1
   fi
 done

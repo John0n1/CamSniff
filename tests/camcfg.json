@@ -1,0 +1,16 @@
+{
+  "sleep_seconds": 1,
+  "nmap_ports": "80",
+  "masscan_rate": 1000,
+  "hydra_rate": 4,
+  "max_streams": 1,
+  "cve_github_repo": "",
+  "cve_cache_dir": "data/cves",
+  "cve_current_year": "2025",
+  "dynamic_rtsp_url": "",
+  "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",
+  "password_wordlist": "data/passwords.txt",
+  "username_wordlist": "data/usernames.txt",
+  "snmp_communities": ["public"],
+  "medusa_threads": 2
+}

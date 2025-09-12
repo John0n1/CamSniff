@@ -2,7 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-SRC="data/rtsp_paths.csv"
+SRC="../data/rtsp_paths.csv"
 [[ -s "$SRC" ]] || { echo "[ERROR] Missing or empty $SRC"; exit 1; }
 
 # Emulate camsniff.sh CSV parsing to extract RTSP URLs

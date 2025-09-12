@@ -30,16 +30,16 @@ cat > ./camcfg.json <<'JSON'
 JSON
 
 # Source env_setup to populate vars
-source ./env_setup.sh
+source ../core/env_setup.sh
 
 # Validate key vars
 : "${CVE_CACHE_DIR:?}"
 [[ -z "${RTSP_LIST_URL:-}" ]] || { echo "[ERROR] RTSP_LIST_URL not empty in offline mode"; exit 1; }
 
 # Try quick cve_check on a known string via scan_analyze helpers
-source ./scan_analyze.sh
+source ../core/scan_analyze.sh
 
-python3 scripts/cve_quick_search.py hikvision >/dev/null 2>&1 || true
+python3 ../python_core/cve_quick_search.py hikvision >/dev/null 2>&1 || true
 
 # Call fallback in a subshell to avoid running the whole sweep
 ( type cve_fallback_check >/dev/null 2>&1 && cve_fallback_check "hikvision camera" ) || true

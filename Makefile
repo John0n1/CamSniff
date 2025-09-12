@@ -15,13 +15,13 @@ ETCDIR = /etc/camsniff
 VERSION := 1.0.3
 
 # Source files
-SCRIPTS := camsniff.sh env_setup.sh scan_analyze.sh setup.sh cleanup.sh install_deps.sh iot_enumerate.sh
-SCRIPTS_PY := scripts/ai_analyze.py scripts/cve_quick_search.py
+SCRIPTS := camsniff.sh core/env_setup.sh core/scan_analyze.sh core/setup.sh core/cleanup.sh core/install_deps.sh core/iot_enumerate.sh
+SCRIPTS_PY := python_core/ai_analyze.py python_core/cve_quick_search.py
 PY_CORE := python_core/cli.py python_core/web_backend.py python_core/__init__.py
-TEST_SCRIPTS := test_cve.sh test_package_compliance.sh test_rtsp_paths.sh test_env_setup.sh test_python_core.sh test_rtsp_subst.sh
+TEST_SCRIPTS := tests/test_cve.sh tests/test_package_compliance.sh tests/test_rtsp_paths.sh tests/test_env_setup.sh tests/test_python_core.sh tests/test_rtsp_subst.sh
 DOCS := README.md LICENSE
-WEB := web/app.py webui.sh web/CamSniff.ico
-EXTRA := doctor.sh requirements.txt
+WEB := web/app.py core/webui.sh web/CamSniff.ico
+EXTRA := core/doctor.sh requirements.txt
 
 .PHONY: all build install uninstall clean test
 
@@ -68,9 +68,9 @@ install: build
 		# Install web files (preserve structure for app.py)
 		install -m 755 web/app.py $(DESTDIR)$(SHAREDIR)/camsniff/web/
 		install -m 644 web/CamSniff.ico $(DESTDIR)$(SHAREDIR)/camsniff/web/
-		install -m 755 webui.sh $(DESTDIR)$(SHAREDIR)/camsniff/
+		install -m 755 core/webui.sh $(DESTDIR)$(SHAREDIR)/camsniff/
 		# Install extra helper files
-		install -m 755 doctor.sh $(DESTDIR)$(SHAREDIR)/camsniff/
+		install -m 755 core/doctor.sh $(DESTDIR)$(SHAREDIR)/camsniff/
 		install -m 644 requirements.txt $(DESTDIR)$(SHAREDIR)/camsniff/
 
 	# Desktop entry for launcher
@@ -164,22 +164,22 @@ test:
 	# Syntax check all shell scripts
 	bash -n $(SCRIPTS) $(TEST_SCRIPTS)
 	chmod +x $(TEST_SCRIPTS) 2>/dev/null || true
-	./test_env_setup.sh
-	./test_rtsp_paths.sh
-	./test_cve.sh
-	./test_python_core.sh
-	./test_rtsp_subst.sh
+	cd tests && ./test_env_setup.sh
+	cd tests && ./test_rtsp_paths.sh
+	cd tests && ./test_cve.sh
+	cd tests && ./test_python_core.sh
+	cd tests && ./test_rtsp_subst.sh
 	@echo "All tests passed!"
 
 .PHONY: format lint hooks
 format:
 	@echo "Formatting shell and python..."
-	@command -v shfmt >/dev/null 2>&1 && shfmt -w -i 2 -ci *.sh || true
+	@command -v shfmt >/dev/null 2>&1 && shfmt -w -i 2 -ci *.sh core/*.sh tests/*.sh || true
 	@command -v black >/dev/null 2>&1 && black . || true
 
 lint:
 	@echo "Linting shell and python..."
-	@command -v shellcheck >/dev/null 2>&1 && shellcheck -x *.sh || true
+	@command -v shellcheck >/dev/null 2>&1 && shellcheck -x *.sh core/*.sh tests/*.sh || true
 	@command -v ruff >/dev/null 2>&1 && ruff check . || true
 
 hooks:
@@ -197,8 +197,8 @@ web-backend:
 
 .PHONY: doctor
 doctor:
-	@chmod +x doctor.sh 2>/dev/null || true
-	@./doctor.sh
+	@chmod +x core/doctor.sh 2>/dev/null || true
+	@./core/doctor.sh
 
 # Development targets
 dev-install: build
@@ -229,7 +229,7 @@ help:
 	@echo "  dev-install - Install to /usr/local (for development)"
 	@echo ""
 	@echo "Web UI:"
-	@echo "  ./webui.sh  - Run lightweight Flask dashboard on :8088"
+	@echo "  ./core/webui.sh  - Run lightweight Flask dashboard on :8088"
 	@echo "  help        - Show this help message"
 	@echo ""
 	@echo "Variables:"

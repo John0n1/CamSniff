@@ -4,7 +4,7 @@ IFS=$'\n\t'
 
 echo "[INFO] env_setup offline config test"
 
-[[ -x ./env_setup.sh ]] || { echo "[ERROR] env_setup.sh missing or not executable"; exit 1; }
+[[ -x ../core/env_setup.sh ]] || { echo "[ERROR] env_setup.sh missing or not executable"; exit 1; }
 
 # Backup existing config if present
 BACKUP=""
@@ -40,7 +40,7 @@ cat > ./camcfg.json <<'JSON'
 JSON
 
 # Source and check values (should prefer ./camcfg.json)
-source ./env_setup.sh
+source ../core/env_setup.sh
 
 [[ -n "${CVE_CACHE_DIR:-}" ]] || { echo "[ERROR] CVE_CACHE_DIR not set"; exit 1; }
 trim_cve=$(printf "%s" "${CVE_GITHUB_REPO:-}" | tr -d '\r\n\t ') ; echo "[DEBUG] CVE_GITHUB_REPO='${CVE_GITHUB_REPO:-}'"

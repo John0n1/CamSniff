@@ -103,7 +103,7 @@ screenshot_and_analyze(){
   
   ffmpeg -rtsp_transport tcp -i "$u" -frames:v 1 -q:v 2 -y "$out" &>/dev/null && {
     log "[SNAP] $u → $out"
-    python3 "$SCRIPT_DIR/scripts/ai_analyze.py" "$out" "$ip" "$OUTPUT_DIR/reports/alerts.log" "$OUTPUT_DIR/reports/analysis_${ip}.json" 2>/dev/null || true
+    python3 "$SCRIPT_DIR/python_core/ai_analyze.py" "$out" "$ip" "$OUTPUT_DIR/reports/alerts.log" "$OUTPUT_DIR/reports/analysis_${ip}.json" 2>/dev/null || true
   }
 }
 
@@ -128,7 +128,7 @@ cve_quick_search() {
   log_debug "Quick CVE search for: $search_term"
   
   local results
-  results=$(python3 "$SCRIPT_DIR/scripts/cve_quick_search.py" "$search_term" 2>/dev/null || true)
+  results=$(python3 "$SCRIPT_DIR/python_core/cve_quick_search.py" "$search_term" 2>/dev/null || true)
   if [[ -n "$results" ]]; then
     while IFS= read -r line; do
       [[ -n "$line" ]] && log "$line"
