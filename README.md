@@ -1,9 +1,10 @@
 # CamSniff - IP Camera Reconnaissance Tool
 
+
 [![Latest Release](https://img.shields.io/github/v/release/John0n1/CamSniff?style=flat-square&logo=github&color=brightgreen&label=Latest%20Release)](https://github.com/John0n1/CamSniff/releases/latest)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/ci.yml?style=flat-square&logo=github&label=Build)](https://github.com/John0n1/CamSniff/actions) [![License](https://img.shields.io/github/license/John0n1/CamSniff?style=flat-square&logo=github&color=blue)](https://github.com/John0n1/CamSniff/blob/main/LICENSE)
 
-
+<img width="128" height="128" alt="CamSniff" src="https://github.com/user-attachments/assets/99c120d5-6bda-44c0-99f6-36e169810a23" />
 
 - **[Introduction](#introduction)**
 - **[Features](#features)**
