@@ -1,4 +1,4 @@
-(1.0.4-1) unstable; urgency=medium
+camsniff (2.0.4-1) unstable; urgency=medium
 
   * Add CamSniff executable alongside camsniff
   * Install desktop entry and icon; use PNG when icotool available
