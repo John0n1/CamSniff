@@ -172,8 +172,8 @@ log_camera_found() {
 
   CAMERAS_FOUND["$ip:$port"]="$protocol|$url|$creds"
 
-  printf '{"type":"camera_found","timestamp":"%s","ip":"%s","port":"%s","protocol":"%s","url":%s}\n' \
-    "$ts" "$ip" "$port" "$protocol" "$(_json_quote "$url")" >> "$JSON_LOG_FILE" 2>/dev/null || true
+  printf '{"type":"camera_found","timestamp":%s,"ip":%s,"port":%s,"protocol":%s,"url":%s}\n' \
+    "$(_json_quote "$ts")" "$(_json_quote "$ip")" "$(_json_quote "$port")" "$(_json_quote "$protocol")" "$(_json_quote "$url")" >> "$JSON_LOG_FILE" 2>/dev/null || true
 }
 
 log_device_info() {
