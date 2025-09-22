@@ -191,6 +191,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 OUTPUT_DIR="$SCRIPT_DIR/output/results_$TIMESTAMP"
 mkdir -p "$OUTPUT_DIR"/{logs,screenshots,reports}
+echo "[" > "$OUTPUT_DIR/reports/cameras.json"
 JSON_LOG_FILE="$OUTPUT_DIR/logs/scan.jsonl"
 # start JSON log file to ensure it's present
 : > "$JSON_LOG_FILE"
