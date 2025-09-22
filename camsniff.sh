@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################################
-# CamSniff 1.0.3 – Camera Reconnaissance & Scanner
+# CamSniff 2.0.4 – Camera Reconnaissance & Scanner
 # https://github.com/John0n1/CamSniff
 ###############################################################################
 set -euo pipefail
@@ -16,7 +16,7 @@ TARGET_SUBNET="192.168.0.0/24"
 
 usage() {
   cat <<EOF
-CamSniff 1.0.3 - Camera Reconnaissance Tool & Scanner
+CamSniff 2.0.4 - Camera Reconnaissance Tool & Scanner
 Usage: $0 [OPTIONS]
 
 Options:
@@ -33,15 +33,57 @@ Examples:
 EOF
 }
 
+# Input validation functions
+validate_subnet() {
+  local subnet="$1"
+  # Basic CIDR notation validation
+  if [[ ! "$subnet" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}$ ]]; then
+    return 1
+  fi
+  
+  # Validate IP parts
+  IFS='/' read -r ip_part cidr_part <<< "$subnet"
+  IFS='.' read -ra ip_octets <<< "$ip_part"
+  
+  for octet in "${ip_octets[@]}"; do
+    if (( octet < 0 || octet > 255 )); then
+      return 1
+    fi
+  done
+  
+  # Validate CIDR
+  if (( cidr_part < 8 || cidr_part > 30 )); then
+    return 1
+  fi
+  
+  return 0
+}
+
+sanitize_input() {
+  # Remove potentially dangerous characters
+  echo "$1" | sed 's/[;&|`$(){}]//' | head -c 100
+}
+
 # Simple parse to keep compatibility with how user already calls the script
 while [[ $# -gt 0 ]]; do
   case $1 in
     -y|--yes) SKIP_PROMPT=1; shift ;;
     -q|--quiet) QUIET_MODE=1; shift ;;
     -a|--auto) _AUTO_MODE=1; SKIP_PROMPT=1; shift ;;
-    -t|--target) TARGET_SUBNET="$2"; shift 2 ;;
+    -t|--target) 
+      if [[ -z "$2" ]]; then
+        echo "Error: --target requires a subnet argument" >&2
+        exit 1
+      fi
+      TARGET_SUBNET="$(sanitize_input "$2")"
+      if ! validate_subnet "$TARGET_SUBNET"; then
+        echo "Error: Invalid subnet format: $TARGET_SUBNET" >&2
+        echo "Expected format: 192.168.1.0/24" >&2
+        exit 1
+      fi
+      shift 2 ;;
     -h|--help) usage; exit 0 ;;
-    *) echo "Unknown option: $1"; echo "Use --help for usage information"; exit 1 ;;
+    *) echo "Unknown option: $1" >&2; echo "Use --help for usage information" >&2; exit 1 ;;
   esac
 done
 
@@ -108,8 +150,10 @@ rain_ascii_art() {
 }
 
 # ----------------------------
-# Logging (respects QUIET_MODE)
+# Enhanced Logging System (respects QUIET_MODE and LOG_LEVEL)
 # ----------------------------
+LOG_LEVEL="${LOG_LEVEL:-INFO}"  # DEBUG, INFO, WARN, ERROR
+
 _json_quote() {
   # returns a JSON string quoted value for arbitrary input
   if command -v python3 >/dev/null 2>&1; then
@@ -127,39 +171,91 @@ PY
 
 _ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
-# JSON log file will be created later when OUTPUT_DIR exists
-log() {
-  if [[ "$QUIET_MODE" -eq 0 ]]; then
-    echo -e "${GREEN}[+] $*${RESET}"
-  fi
-  if [[ -n "${JSON_LOG_FILE:-}" ]]; then
-    printf '{"ts":"%s","level":"info","msg":%s}\n' "$(_ts)" "$(_json_quote "$@")" >> "$JSON_LOG_FILE" 2>/dev/null || true
-  fi
+_should_log() {
+  local level="$1"
+  case "$LOG_LEVEL" in
+    DEBUG) return 0 ;;
+    INFO) [[ "$level" != "DEBUG" ]] && return 0 ;;
+    WARN) [[ "$level" =~ ^(WARN|ERROR)$ ]] && return 0 ;;
+    ERROR) [[ "$level" == "ERROR" ]] && return 0 ;;
+  esac
+  return 1
 }
-log_debug() {
-  if [[ "$QUIET_MODE" -eq 0 ]]; then
-    echo -e "${CYAN}[DEBUG] $*${RESET}"
-  fi
+
+_log_to_file() {
+  local level="$1" message="$2"
   if [[ -n "${JSON_LOG_FILE:-}" ]]; then
-    printf '{"ts":"%s","level":"debug","msg":%s}\n' "$(_ts)" "$(_json_quote "$@")" >> "$JSON_LOG_FILE" 2>/dev/null || true
-  fi
-}
-log_warn() {
-  if [[ "$QUIET_MODE" -eq 0 ]]; then
-    echo -e "${YELLOW}[!] $*${RESET}"
-  fi
-  if [[ -n "${JSON_LOG_FILE:-}" ]]; then
-    printf '{"ts":"%s","level":"warn","msg":%s}\n' "$(_ts)" "$(_json_quote "$@")" >> "$JSON_LOG_FILE" 2>/dev/null || true
-  fi
-}
-log_err() {
-  echo -e "${RED}[ERROR] $*${RESET}" >&2
-  if [[ -n "${JSON_LOG_FILE:-}" ]]; then
-    printf '{"ts":"%s","level":"error","msg":%s}\n' "$(_ts)" "$(_json_quote "$@")" >> "$JSON_LOG_FILE" 2>/dev/null || true
+    printf '{"ts":"%s","level":"%s","msg":%s}\n' "$(_ts)" "$level" "$(_json_quote "$message")" >> "$JSON_LOG_FILE" 2>/dev/null || true
   fi
 }
 
+log() {
+  local level="INFO"
+  _should_log "$level" || return 0
+  
+  if [[ "$QUIET_MODE" -eq 0 ]]; then
+    echo -e "${GREEN}[+] $*${RESET}"
+  fi
+  _log_to_file "$level" "$*"
+}
+
+log_debug() {
+  local level="DEBUG"
+  _should_log "$level" || return 0
+  
+  if [[ "$QUIET_MODE" -eq 0 ]]; then
+    echo -e "${CYAN}[DEBUG] $*${RESET}"
+  fi
+  _log_to_file "$level" "$*"
+}
+
+log_warn() {
+  local level="WARN"
+  _should_log "$level" || return 0
+  
+  if [[ "$QUIET_MODE" -eq 0 ]]; then
+    echo -e "${YELLOW}[WARN] $*${RESET}"
+  fi
+  _log_to_file "$level" "$*"
+}
+
+log_err() {
+  local level="ERROR"
+  _should_log "$level" || return 0
+  
+  echo -e "${RED}[ERROR] $*${RESET}" >&2
+  _log_to_file "$level" "$*"
+}
+
 log_camera_found() {
+  local ip="$1" port="$2" protocol="$3" url="$4"
+  log "Camera found: $ip:$port ($protocol) - $url"
+  
+  # Add to cameras collection
+  CAMERAS_FOUND["$ip:$port"]="$protocol:$url"
+  
+  # Log structured data
+  if [[ -n "${JSON_LOG_FILE:-}" ]]; then
+    printf '{"ts":"%s","level":"event","event":"camera_found","ip":"%s","port":%s,"protocol":"%s","url":%s}\n' \
+      "$(_ts)" "$ip" "$port" "$protocol" "$(_json_quote "$url")" >> "$JSON_LOG_FILE" 2>/dev/null || true
+  fi
+}
+
+log_device_info() {
+  local ip="$1" info="$2" type="$3"
+  log "Device info: $ip - $info (type: $type)"
+  
+  # Add to device info collection
+  DEVICE_INFO["$ip"]="$type:$info"
+  
+  # Log structured data
+  if [[ -n "${JSON_LOG_FILE:-}" ]]; then
+    printf '{"ts":"%s","level":"event","event":"device_info","ip":"%s","info":%s,"type":"%s"}\n' \
+      "$(_ts)" "$ip" "$(_json_quote "$info")" "$type" >> "$JSON_LOG_FILE" 2>/dev/null || true
+  fi
+}
+
+log_camera_found_legacy() {
   local ip="$1" port="$2" protocol="$3" url="$4" creds="${5:-}" ts
   ts="$(date -Iseconds)"
   if [[ "$QUIET_MODE" -eq 0 ]]; then
@@ -196,9 +292,10 @@ JSON_LOG_FILE="$OUTPUT_DIR/logs/scan.jsonl"
 # start JSON log file to ensure it's present
 : > "$JSON_LOG_FILE"
 
-# collections
+# collections - used by sourced modules
 declare -A STREAMS HOSTS_SCANNED CAMERAS_FOUND DEVICE_INFO
 declare -a BG_PIDS
+export STREAMS HOSTS_SCANNED CAMERAS_FOUND DEVICE_INFO BG_PIDS
 
 # Helper to track background PIDs for graceful shutdown
 start_bg() {
@@ -296,7 +393,7 @@ fi
 
 # runtime info
 if (( QUIET_MODE == 0 )); then
-  echo -e "${CYAN}Runtime:${RESET} $(date -Iseconds) | Version: 1.0.3"
+  echo -e "${CYAN}Runtime:${RESET} $(date -Iseconds) | Version: 2.0.4"
 fi
 
 # Launch CLI helper if requested (background)
