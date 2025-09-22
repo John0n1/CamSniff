@@ -19,6 +19,30 @@ if [[ -z "${SCRIPT_DIR:-}" ]]; then
 fi
 export SCRIPT_DIR
 
+# Enhanced error handling function
+handle_error() {
+  local exit_code="$1"
+  local line_number="$2"
+  local bash_lineno="$3"
+  local last_command="$4"
+  local funcstack=("${@:5}")
+  
+  log_debug "ERROR: Command '$last_command' failed with exit code $exit_code at line $line_number (bash line $bash_lineno)"
+  if [[ ${#funcstack[@]} -gt 0 ]]; then
+    log_debug "Call stack: ${funcstack[*]}"
+  fi
+  
+  # Cleanup on error
+  if [[ -n "${SNMP_COMM_FILE:-}" && -f "$SNMP_COMM_FILE" ]]; then
+    rm -f "$SNMP_COMM_FILE" 2>/dev/null || true
+  fi
+  
+  exit "$exit_code"
+}
+
+# Set error trap
+trap 'handle_error $? $LINENO $BASH_LINENO "$BASH_COMMAND" "${FUNCNAME[@]}"' ERR
+
 # Ensure jq is installed
 if ! command -v jq &>/dev/null; then
   log_debug "ERROR: jq is not installed. Please install it and try again."
@@ -175,16 +199,33 @@ log_debug "Feature flags: IoT=$ENABLE_IOT_ENUMERATION PCAP=$ENABLE_PCAP_CAPTURE 
 mkdir -p "$CVE_CACHE_DIR"
 log_debug "CVE cache directory created: $CVE_CACHE_DIR"
 
-# Initialize CVE checking system
+# Initialize CVE checking system with improved error handling
 init_cve_system() {
   log_debug "Initializing CVE system"
+  
+  # Ensure CVE cache directory exists and is writable
+  if ! mkdir -p "$CVE_CACHE_DIR" 2>/dev/null; then
+    log_debug "WARNING: Cannot create CVE cache directory $CVE_CACHE_DIR, using /tmp"
+    CVE_CACHE_DIR="/tmp/cve_cache_$$"
+    mkdir -p "$CVE_CACHE_DIR" || {
+      log_debug "ERROR: Cannot create temporary CVE cache directory"
+      CVE_CHECK_LIMITED=1
+      return 1
+    }
+  fi
   
   # Create a simple index file for cached CVEs
   CVE_INDEX_FILE="$CVE_CACHE_DIR/cve_index.json"
   if [[ ! -f "$CVE_INDEX_FILE" ]]; then
-    echo "{}" > "$CVE_INDEX_FILE"
+    if ! echo "{}" > "$CVE_INDEX_FILE" 2>/dev/null; then
+      log_debug "WARNING: Cannot write CVE index file, using limited mode"
+      CVE_CHECK_LIMITED=1
+      return 1
+    fi
     log_debug "Created CVE index file: $CVE_INDEX_FILE"
   fi
+  
+  return 0
 }
 
 # Call initialization

@@ -1,7 +1,8 @@
-Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format:https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: camsniff
 Upstream-Contact: John H. Mitander <john@on1.no>
-Source: https://github.com/John0n1/CamSniffFiles: *
+Source:https://github.com/John0n1/CamSniff
+Files: *
 Copyright: 2025 John H. Mitander
 License: MITLicense: MIT
  Permission is hereby granted, free of charge, to any person obtaining a copy

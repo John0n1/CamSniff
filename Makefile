@@ -12,7 +12,7 @@ MANDIR = $(SHAREDIR)/man/man1
 ETCDIR = /etc/camsniff
 
 # Version information
-VERSION := 1.0.3
+VERSION := 2.0.4
 
 # Source files
 ROOT_SCRIPTS := camsniff.sh

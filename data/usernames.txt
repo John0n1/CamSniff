@@ -1,6 +1,7 @@
 # Common camera and IoT device usernames
 # Format: one username per line
-# Most common first for efficiencyadmin
+# Most common first for efficiency
+admin
 root
 user
 guest
@@ -23,7 +24,8 @@ surveillance
 cctv
 system
 default
-anonymous# Camera brand specific usernames
+anonymous
+# Camera brand specific usernames
 hikvision
 dahua
 axis
@@ -37,7 +39,8 @@ swann
 lorex
 zmodo
 wbox
-jvc# Service accounts
+jvc
+# Service accounts
 admin1
 admin2
 user1
@@ -47,10 +50,12 @@ tech
 technician
 manager
 owner
-installer# Common variations
+installer
+# Common variations
 Admin
 Root
 User
 Guest
-Administrator# Empty username (represented as special marker)
+Administrator
+# Empty username (represented as special marker)
 __EMPTY__
