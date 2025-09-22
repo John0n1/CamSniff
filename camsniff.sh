@@ -52,7 +52,7 @@ validate_subnet() {
   done
   
   # Validate CIDR
-  if (( cidr_part < 8 || cidr_part > 30 )); then
+  if (( cidr_part < 0 || cidr_part > 32 )); then
     return 1
   fi
   
