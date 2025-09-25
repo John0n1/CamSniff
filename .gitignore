@@ -3,6 +3,7 @@ debian/camsniff/*
 debian/source/*
 *.debhelper*
 *.debhelper-build-stamp*
+debian/files
 *.substvars*
 *.files*
 *.deb
