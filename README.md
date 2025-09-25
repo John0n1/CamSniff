@@ -162,7 +162,7 @@ Options:
 Wireless features require compatible hardware; disable in config if unsupported.
 
 ## Project Structure
-
+```
 ├── camsniff.sh          # Main entry point script
 ├── src/scripts                # Core functionality scripts
 │   ├── env_setup.sh     # Environment configuration
