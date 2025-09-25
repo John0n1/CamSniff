@@ -1,0 +1,82 @@
+.TH CAMSNIFF 1 "September 2025" "CamSniff 1.0.4" "User Commands"
+.SH NAME
+camsniff \-  Camera Reconnaissance Tool
+.SH SYNOPSIS
+.B camsniff
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B CamSniff
+is a powerful reconnaissance tool designed for security professionals and researchers. It specializes in identifying and analyzing IP cameras and other network devices, providing deep insights into their configuration and vulnerabilities.
+
+The tool performs  network reconnaissance including device discovery, IP camera detection, RTSP stream identification, CVE vulnerability checking, SNMP enumeration, and web interface discovery.
+
+.SH OPTIONS
+.TP
+\fB\-y\fR, \fB\-\-yes\fR
+Skip confirmation prompts
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Reduce output verbosity
+.TP
+\fB\-a\fR, \fB\-\-auto\fR
+Full automation mode (skip all prompts)
+.TP
+\fB\-t\fR, \fB\-\-target\fR \fISUBNET\fR
+Specify target subnet (e.g., 192.168.1.0/24)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Show help message and exit
+
+.SH EXAMPLES
+.TP
+\fBsudo camsniff \-a\fR
+Run full automatic scan
+.TP
+\fBsudo camsniff \-t 192.168.1.0/24\fR
+Scan specific subnet
+.TP
+\fBsudo camsniff \-y \-q\fR
+Skip prompts and run in quiet mode
+
+.SH CONFIGURATION
+CamSniff uses \fIcamcfg.json\fR for scanning parameters. The configuration file is automatically created with default values on first run and can be customized for specific environments.
+
+Configuration options include scan timing, port ranges, tool-specific settings, and CVE checking parameters.
+
+.SH FILES
+.TP
+\fI/usr/share/camsniff/\fR
+Main program files
+.TP
+\fI/etc/camsniff/\fR
+Configuration directory
+.TP
+\fI/usr/share/doc/camsniff/\fR
+Documentation
+
+.SH DEPENDENCIES
+The Debian package intentionally keeps hard dependencies minimal (bash, python3). Optional runtime tools (nmap, masscan, hydra, ffmpeg, tshark, curl, jq, etc.) are detected and can be installed interactively on first privileged run via the built-in installer script. This design allows flexible deployment on minimal systems.
+
+.SH SECURITY CONSIDERATIONS
+This tool is intended for authorized security testing only. Users must ensure they have explicit permission to scan and analyze any network or device. Unauthorized use may violate local laws and regulations.
+
+The tool generates network traffic and may trigger security monitoring systems. Use responsibly and in accordance with applicable laws and policies.
+
+.SH AUTHOR
+Written by John H. Mitander.
+
+.SH REPORTING BUGS
+Report bugs to: <john@on1.no>
+.br
+CamSniff home page: <https://github.com/John0n1/CamSniff>
+
+.SH COPYRIGHT
+Copyright (C) 2025 John H. Mitander.
+.br
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+.SH SEE ALSO
+.BR nmap (1),
+.BR masscan (1),
+.BR hydra (1),
+.BR tshark (1)

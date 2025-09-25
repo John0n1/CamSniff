@@ -1,0 +1,14 @@
+bin/camsniff usr/bin/
+src/camsniff.sh usr/lib/camsniff/src/
+src/scripts/* usr/lib/camsniff/src/scripts/
+src/python_core/* usr/lib/camsniff/src/python_core/
+requirements.txt usr/lib/camsniff/src/
+src/rtsp_paths.csv usr/lib/camsniff/src/
+src/passwords.txt usr/lib/camsniff/src/
+src/usernames.txt usr/lib/camsniff/src/
+data/cves usr/share/camsniff/data/
+VERSION usr/lib/camsniff/
+README.md usr/share/doc/camsniff/
+doc/camsniff.png usr/share/pixmaps/
+debian/camsniff.desktop usr/share/applications/
+debian/camsniff-web.desktop usr/share/applications/

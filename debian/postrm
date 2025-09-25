@@ -4,6 +4,11 @@ set -e
 case "$1" in
     purge)
         rm -rf /var/lib/camsniff 2>/dev/null || true
+        rm -rf /var/log/camsniff 2>/dev/null || true
+        rm -rf /etc/camsniff 2>/dev/null || true
+        rm -rf /usr/lib/camsniff 2>/dev/null || true
+        rm -rf /usr/share/camsniff 2>/dev/null || true
+        rm -rf /var/lib/camsniff/output 2>/dev/null || true
         ;;
     remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
         ;;

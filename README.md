@@ -1,8 +1,10 @@
 # CamSniff - IP Camera Reconnaissance Tool
 
+''*You think you're alone, but what if someone’s eyes are fixed on you right now?*''
 
 [![Latest Release](https://img.shields.io/github/v/release/John0n1/CamSniff?style=flat-square&logo=github&color=brightgreen&label=Latest%20Release)](https://github.com/John0n1/CamSniff/releases/latest)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/ci.yml?style=flat-square&logo=github&label=Build)](https://github.com/John0n1/CamSniff/actions) [![License](https://img.shields.io/github/license/John0n1/CamSniff?style=flat-square&logo=github&color=blue)](https://github.com/John0n1/CamSniff/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/John0n1/CamSniff?style=flat-square&logo=opensourceinitiative&color=blue)](LICENSE)
+[![Issues](https://img.shields.io/github/issues/John0n1/CamSniff?style=flat-square&logo=github&color=yellow)](https://github.com/John0n1/CamSniff/issues)
 
 <img width="128" height="128" alt="CamSniff" src="https://github.com/user-attachments/assets/99c120d5-6bda-44c0-99f6-36e169810a23" />
 
@@ -161,9 +163,8 @@ Wireless features require compatible hardware; disable in config if unsupported.
 
 ## Project Structure
 
-```
 ├── camsniff.sh          # Main entry point script
-├── core/                # Core functionality scripts
+├── src/scripts                # Core functionality scripts
 │   ├── env_setup.sh     # Environment configuration
 │   ├── scan_analyze.sh  # Scanning and analysis logic
 │   ├── setup.sh         # Initial setup functions
@@ -172,17 +173,13 @@ Wireless features require compatible hardware; disable in config if unsupported.
 │   ├── iot_enumerate.sh # IoT device enumeration
 │   ├── webui.sh         # Web interface launcher
 │   └── doctor.sh        # System diagnostics
-├── python_core/         # Python modules and scripts
+├── src/python_core/         # Python modules and scripts
 │   ├── __init__.py      # Package initialization
 │   ├── cli.py           # Command-line interface
 │   ├── web_backend.py   # FastAPI backend
 │   ├── ai_analyze.py    # AI analysis functions
 │   └── cve_quick_search.py # CVE search functionality
-├── tests/               # Test suite
-│   ├── test_*.sh        # Individual test scripts
-│   └── ...
-├── data/                # Data files (RTSP paths, wordlists)
-├── web/                 # Web interface files
+├── data/                # Data files (CVEs)
 └── debian/              # Debian packaging files
 ```
 

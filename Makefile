@@ -1,239 +1,149 @@
-#!/usr/bin/make -f
+# CamSniff Makefile
+# High-level developer / packager convenience targets
+# Safe defaults: never require root unless target explicitly needs it.
 
-DESTDIR ?= 
-PREFIX ?= /usr
-BINDIR = $(PREFIX)/bin
-SHAREDIR = $(PREFIX)/share
-DOCDIR = $(SHAREDIR)/doc/camsniff
-APPSDIR = $(SHAREDIR)/applications
-ICONSDIR = $(SHAREDIR)/icons/hicolor/256x256/apps
-PIXMAPSDIR = $(SHAREDIR)/pixmaps
-MANDIR = $(SHAREDIR)/man/man1
-ETCDIR = /etc/camsniff
+# Variables (override on command line: make run ARGS="-a -t 10.0.0.0/24")
+VERSION:=$(shell cat VERSION 2>/dev/null || echo dev)
+# Derive upstream version (strip any Debian revision like -1)
+UPSTREAM_VERSION:=$(shell echo $(VERSION) | cut -d- -f1)
+PYTHON?=python3
+PIP?=pip3
+VENV_DIR?=src/scripts/.camvenv
+REQ_FILE?=requirements.txt
+RUN_SCRIPT?=src/camsniff.sh
+WEB_SCRIPT?=src/scripts/webui.sh
+DEB_BUILD_DIR?=debian
+# Allow passing extra args to camsniff
+ARGS?=
+SHELL:=/bin/bash
 
-# Version information
-VERSION := 2.0.4
+# Color helpers
+C_GREEN=\033[32m
+C_YELLOW=\033[33m
+C_RED=\033[31m
+C_RESET=\033[0m
 
-# Source files
-ROOT_SCRIPTS := camsniff.sh
-CORE_SCRIPTS := core/env_setup.sh core/scan_analyze.sh core/setup.sh core/cleanup.sh core/install_deps.sh core/iot_enumerate.sh
-SCRIPTS := $(ROOT_SCRIPTS) $(CORE_SCRIPTS)
-SCRIPTS_PY := python_core/ai_analyze.py python_core/cve_quick_search.py
-PY_CORE := python_core/cli.py python_core/web_backend.py python_core/__init__.py
-TEST_SCRIPTS := tests/test_cve.sh tests/test_package_compliance.sh tests/test_rtsp_paths.sh tests/test_env_setup.sh tests/test_python_core.sh tests/test_rtsp_subst.sh
-DOCS := README.md LICENSE
-WEB := web/app.py core/webui.sh web/CamSniff.ico
-EXTRA := core/doctor.sh requirements.txt
+.PHONY: help venv deps install-deps lint lint-shell lint-python format format-check self-test doctor run web deb clean distclean version print-% env
 
-.PHONY: all build install uninstall clean test
+help:
+	@echo "CamSniff Make Targets"
+	@echo "--------------------------------"
+	@echo "make help            - This help"
+	@echo "make version         - Show current version"
+	@echo "make venv            - Create/refresh Python virtualenv (if missing)"
+	@echo "make deps            - Install Python deps into venv/system"
+	@echo "make install-deps    - Run full system dependency bootstrap (root)"
+	@echo "make lint            - Run all linters (shell + python)"
+	@echo "make lint-shell      - ShellCheck all bash scripts"
+	@echo "make lint-python     - Ruff + Black (check)"
+	@echo "make format          - Auto-format Python via Black"
+	@echo "make format-check    - Dry-run formatting check"
+	@echo "make self-test       - Run JSON self-test diagnostic"
+	@echo "make doctor          - Run doctor diagnostics"
+	@echo "make run ARGS='...'  - Launch camsniff.sh with optional args"
+	@echo "make web             - Launch Web UI (webui.sh)"
+	@echo "make deb             - Build Debian package (dpkg-buildpackage)"
+	@echo "make clean           - Remove temporary build artifacts"
+	@echo "make distclean       - Clean + remove venv & output results"
+	@echo "make env             - Print key environment paths"
 
-all: build
+version:
+	@echo "CamSniff version $(VERSION)"
 
-build:
-	@echo "Building CamSniff $(VERSION)..."
-	# Create wrapper script that calls the main script from share directory
-	@echo '#!/bin/bash' > camsniff
-	@echo 'exec /usr/share/camsniff/camsniff.sh "$$@"' >> camsniff
-	@chmod +x camsniff
-	# Create capitalized wrapper for convenience and desktop Exec
-	@echo '#!/bin/bash' > CamSniff
-	@echo 'exec /usr/share/camsniff/camsniff.sh "$$@"' >> CamSniff
-	@chmod +x CamSniff
+print-%:
+	@echo '$*=$($*)'
 
-install: build
-	@echo "Installing CamSniff $(VERSION)..."
-	# Create directories
-	install -d $(DESTDIR)$(BINDIR)
-	install -d $(DESTDIR)$(SHAREDIR)/camsniff
-	install -d $(DESTDIR)$(SHAREDIR)/camsniff/web
-	install -d $(DESTDIR)$(APPSDIR)
-	install -d $(DESTDIR)$(ICONSDIR)
-	install -d $(DESTDIR)$(PIXMAPSDIR)
-	install -d $(DESTDIR)$(DOCDIR)
-	install -d $(DESTDIR)$(MANDIR)
-	install -d $(DESTDIR)$(ETCDIR)
-	install -d $(DESTDIR)/var/lib/camsniff
-	install -d $(DESTDIR)/var/log/camsniff
-	
-	# Install main wrapper script
-	install -m 755 camsniff $(DESTDIR)$(BINDIR)/camsniff
-	# Also install capitalized convenience executable
-	install -m 755 CamSniff $(DESTDIR)$(BINDIR)/CamSniff
-	
-		# Install all scripts to share directory
-		install -m 755 $(SCRIPTS) $(DESTDIR)$(SHAREDIR)/camsniff/
-		install -d $(DESTDIR)$(SHAREDIR)/camsniff/scripts
-		install -m 644 $(SCRIPTS_PY) $(DESTDIR)$(SHAREDIR)/camsniff/scripts/
-		# Install python core package files (for local runs)
-		install -d $(DESTDIR)$(SHAREDIR)/camsniff/python_core
-		install -m 644 $(PY_CORE) $(DESTDIR)$(SHAREDIR)/camsniff/python_core/
-		# Install web files (preserve structure for app.py)
-		install -m 755 web/app.py $(DESTDIR)$(SHAREDIR)/camsniff/web/
-		install -m 644 web/CamSniff.ico $(DESTDIR)$(SHAREDIR)/camsniff/web/
-		install -m 755 core/webui.sh $(DESTDIR)$(SHAREDIR)/camsniff/
-		# Install extra helper files
-		install -m 755 core/doctor.sh $(DESTDIR)$(SHAREDIR)/camsniff/
-		install -m 644 requirements.txt $(DESTDIR)$(SHAREDIR)/camsniff/
+env:
+	@echo "VERSION=$(VERSION)"
+	@echo "PYTHON=$(PYTHON)"
+	@echo "VENV_DIR=$(VENV_DIR)"
+	@echo "REQ_FILE=$(REQ_FILE)"
+	@echo "RUN_SCRIPT=$(RUN_SCRIPT)"
 
-	# Desktop entry for launcher
-	printf "[Desktop Entry]\n" > $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Type=Application\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Name=CamSniff\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Comment=Camera Reconnaissance Tool\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Exec=CamSniff\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Icon=camsniff\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Categories=Network;Security;\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Keywords=camera;ip;network;security;scanner;rtsp;onvif;\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-	printf "Terminal=true\n" >> $(DESTDIR)$(APPSDIR)/camsniff.desktop
-
-	# Install icon: prefer PNG in hicolor; always install ICO to pixmaps as fallback
-	@tmpicons=$$(mktemp -d); \
-	if command -v icotool >/dev/null 2>&1; then \
-		icotool -x -o "$$tmpicons" web/CamSniff.ico >/dev/null 2>&1 || true; \
-		png=$$(ls -1 "$$tmpicons"/*256*.png 2>/dev/null | head -n1 || true); \
-		if [ -n "$$png" ]; then \
-			install -m 644 "$$png" $(DESTDIR)$(ICONSDIR)/camsniff.png; \
-		fi; \
-	elif command -v convert >/dev/null 2>&1; then \
-		convert web/CamSniff.ico -resize 256x256 "$$tmpicons/camsniff.png" >/dev/null 2>&1 || true; \
-		if [ -f "$$tmpicons/camsniff.png" ]; then \
-			install -m 644 "$$tmpicons/camsniff.png" $(DESTDIR)$(ICONSDIR)/; \
-		fi; \
-	fi; \
-	install -m 644 web/CamSniff.ico $(DESTDIR)$(PIXMAPSDIR)/camsniff.ico; \
-	rm -rf "$$tmpicons" 2>/dev/null || true
-	
-	# Install documentation
-	install -m 644 $(DOCS) $(DESTDIR)$(DOCDIR)/
-	
-	# Install man page if it exists (and provide CamSniff.1 symlink)
-	@if [ -f camsniff.1 ]; then \
-		install -m 644 camsniff.1 $(DESTDIR)$(MANDIR)/; \
-		ln -sf camsniff.1 $(DESTDIR)$(MANDIR)/CamSniff.1; \
-	fi || true
-	
-	# Create default configuration if it doesn't exist
-	@if [ ! -f "$(DESTDIR)$(ETCDIR)/camcfg.json" ]; then \
-		echo "Creating default configuration..."; \
-		printf '{\n' > "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "sleep_seconds": 45,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "nmap_ports": "1-65535",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "masscan_rate": 20000,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "hydra_rate": 16,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "max_streams": 4,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "cve_github_repo": "https://api.github.com/repos/CVEProject/cvelistV5/contents/cves",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "cve_cache_dir": "/tmp/cve_cache",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "cve_current_year": "2025",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "dynamic_rtsp_url": "https://github.com/John0n1/CamSniff/blob/4d682edf7b4512562d24ccdf863332952637094d/data/rtsp_paths.csv",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "dirb_wordlist": "/usr/share/wordlists/dirb/common.txt",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "password_wordlist": "data/passwords.txt",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "username_wordlist": "data/usernames.txt",\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "snmp_communities": ["public", "private", "camera", "admin", "cam", "cisco", "default", "guest", "test"],\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "medusa_threads": 8,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "enable_iot_enumeration": true,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "enable_pcap_capture": true,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "enable_wifi_scan": true,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "enable_ble_scan": true,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "enable_zigbee_zwave_scan": true,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "stealth_mode": true,\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '  "enable_nmap_vuln": true\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		printf '}\n' >> "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
-		chmod 644 "$(DESTDIR)$(ETCDIR)/camcfg.json"; \
+# Create virtualenv if not present
+venv:
+	@if [ ! -d "$(VENV_DIR)" ]; then \
+		echo -e "$(C_GREEN)[+] Creating virtualenv $(VENV_DIR)$(C_RESET)"; \
+		$(PYTHON) -m venv $(VENV_DIR) || echo -e "$(C_YELLOW)[!] Failed to create venv; will use system python$(C_RESET)"; \
+	else \
+		echo -e "$(C_GREEN)[+] venv exists$(C_RESET)"; \
 	fi
-	
-	# Create default config directory
-	@echo "System directories created for configuration and logging"
 
-uninstall:
-	@echo "Uninstalling CamSniff..."
-	rm -f $(DESTDIR)$(BINDIR)/camsniff
-	rm -rf $(DESTDIR)$(SHAREDIR)/camsniff
-	rm -rf $(DESTDIR)$(DOCDIR)
-	rm -f $(DESTDIR)$(MANDIR)/camsniff.1
-	# Note: We don't remove /etc/camsniff, /var/lib/camsniff, or /var/log/camsniff 
-	# to preserve user configurations and logs
+# Install Python requirements
+deps: venv
+	@if [ -d "$(VENV_DIR)" ] && [ -f "$(VENV_DIR)/bin/activate" ]; then \
+		echo -e "$(C_GREEN)[+] Using venv for pip installs$(C_RESET)"; \
+		source $(VENV_DIR)/bin/activate; pip install -U pip >/dev/null; \
+		if [ -f "$(REQ_FILE)" ]; then pip install -r $(REQ_FILE); else echo "(no requirements.txt)"; fi; \
+	else \
+		echo -e "$(C_YELLOW)[!] No venv; installing to user site$(C_RESET)"; \
+		if [ -f "$(REQ_FILE)" ]; then $(PIP) install --user -r $(REQ_FILE); fi; \
+	fi
+
+install-deps:
+	@if [ "$$(id -u)" -ne 0 ]; then echo "Requires root (sudo)"; exit 1; fi
+	@bash src/scripts/install_deps.sh
+
+# Linting
+lint: lint-shell lint-python
+
+lint-shell:
+	@command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not installed"; exit 0; }
+	@echo -e "$(C_GREEN)[+] ShellCheck scripts$(C_RESET)"; \
+	find src -type f -name '*.sh' -print0 | xargs -0 -r shellcheck -x || true
+
+lint-python:
+	@command -v ruff >/dev/null 2>&1 || { echo "ruff not installed (pip install ruff)"; exit 0; }
+	@echo -e "$(C_GREEN)[+] Ruff lint$(C_RESET)"; ruff check src || true
+	@command -v black >/dev/null 2>&1 || { echo "black not installed (pip install black)"; exit 0; }
+	@echo -e "$(C_GREEN)[+] Black check$(C_RESET)"; black --check src || true
+
+format:
+	@command -v black >/dev/null 2>&1 || { echo "black not installed"; exit 1; }
+	@black src
+
+format-check:
+	@command -v black >/dev/null 2>&1 || { echo "black not installed"; exit 1; }
+	@black --check src
+
+self-test:
+	@bash src/scripts/self_test.sh | jq '.' || bash src/scripts/self_test.sh
+
+doctor:
+	@DOCTOR_JSON=1 bash src/scripts/doctor.sh --json || bash src/scripts/doctor.sh || true
+
+run:
+	@if [ ! -x "$(RUN_SCRIPT)" ]; then echo "Missing $(RUN_SCRIPT)"; exit 1; fi
+	@echo -e "$(C_GREEN)[+] Launching CamSniff$(C_RESET)"; \
+	bash $(RUN_SCRIPT) $(ARGS)
+
+web:
+	@if [ ! -x "$(WEB_SCRIPT)" ]; then echo "Missing $(WEB_SCRIPT)"; exit 1; fi
+	@echo -e "$(C_GREEN)[+] Launching Web UI$(C_RESET)"; \
+	bash $(WEB_SCRIPT) $(ARGS)
+
+# Build Debian package (no signing by default)
+deb:
+	@if [ ! -f debian/control ]; then echo "Missing debian/ metadata"; exit 1; fi
+	@echo -e "$(C_GREEN)[+] Building Debian package$(C_RESET)"; \
+	format_file=debian/source/format; \
+	if [ -f $$format_file ] && grep -q '3.0 (quilt)' $$format_file; then \
+	  echo "[i] Source format quilt detected (upstream=$(UPSTREAM_VERSION) full=$(VERSION))"; \
+	  echo "[i] Recreating orig tarball camsniff_$(UPSTREAM_VERSION).orig.tar.gz"; \
+	  rm -f ../camsniff_$(UPSTREAM_VERSION).orig.tar.* 2>/dev/null || true; \
+	  tar -czf ../camsniff_$(UPSTREAM_VERSION).orig.tar.gz --exclude-vcs --transform 's,^,camsniff-$(UPSTREAM_VERSION)/,' .; \
+	fi; \
+	dpkg-buildpackage -us -uc -rfakeroot || echo -e "$(C_RED)[!] dpkg-buildpackage failed$(C_RESET)"
 
 clean:
-	@echo "Cleaning build artifacts..."
-	rm -f camsniff
-	rm -f *.deb
-	rm -rf build-deb/
-	rm -f .deps_installed
-	rm -f camcfg.json
+	@echo -e "$(C_GREEN)[+] Cleaning build artifacts$(C_RESET)"; \
+	rm -f *.build *.changes *.deb *.dsc *.tar.* camcfg.json paused.json || true; \
+	rm -rf debian/.debhelper debian/files debian/camsniff/ src/.deps_installed src/.camvenv/ || true
 
-test:
-	@echo "Running tests..."
-	# Syntax check all shell scripts
-	bash -n $(SCRIPTS) $(TEST_SCRIPTS)
-	chmod +x $(TEST_SCRIPTS) 2>/dev/null || true
-	cd tests && ./test_env_setup.sh
-	cd tests && ./test_rtsp_paths.sh
-	cd tests && ./test_cve.sh
-	cd tests && ./test_python_core.sh
-	cd tests && ./test_rtsp_subst.sh
-	@echo "All tests passed!"
+# Distclean removes venv and output results
+# (Be careful not to remove user data outside repo)
+distclean: clean
+	@echo -e "$(C_RED)[!] Removing venv & output directories$(C_RESET)"; \
+	rm -rf $(VENV_DIR) src/output/results_* src/output/* || true
+	rm camcfg.json paused.json || true	
 
-.PHONY: format lint hooks
-format:
-	@echo "Formatting shell and python..."
-	@command -v shfmt >/dev/null 2>&1 && shfmt -w -i 2 -ci *.sh core/*.sh tests/*.sh || true
-	@command -v black >/dev/null 2>&1 && black . || true
-
-lint:
-	@echo "Linting shell and python..."
-	@command -v shellcheck >/dev/null 2>&1 && shellcheck -x *.sh core/*.sh tests/*.sh || true
-	@command -v ruff >/dev/null 2>&1 && ruff check . || true
-
-hooks:
-	@echo "Installing pre-commit hooks..."
-	@pre-commit install -t pre-commit -t commit-msg || true
-
-.PHONY: core web-backend
-core:
-	@echo "Running Python core CLI (initdb)..."
-	@python3 python_core/cli.py initdb
-
-web-backend:
-	@echo "Starting FastAPI backend on :8089..."
-	@python3 python_core/web_backend.py
-
-.PHONY: doctor
-doctor:
-	@chmod +x core/doctor.sh 2>/dev/null || true
-	@./core/doctor.sh
-
-# Development targets
-dev-install: build
-	sudo $(MAKE) install PREFIX=/usr/local
-
-dev-uninstall:
-	sudo $(MAKE) uninstall PREFIX=/usr/local
-
-# Package building
-deb: clean
-	@bash -eu -c 'TMP=$$(mktemp -d /tmp/camsniff-pkg-XXXXXX); \
-		rsync -a --delete --exclude ".git" "$(CURDIR)/" "$$TMP/"; \
-		cd "$$TMP"; dpkg-buildpackage -us -uc -b; \
-		cp -f ../camsniff_* "$(CURDIR)/" || true; echo "Built packages staged back to $(CURDIR)"'
-
-.PHONY: help
-help:
-	@echo "CamSniff $(VERSION) -  Camera Reconnaissance Tool"
-	@echo ""
-	@echo "Available targets:"
-	@echo "  all         - Build the project (default)"
-	@echo "  build       - Build the wrapper script"
-	@echo "  install     - Install to system (use DESTDIR for staging)"
-	@echo "  uninstall   - Remove from system"
-	@echo "  clean       - Clean build artifacts"
-	@echo "  test        - Run tests"
-	@echo "  deb         - Build Debian package"
-	@echo "  dev-install - Install to /usr/local (for development)"
-	@echo ""
-	@echo "Web UI:"
-	@echo "  ./core/webui.sh  - Run lightweight Flask dashboard on :8088"
-	@echo "  help        - Show this help message"
-	@echo ""
-	@echo "Variables:"
-	@echo "  DESTDIR     - Destination directory for staging (default: empty)"
-	@echo "  PREFIX      - Installation prefix (default: /usr)"

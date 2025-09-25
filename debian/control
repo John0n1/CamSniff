@@ -12,46 +12,8 @@ Vcs-Browser: https://github.com/John0n1/CamSniff
 
 Package: camsniff
 Architecture: all
-Depends: ${misc:Depends},
-         bash (>= 4.0),
-         fping,
-         masscan,
-         nmap,
-         hydra,
-         fzf,
-         tcpdump,
-         tshark,
-         arp-scan,
-         avahi-daemon,
-         avahi-utils,
-         ffmpeg,
-         curl,
-         jq,
-         snmp,
-         python3,
-         python3-venv,
-         python3-pip,
-         python3-opencv,
-         python3-flask,
-         git,
-         rtmpdump,
-         build-essential,
-         cmake,
-         pkgconf,
-         autoconf,
-         automake,
-         libtool,
-         chafa,
-         gobuster,
-         medusa,
-         onesixtyone,
-         libssl-dev,
-         doxygen,
-         bluez,
-         bluez-tools,
-         wireless-tools,
-         iw,
-         network-manager
+Depends: bash, python3
+Suggests: nmap, masscan, hydra, ffmpeg, tshark, curl, jq
 Description: Camera Reconnaissance Tool
  CamSniff is a powerful reconnaissance tool designed for security professionals
  and researchers. It specializes in identifying and analyzing IP cameras and 
@@ -68,3 +30,8 @@ Description: Camera Reconnaissance Tool
   * Reporting and logging
  .
  This tool is intended for educational and research purposes only.
+ .
+ NOTE: Most runtime tools (nmap, masscan, hydra, ffmpeg, tshark, curl, jq, etc.)
+ are intentionally not hard dependencies. The launcher performs runtime
+ detection and can install missing components (with confirmation) on the first
+ privileged execution.

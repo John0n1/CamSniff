@@ -8,11 +8,12 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	set -e; \
-	bash -n camsniff.sh; \
-	for f in *.sh; do bash -n "$${f}"; done
+	if [ -f src/camsniff.sh ]; then bash -n src/camsniff.sh; fi; \
+	find src -maxdepth 2 -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
 
 override_dh_auto_install:
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/camsniff
+	@# No build system install step; files installed via debian/*.install
+	@echo "[rules] Skipping dh_auto_install (using debian/*.install)"
 
 override_dh_auto_clean:
 	$(MAKE) clean || true

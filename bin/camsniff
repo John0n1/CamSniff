@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Wrapper to run CamSniff from anywhere once installed in PATH.
+# Resolves to script location even if symlinked.
+
+SOURCE_FILE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE_FILE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE_FILE")" && pwd)"
+  SOURCE_FILE="$(readlink "$SOURCE_FILE")"
+  [[ $SOURCE_FILE != /* ]] && SOURCE_FILE="$DIR/$SOURCE_FILE"
+done
+WRAPPER_DIR="$(cd -P "$(dirname "$SOURCE_FILE")" && pwd)"
+REPO_ROOT="$(cd "$WRAPPER_DIR/.." && pwd)"
+
+# Packaged install path preference
+PKG_ROOT="/usr/lib/camsniff"
+if [[ -f "$PKG_ROOT/src/camsniff.sh" ]]; then
+  exec bash "$PKG_ROOT/src/camsniff.sh" "$@"
+elif [[ -f "$PKG_ROOT/camsniff.sh" ]]; then
+  # Backward compatibility (older package layout)
+  exec bash "$PKG_ROOT/camsniff.sh" "$@"
+fi
+
+exec bash "$REPO_ROOT/src/camsniff.sh" "$@"
