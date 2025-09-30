@@ -1,4 +1,3 @@
-version=1.0.4-1
-
-# Github repository on CamSniff Releases
-https://github.com/John0n1/CamSniff/releases .*/(\d\S*)\.(?:tgz|tbz|txz|(?:tar\.(?:gz|bz2|xz)))
+version=4
+opts=filenamemangle=s%.*/v?([\d\.]+)%camsniff-$1.tar.gz% \
+	https://github.com/John0n1/CamSniff/releases .*/v?([\d\.]+)\.tar\.gz

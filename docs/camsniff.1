@@ -1,0 +1,111 @@
+.TH CAMSNIFF 1 "September 2025" "CamSniff 2.0" "User Commands"
+.SH NAME
+camsniff \- automated IP camera reconnaissance and credential auditor
+.SH SYNOPSIS
+.B camsniff
+[
+.BR --mode " " mode
+]
+[
+.B --yes
+]
+[
+.B --version
+|
+.B --help
+]
+
+.SH DESCRIPTION
+.B CamSniff
+combines network discovery, protocol fingerprinting, and credential probing to
+surface insecure IP cameras on a local segment.  It orchestrates Nmap RTSP brute
+force enumeration, optional Masscan sweeps, Avahi/mDNS discovery, and targeted
+TShark captures.  Results are merged with a vendor knowledge base and exported
+as JSON, screenshots, and ASCII thumbnails.
+
+CamSniff must be executed with root privileges (`sudo camsniff`) so that raw
+socket capture and Masscan integration work correctly.
+
+.SH OPTIONS
+.TP
+.B -m, --mode
+Selects the discovery profile.  Valid values are
+.I stealth
+,
+.I "ultra stealth"
+,
+.I medium
+,
+.I aggressive
+,
+.I war
+and
+.IR unphantmoable .
+Each profile tunes the enabled scanners, port ranges, packet rates, credential
+budget, and capture durations.  When omitted the most aggressive
+configuration (\fIunphantmoable\fR) is used.
+.TP
+.B -y, --yes
+Skips the interactive confirmation banner and begins the scan immediately.
+.TP
+.B -v, --version
+Print the packaged version string and exit.
+.TP
+.B -h, --help
+Display a concise usage summary and exit.
+
+.SH FILES
+.TP
+.I /usr/lib/camsniff/scripts/camsniff.sh
+Main orchestrator executed by the wrapper binary.
+.TP
+.I /usr/lib/camsniff/scripts/credential-probe.sh
+Runs HTTP/RTSP credential checks based on discovery output.
+.TP
+.I /usr/lib/camsniff/data/paths.csv
+Vendor fingerprint catalogue supplying default credential and CVE metadata.
+.TP
+.I /usr/lib/camsniff/data/http-paths.txt
+Fallback HTTP snapshot templates.
+.TP
+.I /usr/lib/camsniff/data/usernames.txt,
+.I /usr/lib/camsniff/data/passwords.txt
+Credential dictionaries used by the probe stage.
+.TP
+.I /usr/lib/camsniff/data/port-profiles.sh
+Shared port profile definitions for Nmap and Masscan.
+.TP
+.I ~/dev/results/
+Per-run artefact directories containing discovery and credential JSON output,
+logs, and thumbnails.
+
+.SH EXAMPLES
+.TP
+Run the default aggressive profile with interactive confirmation:
+.PP
+.RS
+.nf
+sudo camsniff
+.fi
+.RE
+.TP
+Launch a medium profile scan without prompts:
+.PP
+.RS
+.nf
+sudo camsniff --mode medium --yes
+.fi
+.RE
+
+.SH SEE ALSO
+.BR nmap (1),
+.BR masscan (1),
+.BR tshark (1)
+
+.SH AUTHOR
+Written by John Hauger Mitander (John0n1)
+\<
+.UR mailto:john@on1.no
+john@on1.no
+.UE
+\>.

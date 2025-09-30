@@ -1,0 +1,1 @@
+# This file intentionally left blank; CamSniff relies only on the Python standard library.

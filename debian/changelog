@@ -1,43 +1,17 @@
-camsniff (1.0.4-1) unstable; urgency=medium
+camsniff (2.1.0-1) unstable; urgency=medium
 
-  * Bump version to 1.0.4 (central VERSION file) aligning man page & scripts
-  * Restructured install layout under /usr/lib/camsniff/src
-  * Added camsniff-web desktop launcher and wrapper
-  * Introduced Makefile with developer convenience targets
-  * Enhanced doctor & self-test diagnostics (JSON support in doctor)
-  * Packaging cleanup: minimized hard Depends, clarified runtime tool philosophy
+  * Expand multi-protocol scanning coverage and surface results in discovery.json.
+  * Extend credential probing with RTSP brute discoveries and protocol context.
+  * Refresh helper scripts, bootstrap dependencies reliably, and clean requirements.
+  * Align Debian metadata with contrib guidelines and fix desktop/icon integration.
 
- -- John H. Mitander <john@on1.no>  Thu, 25 Sep 2025 12:00:00 +0000
+ -- John Hauger Mitander <john@on1.no>  Tue, 30 Sep 2025 00:00:00 +0000
 
-camsniff (1.0.3-1) unstable; urgency=medium
+camsniff (2.0.0) unstable; urgency=medium
 
-  * Add capitalized CamSniff executable alongside camsniff
-  * Install desktop entry and icon; use PNG when icotool available
-  * Harden installer venv handling; add typer to requirements
-  * Structured JSON logging and minor UX improvements
+  * Integrate rtsp-url-brute NSE script into the primary Nmap stage.
+  * Persist scan artifacts in dev/results/ with structured JSON and logs.
+  * Document mode-aware CLI, credential probing, and packaging workflow.
 
- -- John H. Mitander <john@on1.no>  Thu, 11 Jun 2025 21:50:00 +0000
+ -- John Hauger Mitander <john@on1.no>  Mon, 29 Sep 2025 00:00:00 +0000
 
-camsniff (1.0.2-1) unstable; urgency=medium
-
-  * Enable all features by default in configuration
-  * Add Web UI and IoT enumeration dependencies to debian/control
-  * Improve SNMP temp file handling for non-root runs
-  * Keep Makefile default config in sync with env_setup
-  * Switch to debhelper-compat (= 12) and set Rules-Requires-Root: no
-  * Add debian/source/format (3.0 native); bump Standards-Version 4.7.0
-  * Harden banner animations for non-TTY environments
-
- -- John H. Mitander <john@on1.no>  Tue, 25 May 2025 10:42:00 +0000
-
-camsniff (1.0.1-1) unstable; urgency=medium
-
-  * Initial Debian package release
-  *  camera reconnaissance tool
-  * CVE vulnerability checking integration
-  * RTSP stream identification and testing
-  * SNMP community enumeration
-  * Web interface discovery and fuzzing
-  * Reporting and logging
-
- -- John H. Mitander <john@on1.no>  Wed, 09 Jan 2025 20:57:00 +0000

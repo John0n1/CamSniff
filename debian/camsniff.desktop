@@ -1,12 +1,10 @@
 [Desktop Entry]
-Type=Application
-Version=1.0.4-1
 Name=CamSniff
-GenericName=Camera Recon Tool
-Comment=Discover and analyze IP cameras
-Exec=pkexec /usr/bin/camsniff -a
-Icon=camsniff
+Comment=Automated IP camera reconnaissance toolkit
+Exec=camsniff
+TryExec=camsniff
 Terminal=true
+Type=Application
 Categories=Network;Security;Utility;
-Keywords=camera;security;network;rtsp;scan;
-X-Kali-Package=camsniff
+Keywords=Security;Camera;RTSP;Scan;
+Icon=camsniff

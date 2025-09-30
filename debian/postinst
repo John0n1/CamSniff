@@ -1,31 +1,22 @@
 #!/bin/sh
+#
+# CamSniff- Automated IP camera reconnaissance toolkit
+# By John Hauger Mitander <john@on1.no>
+# Copyright 2025 John Hauger Mitander
+#
+# SPDX-License-Identifier: MIT
+
 set -e
 
 case "$1" in
-    configure)
-        install -d -m 755 /var/lib/camsniff || true
-        install -d -m 755 /var/log/camsniff || true
-        # Ensure writable subdirectories for runtime outputs
-        install -d -m 755 /var/lib/camsniff/output || true
-    # Ensure wrappers are executable (defensive)
-    chmod 755 /usr/bin/camsniff 2>/dev/null || true
-    if [ -f /usr/bin/camsniff-web ]; then chmod 755 /usr/bin/camsniff-web 2>/dev/null || true; fi
-        # Backwards compatibility: ensure old layout still works if present
-        if [ -d /usr/lib/camsniff ] && [ ! -d /usr/lib/camsniff/src ]; then
-            : # legacy single-level layout
-        fi
-        # If icon installed as camsniff.png ensure a generic symlink (desktop expects Icon=camsniff)
-        if [ -f /usr/share/pixmaps/camsniff.png ] && [ ! -f /usr/share/pixmaps/camsniff.xpm ]; then
-            : # nothing extra; png is fine
-        fi
-        # Update desktop + icon caches best-effort
-        if command -v update-desktop-database >/dev/null 2>&1; then
-            update-desktop-database -q || true
-        fi
-        if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-            gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
-        fi
-        ;;
+	configure|abort-upgrade|abort-remove|abort-deconfigure)
+		if command -v update-desktop-database >/dev/null 2>&1; then
+			update-desktop-database -q || true
+		fi
+		if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+			gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+		fi
+		;;
 esac
 
 exit 0

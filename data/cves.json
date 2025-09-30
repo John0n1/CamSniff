@@ -1,0 +1,135 @@
+[
+  {
+    "id": "CVE-2019-15223",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Axis network cameras allow remote code execution due to insufficient sanitisation of the action parameter.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-15223"]
+  },
+  {
+    "id": "CVE-2018-10660",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Axis Camera Station and device firmware vulnerable to directory traversal allowing arbitrary file read.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2018-10660"]
+  },
+  {
+    "id": "CVE-2009-1153",
+    "severity": "Medium",
+    "cvss": 6.8,
+    "summary": "Axis 206/207 series cameras have default credentials that permit administrative access over HTTP.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2009-1153"]
+  },
+  {
+    "id": "CVE-2021-36260",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Hikvision cameras and NVRs suffer from a command injection vulnerability in the web server component.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-36260"]
+  },
+  {
+    "id": "CVE-2017-7921",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Hikvision devices expose backdoor credentials allowing unauthenticated remote access.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2017-7921"]
+  },
+  {
+    "id": "CVE-2020-25506",
+    "severity": "High",
+    "cvss": 9.1,
+    "summary": "Dahua cameras allow remote command execution via crafted ONVIF requests.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-25506"]
+  },
+  {
+    "id": "CVE-2020-8190",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Ubiquiti UniFi Video cameras vulnerable to authentication bypass on the management API.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-8190"]
+  },
+  {
+    "id": "CVE-2022-30525",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Ubiquiti Edge devices allow remote code execution through crafted HTTP requests.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-30525"]
+  },
+  {
+    "id": "CVE-2021-40127",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Reolink IP cameras allow authentication bypass via predictable session tokens.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-40127"]
+  },
+  {
+    "id": "CVE-2017-8229",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Amcrest cameras expose telnet interface with hardcoded credentials allowing root access.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2017-8229"]
+  },
+  {
+    "id": "CVE-2019-3948",
+    "severity": "High",
+    "cvss": 9.8,
+    "summary": "Multiple Dahua OEM products allow remote command execution due to improper authentication.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-3948"]
+  },
+  {
+    "id": "CVE-2020-13545",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Hanwha Techwin Wisenet devices allow stack-based buffer overflow via crafted HTTP request.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-13545"]
+  },
+  {
+    "id": "CVE-2017-9763",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Grandstream cameras contain hidden telnet backdoor credentials enabling full compromise.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2017-9763"]
+  },
+  {
+    "id": "CVE-2022-27145",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Vivotek cameras allow remote command injection through crafted CGI parameters.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-27145"]
+  },
+  {
+    "id": "CVE-2019-10969",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Vivotek firmware permits credential disclosure via predictable session tokens.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-10969"]
+  },
+  {
+    "id": "CVE-2020-10964",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Uniview devices vulnerable to authentication bypass in web management interface.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-10964"]
+  },
+  {
+    "id": "CVE-2021-33044",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Uniview NVR allows remote code execution via crafted RPC call.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-33044"]
+  },
+  {
+    "id": "CVE-2018-3948",
+    "severity": "Critical",
+    "cvss": 10.0,
+    "summary": "Lorex and Dahua OEM devices allow authentication bypass and remote command execution.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2018-3948"]
+  },
+  {
+    "id": "CVE-2020-19054",
+    "severity": "High",
+    "cvss": 8.6,
+    "summary": "Foscam cameras vulnerable to stack overflow via RTSP DESCRIBE command.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-19054"]
+  }
+]

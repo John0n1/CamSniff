@@ -1,21 +1,22 @@
 #!/bin/sh
+#
+# CamSniff- Automated IP camera reconnaissance toolkit
+# By John Hauger Mitander <john@on1.no>
+# Copyright 2025 John Hauger Mitander
+#
+# SPDX-License-Identifier: MIT
+
 set -e
 
 case "$1" in
-    purge)
-        rm -rf /var/lib/camsniff 2>/dev/null || true
-        rm -rf /var/log/camsniff 2>/dev/null || true
-        rm -rf /etc/camsniff 2>/dev/null || true
-        rm -rf /usr/lib/camsniff 2>/dev/null || true
-        rm -rf /usr/share/camsniff 2>/dev/null || true
-        rm -rf /var/lib/camsniff/output 2>/dev/null || true
-        ;;
-    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
-        ;;
-    *)
-        echo "postrm called with unknown argument '$1'" >&2
-        exit 1
-        ;;
+	purge|remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+		if command -v update-desktop-database >/dev/null 2>&1; then
+			update-desktop-database -q || true
+		fi
+		if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+			gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+		fi
+		;;
 esac
 
 exit 0

@@ -1,37 +1,23 @@
 Source: camsniff
-Section: net
+Section: contrib/net
 Priority: optional
-Maintainer: John H. Mitander <john@on1.no>
-Build-Depends: debhelper-compat (= 13),
- icoutils
+Maintainer: John Hauger Mitander <john@on1.no>
+Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.7.0
-Rules-Requires-Root: no
 Homepage: https://github.com/John0n1/CamSniff
 Vcs-Git: https://github.com/John0n1/CamSniff.git
 Vcs-Browser: https://github.com/John0n1/CamSniff
+Rules-Requires-Root: no
 
 Package: camsniff
 Architecture: all
-Depends: bash, python3
-Suggests: nmap, masscan, hydra, ffmpeg, tshark, curl, jq
-Description: Camera Reconnaissance Tool
- CamSniff is a powerful reconnaissance tool designed for security professionals
- and researchers. It specializes in identifying and analyzing IP cameras and 
- other network devices, providing deep insights into their configuration and
- vulnerabilities.
- .
- Features include:
-  * Network device discovery and enumeration
-  * IP camera detection and analysis
-  * RTSP stream identification and testing
-  * CVE vulnerability checking
-  * SNMP community enumeration
-  * Web interface discovery and fuzzing
-  * Reporting and logging
- .
- This tool is intended for educational and research purposes only.
- .
- NOTE: Most runtime tools (nmap, masscan, hydra, ffmpeg, tshark, curl, jq, etc.)
- are intentionally not hard dependencies. The launcher performs runtime
- detection and can install missing components (with confirmation) on the first
- privileged execution.
+Depends: ${misc:Depends}, bash, python3, curl, jq, ffmpeg, tshark, avahi-utils, iproute2, nmap
+Recommends: masscan, chafa
+Multi-Arch: foreign
+Description: Automated IP camera reconnaissance and credential audit toolkit
+ CamSniff orchestrates multi-stage discovery of IP cameras on a local
+ network. It coordinates nmap RTSP enumeration, optional masscan sweeps,
+ Avahi/mDNS discovery, and tshark traffic captures, then correlates the
+ findings with a vendor knowledge base. Finally, CamSniff attempts HTTP
+ snapshots and RTSP still captures using curated default credentials to
+ surface misconfigured surveillance systems.
