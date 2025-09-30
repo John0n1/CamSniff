@@ -1,39 +1,9 @@
-# Debian packaging artifacts
-debian/camsniff/*
-debian/source/*
-*.debhelper*
-*.debhelper-build-stamp*
+build.log
+dev/results/*
+!dev/results/.gitkeep
+scripts/paused.conf
+debian/.debhelper/*
+debian/debhelper-build-stamp
 debian/files
-*.substvars*
-*.files*
-*.deb
-*debhelper-build-stamp
-debian/camsniff
-# Python build / distribution
-build/
-dist/
-output/
-*.egg-info/
-*.egg
-
-# Virtual environments
-venv/
-camvenv/
-
-# Python bytecode / cache
-__pycache__/
-*.py[cod]
-
-# Tooling / editor
-.vscode/
-
-# Dependency / install artifacts
-deps_installed/
-*.deps_installed*
-
-# Logs / temp / runtime
-tmp/
-*.log
-cache/
-camcfg/
-*.conf
+debian/camsniff/*
+scripts/venv/*
