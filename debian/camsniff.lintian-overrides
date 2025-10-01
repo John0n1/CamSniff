@@ -1,0 +1,4 @@
+# man-db 2.13.1 emits a false-positive "groff-message" when lintian runs
+#   man --warnings --ditroff -Tutf8 on this page with stdout captured.
+# Remove once the upstream man-db/groff pipeline bug is fixed.
+camsniff: groff-message *command exited with status 1: /usr/libexec/man-db/zsoelim | /usr/libexec/man-db/manconv*

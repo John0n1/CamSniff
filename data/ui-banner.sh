@@ -1,6 +1,4 @@
-#!/usr/bin/env bash
-#
-# CamSniff - Automated IP camera reconnaissance toolkit
+# CamSniff- Automated IP camera reconnaissance toolkit
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
 #
@@ -111,7 +109,7 @@ cam_ui_render_banner() {
         cam_ui_center_line "${width}" "${line}" "${color_cyan}" "${color_reset}"
     done
 
-    cam_ui_center_line "${width}" "Version:${GREEN}2.0.0${RESET}"    
+    cam_ui_center_line "${width}" "Version:${GREEN}1.1.0${RESET}"    
     cam_ui_center_line "${width}"""
     printf "\n"
     cam_ui_center_line "${width}" "${CYAN}CamSniff - IP Camera Reconnaissance${RESET}"

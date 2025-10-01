@@ -1,5 +1,5 @@
 Source: camsniff
-Section: contrib/net
+Section: net
 Priority: optional
 Maintainer: John Hauger Mitander <john@on1.no>
 Build-Depends: debhelper-compat (= 13)
@@ -11,7 +11,7 @@ Rules-Requires-Root: no
 
 Package: camsniff
 Architecture: all
-Depends: ${misc:Depends}, bash, python3, curl, jq, ffmpeg, tshark, avahi-utils, iproute2, nmap
+Depends: ${misc:Depends}, python3, curl, jq, ffmpeg, tshark, avahi-utils, iproute2, nmap
 Recommends: masscan, chafa
 Multi-Arch: foreign
 Description: Automated IP camera reconnaissance and credential audit toolkit

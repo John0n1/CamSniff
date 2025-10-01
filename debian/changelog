@@ -1,5 +1,22 @@
 camsniff (2.1.0-1) unstable; urgency=medium
 
+  * Drop manual maintainer script cache refreshes and the empty scripts.
+  * Ship upstream LICENSE via debhelper docs install list.
+  * Sync manual page header with 2.1.0 release version.
+  * Remove redundant bash dependency and treat sourced helpers as data.
+
+ -- John Hauger Mitander <john@on1.no>  Tue, 30 Sep 2025 13:00:00 +0000
+
+camsniff (2.0.0-1) unstable; urgency=medium
+
+  * Ensure manual page is installed via dh_installman for proper gzip -9.
+  * Move user-facing references into debian/camsniff.docs for policy compliance.
+  * Ship extended Markdown guides and assets under /usr/share/doc/camsniff.
+
+ -- John Hauger Mitander <john@on1.no>  Tue, 30 Sep 2025 12:00:00 +0000
+
+camsniff (1.1.0-1) unstable; urgency=medium
+
   * Expand multi-protocol scanning coverage and surface results in discovery.json.
   * Extend credential probing with RTSP brute discoveries and protocol context.
   * Refresh helper scripts, bootstrap dependencies reliably, and clean requirements.
@@ -7,7 +24,7 @@ camsniff (2.1.0-1) unstable; urgency=medium
 
  -- John Hauger Mitander <john@on1.no>  Tue, 30 Sep 2025 00:00:00 +0000
 
-camsniff (2.0.0) unstable; urgency=medium
+camsniff (1.0.0-1) unstable; urgency=medium
 
   * Integrate rtsp-url-brute NSE script into the primary Nmap stage.
   * Persist scan artifacts in dev/results/ with structured JSON and logs.

@@ -1,11 +1,12 @@
-#!/usr/bin/env bash
-#
 # CamSniff- Automated IP camera reconnaissance toolkit
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
 #
 # SPDX-License-Identifier: MIT
 #
+
+# This file is sourced for variable definitions. It is not meant to be executed
+# directly, so we provide a no-op interpreter line to appease lintian.
 
 # shellcheck disable=SC2034
 

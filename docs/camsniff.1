@@ -1,4 +1,4 @@
-.TH CAMSNIFF 1 "September 2025" "CamSniff 2.0" "User Commands"
+.TH CAMSNIFF 1 "September 2025" "CamSniff 2.1.0" "User Commands"
 .SH NAME
 camsniff \- automated IP camera reconnaissance and credential auditor
 .SH SYNOPSIS
@@ -23,7 +23,7 @@ force enumeration, optional Masscan sweeps, Avahi/mDNS discovery, and targeted
 TShark captures.  Results are merged with a vendor knowledge base and exported
 as JSON, screenshots, and ASCII thumbnails.
 
-CamSniff must be executed with root privileges (`sudo camsniff`) so that raw
+CamSniff must be executed with root privileges (\fBsudo camsniff\fR) so that raw
 socket capture and Masscan integration work correctly.
 
 .SH OPTIONS
@@ -32,7 +32,7 @@ socket capture and Masscan integration work correctly.
 Selects the discovery profile.  Valid values are
 .I stealth
 ,
-.I "ultra stealth"
+.I "stealth+"
 ,
 .I medium
 ,
@@ -40,10 +40,10 @@ Selects the discovery profile.  Valid values are
 ,
 .I war
 and
-.IR unphantmoable .
+.IR nuke .
 Each profile tunes the enabled scanners, port ranges, packet rates, credential
 budget, and capture durations.  When omitted the most aggressive
-configuration (\fIunphantmoable\fR) is used.
+configuration (\fInuke\fR) is used.
 .TP
 .B -y, --yes
 Skips the interactive confirmation banner and begins the scan immediately.
@@ -103,9 +103,4 @@ sudo camsniff --mode medium --yes
 .BR tshark (1)
 
 .SH AUTHOR
-Written by John Hauger Mitander (John0n1)
-\<
-.UR mailto:john@on1.no
-john@on1.no
-.UE
-\>.
+Written by John Hauger Mitander (John0n1) <john@on1.no>.

@@ -1,13 +1,8 @@
 scripts/*.sh usr/lib/camsniff/scripts
 scripts/requirements.txt usr/lib/camsniff/scripts
 data/* usr/lib/camsniff/data
-docs/camsniff.1 usr/share/man/man1
-docs/camsniff.png usr/share/doc/camsniff
 docs/run1.png usr/share/doc/camsniff/screenshots
 bin/camsniff usr/bin
-README.md usr/share/doc/camsniff
-LICENSE usr/share/doc/camsniff
-VERSION usr/share/doc/camsniff
 debian/camsniff.desktop usr/share/applications
 docs/icons/camsniff-256.png usr/share/icons/hicolor/256x256/apps/
 docs/icons/camsniff-128.png usr/share/icons/hicolor/128x128/apps/

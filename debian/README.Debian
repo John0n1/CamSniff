@@ -1,0 +1,12 @@
+CamSniff on Debian
+==================
+
+CamSniff orchestrates several network scanners and packet capture utilities. On
+Debian systems the binary is shipped without elevated privileges; interactive
+runs should be executed with `sudo camsniff` or equivalent capabilities so that
+Masscan and TShark integrations succeed.  See `/usr/share/doc/camsniff/` for
+packaged guides on mode configuration and extending the data dictionaries.
+
+A lightweight smoke autopkgtest is provided to ensure the command line
+interface remains available.  More invasive network tests are intentionally
+omitted to keep CI farm runs self-contained.

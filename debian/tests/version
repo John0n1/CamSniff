@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+export TERM=dumb
+camsniff --version
+camsniff --help >/dev/null
