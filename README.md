@@ -71,7 +71,7 @@ Primary design goals:
 | Credential Strategy | Default credentials + combinatorial curated username/password sets (mode‑limited) |
 | Media Acquisition | HTTP snapshot endpoints & RTSP frame grabs (ffmpeg) with optional ASCII preview (chafa) |
 | Output | Structured JSON, terminal summary tables, thumbnails + logs |
-| Modes | `stealth` → `unphantmoable` (max) adjusting ports, timing, retries, credential breadth |
+| Modes | `stealth` → `nuke` (max) adjusting ports, timing, retries, credential breadth |
 | Enrichment | Post‑scan Python enrichment to attach probabilistic vendor profile & candidate stream URLs |
 | Post Processing | `scripts/analyze.sh` summarises coverage & success metrics |
 
@@ -99,13 +99,13 @@ Each mode tunes: port breadth, Masscan enablement & rate, Nmap timing, TShark du
 | Mode | Masscan | Port Profile | Nmap Speed | Credentials (max) | TShark (s) | Notes |
 |------|---------|--------------|------------|-------------------|------------|-------|
 | stealth | no | core | -T2 | 12 | 20 | Minimal footprint |
-| ultra stealth | no | minimal | -T1 + scan delay | 8 | 15 | Slowest / least noisy |
+| stealth+ | no | minimal | -T1 + scan delay | 8 | 15 | Slowest / least noisy |
 | medium | yes | standard | -T4 | 32 | 35 | Balanced default |
 | aggressive | yes | extended | -T4 -A | 64 | 45 | Adds service/version scripts |
 | war | yes | war | -T5 -A | 96 | 55 | Broad vendor coverage |
-| unphantmoable | yes | total | -T5 -A --script vuln | 128 | 75 | Full 1–65535 spectrum, vuln scripts |
+| nuke | yes | total | -T5 -A --script vuln | 128 | 75 | Full 1–65535 spectrum, vuln scripts |
 
-Invoke via: `--mode <name>` (default: `unphantmoable` if unspecified).
+Invoke via: `--mode <name>` (default: `nuke` if unspecified).
 
 ---
 
@@ -137,7 +137,7 @@ Ensure tools (`nmap`, `avahi-browse`, `tshark`, `ffmpeg`, `curl`, `jq`, `masscan
 ## Quick Start
 
 ```bash
-sudo ./scripts/camsniff.sh --yes                  # default (unphantmoable)
+sudo ./scripts/camsniff.sh --yes                  # default (nuke)
 sudo ./scripts/camsniff.sh --mode medium --yes    # balanced sweep
 sudo ./scripts/camsniff.sh --mode stealth         # interactive confirm
 make run MODE=war RUN_FLAGS="--yes"              # via Makefile helper
@@ -157,7 +157,7 @@ To inspect most recent results:
 Usage: camsniff.sh [--mode <name>] [--yes] [--version] [--help]
 
 Options:
-	-m, --mode <name>    stealth | ultra stealth | medium | aggressive | war | unphantmoable
+	-m, --mode <name>    stealth | stealth+ | medium | aggressive | war | nuke
 	-y, --yes            Auto-confirm prompt
 	-v, --version        Print version (from VERSION file)
 	-h, --help           Show usage
@@ -299,7 +299,7 @@ If dependency installation is skipped, missing tools simply reduce coverage (war
 | No thumbnails | Snapshot endpoints failed / ffmpeg missing | Confirm creds, install ffmpeg, inspect per‑host logs |
 | ONVIF not detected | Ports closed or HTTPS cert issues | Check with `curl -k` manually |
 | Slow run | Large port profile + vuln scripts | Use `medium` or custom reduced port profile |
-| High false positives | Broad port sweep in `unphantmoable` | Cross‑check with targeted `standard` scan |
+| High false positives | Broad port sweep in `nuke` | Cross‑check with targeted `standard` scan |
 
 Logs for each phase live under `dev/results/<run>/logs/`.
 

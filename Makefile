@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-MODE ?= unphantmoable
+MODE ?= nuke
 RUN_FLAGS ?=
 
 SH_SOURCES := $(shell find scripts data -type f -name '*.sh' -print) bin/camsniff

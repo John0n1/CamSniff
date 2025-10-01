@@ -18,11 +18,11 @@ Usage: mode-config.sh [--mode <name>] [--format export|json]
 
 Available modes:
   stealth
-  ultra stealth
+  stealth+
   medium
   aggressive
   war
-  unphantmoable
+  nuke
 EOF
 }
 
@@ -65,7 +65,7 @@ case "$norm_mode" in
         HTTP_RETRIES=1
         BRUTE_WINDOW=60
         ;;
-    ultra-stealth|ultra_stealth)
+    stealth+|stealth+)
         MASSCAN_ENABLE=false
         MASSCAN_RATE=0
         NMAP_SPEED="-T1"
@@ -77,7 +77,7 @@ case "$norm_mode" in
         MAX_CREDENTIALS=8
         HTTP_RETRIES=1
         BRUTE_WINDOW=90
-        norm_mode="ultra-stealth"
+        norm_mode="stealth+"
         ;;
     medium|default)
         MASSCAN_ENABLE=true
@@ -119,7 +119,7 @@ case "$norm_mode" in
         HTTP_RETRIES=3
         BRUTE_WINDOW=180
         ;;
-    unphantmoable|unphantomable)
+    nuke|nuke)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=20000
         NMAP_SPEED="-T5"
@@ -131,7 +131,7 @@ case "$norm_mode" in
         MAX_CREDENTIALS=128
         HTTP_RETRIES=4
         BRUTE_WINDOW=240
-        norm_mode="unphantmoable"
+        norm_mode="nuke"
         ;;
     *)
         echo "Unknown mode: $MODE" >&2

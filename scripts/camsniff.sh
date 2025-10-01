@@ -19,7 +19,7 @@ RTSP_URL_DICT="$ROOT_DIR/data/rtsp-urls.txt"
 PORT_PROFILE_DATA="$ROOT_DIR/data/port-profiles.sh"
 UI_HELPER="$ROOT_DIR/data/ui-banner.sh"
 
-MODE_DEFAULT="unphantmoable"
+MODE_DEFAULT="nuke"
 MODE_REQUESTED=""
 AUTO_CONFIRM=false
 
@@ -71,12 +71,12 @@ print_usage() {
 Usage: camsniff.sh [--mode <name>] [--yes] [--version] [--help]
 
 Options:
-  -m, --mode <name>      Specify scanning mode (stealth, ultra stealth, medium, aggressive, war, unphantmoable)
+  -m, --mode <name>      Specify scanning mode (stealth, stealth+, medium, aggressive, war, nuke)
   -y, --yes              Auto-confirm interactive prompts
   -v, --version          Show version information and exit
   -h, --help             Display this help message and exit
 
-If no mode is provided, the maximum profile (unphantmoable) is used.
+If no mode is provided, the maximum profile (nuke) is used.
 EOF
 }
 
