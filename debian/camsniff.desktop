@@ -2,11 +2,10 @@
 Name=CamSniff
 Comment=Automated IP camera reconnaissance toolkit
 GenericName=IP Camera Reconnaissance Tool
-Exec=gnome-terminal -- sudo camsniff --help
-TryExec=camsniff
-Terminal=true
+Exec=gnome-terminal -- bash -c 'sudo camsniff --help; read -p "Press Enter to close..."'
+Terminal=false  
 Type=Application
 Categories=System;Security;
 Keywords=Security;Camera;RTSP;Scan;Network;
-StartupNotify=false
+StartupNotify=true
 Icon=/usr/share/icons/hicolor/256x256/apps/camsniff-256.png

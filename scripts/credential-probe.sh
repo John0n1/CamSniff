@@ -292,7 +292,7 @@ while IFS= read -r host_json; do
 
     for credential in "${credentials[@]}"; do
         IFS='|' read -r cred_user cred_pass <<<"$credential"
-        ((attempt++))
+        (( attempt += 1 ))
 
         for http_candidate in "${http_candidates[@]}"; do
             channel=$(jq -r '.channel // "1"' <<<"$http_candidate")

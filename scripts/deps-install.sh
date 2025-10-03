@@ -37,7 +37,7 @@ if command -v apt &> /dev/null; then
     echo -e "${CYAN}Installing Dependencies...${RESET}"
     
     # Show a spinner while installing dependencies
-    apt install -y python3 python3-venv python3-dev nmap masscan tshark avahi-daemon avahi-utils libpcap-dev libchafa-dev chafa ffmpeg curl jq &>> "$log_file" &
+    apt install -y python3 python3-venv python3-dev git build-essential cmake pkg-config nmap masscan tshark avahi-daemon avahi-utils libpcap-dev libchafa-dev chafa ffmpeg curl jq &>> "$log_file" &
     pid=$!
     
     i=0
@@ -54,7 +54,7 @@ elif command -v yum &> /dev/null; then
     
     # Show a spinner while installing dependencies
     yum install -y epel-release &>> "$log_file"
-    yum install -y nmap masscan wireshark-cli avahi avahi-tools libpcap-devel ffmpeg curl jq python3 &>> "$log_file" &
+    yum install -y python3 git gcc gcc-c++ make cmake pkgconfig nmap masscan wireshark-cli avahi avahi-tools libpcap-devel ffmpeg curl jq &>> "$log_file" &
     pid=$!
     
     i=0
@@ -70,7 +70,7 @@ elif command -v pacman &> /dev/null; then
     echo -e "${CYAN}Installing dependencies...${RESET}"
     
     # Show a spinner while installing dependencies
-    pacman -S --noconfirm nmap masscan wireshark-cli avahi libpcap ffmpeg curl jq python &>> "$log_file" &
+    pacman -S --noconfirm python git base-devel cmake pkgconf nmap masscan wireshark-cli avahi libpcap ffmpeg curl jq &>> "$log_file" &
     pid=$!
     
     i=0
@@ -109,6 +109,16 @@ do
         exit 1
     fi
 done
+
+if ! command -v coap-client &> /dev/null; then
+        echo -e "${CYAN}Building and installing libcoap (coap-client)...${RESET}"
+        bash "$SCRIPT_DIR/build-coap.sh" &>> "$log_file"
+        if ! command -v coap-client &> /dev/null; then
+                echo -e "${RED}Failed to build and install coap-client. Please check the log file.${RESET}"
+                echo -e "${YELLOW}Check the log file for details: ${log_file}${RESET}"
+                exit 1
+        fi
+fi
 
 echo -e "${GREEN}Setup complete! All required tools are installed.${RESET}"
 if command -v deactivate >/dev/null 2>&1; then

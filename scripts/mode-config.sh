@@ -65,7 +65,7 @@ case "$norm_mode" in
         HTTP_RETRIES=1
         BRUTE_WINDOW=60
         ;;
-    stealth+|stealth+)
+    stealth+|stealth-plus)
         MASSCAN_ENABLE=false
         MASSCAN_RATE=0
         NMAP_SPEED="-T1"
@@ -106,7 +106,7 @@ case "$norm_mode" in
         HTTP_RETRIES=2
         BRUTE_WINDOW=150
         ;;
-    war)
+    war|aggressive+)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=12000
         NMAP_SPEED="-T5"
@@ -119,7 +119,7 @@ case "$norm_mode" in
         HTTP_RETRIES=3
         BRUTE_WINDOW=180
         ;;
-    nuke|nuke)
+    nuke|full|total)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=20000
         NMAP_SPEED="-T5"

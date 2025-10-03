@@ -1,2 +1,0 @@
-extend-diff-ignore = "(^|/)tmp($|/)"
-extend-diff-ignore = "(^|/)debian/.debhelper($|/)"

@@ -6,7 +6,7 @@ RUN_FLAGS ?=
 SH_SOURCES := $(shell find scripts data -type f -name '*.sh' -print) bin/camsniff
 DPKG_BUILD := dpkg-buildpackage -us -uc
 
-.PHONY: help build clean run lint dev shellcheck install-deps distclean
+.PHONY: help build clean run lint dev shellcheck install-deps distclean build-coap
 
 help:
 	@echo "Available targets:"
@@ -28,7 +28,10 @@ clean:
 	fi
 	rm -f $(ROOT_DIR)/*.deb $(ROOT_DIR)/*.buildinfo $(ROOT_DIR)/*.changes $(ROOT_DIR)/*.dsc
 	rm -rf $(ROOT_DIR)/debian/camsniff
-
+	rm -rf $(ROOT_DIR)/debian/files
+	rm -rf $(ROOT_DIR)/debian/*.debhelper.log
+	rm -rf $(ROOT_DIR)/debian/*.substvars
+	rm -rf $(ROOT_DIR)/debian/*.debhelper
 distclean: clean
 	rm -rf $(ROOT_DIR)/venv
 
@@ -37,6 +40,9 @@ run:
 
 install-deps:
 	sudo -E $(ROOT_DIR)/scripts/deps-install.sh
+
+build-coap:
+	sudo -E $(ROOT_DIR)/scripts/build-coap.sh
 
 lint: shellcheck
 	@echo "Running bash syntax checks"

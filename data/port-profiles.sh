@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # CamSniff- Automated IP camera reconnaissance toolkit
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander

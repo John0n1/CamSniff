@@ -38,6 +38,9 @@ MASSCAN_OUTPUT_FILE="$LOG_DIR/masscan-output.json"
 MASSCAN_LOG_FILE="$LOG_DIR/masscan-command.log"
 AVAHI_OUTPUT_FILE="$LOG_DIR/avahi-services.txt"
 TSHARK_OUTPUT_FILE="$LOG_DIR/tshark-traffic.csv"
+COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
+COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
+COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}"
 
 # Colors
 RED=""
@@ -65,6 +68,7 @@ avahi_output=""
 tshark_output=""
 hosts_json_tmp=""
 discovery_enriched_tmp=""
+coap_output_tmp=""
 
 print_usage() {
     cat <<'EOF'
@@ -594,6 +598,7 @@ match_device_profile() {
 if [[ $AUTO_CONFIRM == true ]]; then
     answer="y"
     cam_ui_center_line "$TERM_WIDTH" "${GREEN}Auto-confirm enabled. Proceeding with CamSniff.${RESET}"
+    cam_ui_center_line "$TERM_WIDTH" ""
 else
     prompt=$(cam_ui_build_centered "$TERM_WIDTH" "Proceed with CamSniff setup and scan? ${GREEN}Yes [Y]${RESET} | ${RED}No [N]${RESET} ")
     read -r -p "$prompt" answer
@@ -865,7 +870,9 @@ case ${answer:0:1} in
         wait $pid
         
         # Generate Avahi report
-    services_found=$(grep -c "=" "$avahi_output" || echo "0")
+        if ! services_found=$(grep -c "=" "$avahi_output" 2>/dev/null); then
+            services_found=0
+        fi
         
         echo ""
         echo -e "${GREEN}========== Service Discovery Summary ==========${RESET}"
@@ -893,11 +900,11 @@ case ${answer:0:1} in
         tshark_output=$(mktemp)
         tshark_duration=${CAM_MODE_TSHARK_DURATION:-30}
         timeout "${tshark_duration}s" tshark -n -i any \
-            -f "tcp port 80 or tcp port 554 or tcp port 8554 or udp port 5000-5010" \
-            -Y "rtsp || http.request || onvif" \
+            -f "tcp port 80 or tcp port 554 or tcp port 8554 or udp portrange 5000-5010" \
+            -Y "rtsp || http.request || udp.port == 3702" \
             -T fields -E header=n -E separator=, -E quote=d \
             -e frame.time_relative -e ip.src -e ip.dst -e tcp.port -e udp.port \
-            -e http.host -e http.request.uri -e rtsp.request -e rtsp.uri > "$tshark_output" &
+            -e http.host -e http.request.uri -e rtsp.request > "$tshark_output" &
         pid=$!
         
         # Display a loading animation for TShark capture
@@ -922,6 +929,76 @@ case ${answer:0:1} in
     printf "\r%sTraffic analysis completed!%s                                  \n" "$GREEN" "$RESET"
         wait $pid
         
+    # Begin libcoap integration for CoAP discovery
+    if command -v coap-client &> /dev/null; then
+        echo ""
+        echo -e "${BLUE}Probing for CoAP devices...${RESET}"
+        rm -f "$COAP_OUTPUT_FILE"
+        : > "$COAP_LOG_FILE"
+        coap_output_tmp=$(mktemp /tmp/camsniff-coap.XXXXXX)
+
+        declare -a coap_targets=()
+        declare -A coap_seen_targets=()
+
+        for ip in "${!all_ips[@]}"; do
+            [[ -z $ip ]] && continue
+            coap_targets+=("$ip")
+            coap_seen_targets["$ip"]=1
+        done
+
+        if [[ -s $tshark_output ]]; then
+            while IFS=',' read -r _time_rel src dst _rest; do
+                for candidate in "$src" "$dst"; do
+                    candidate=${candidate//\"/}
+                    if [[ $candidate =~ ^[0-9]+(\.[0-9]+){3}$ ]] && [[ -z ${coap_seen_targets[$candidate]+set} ]]; then
+                        coap_targets+=("$candidate")
+                        coap_seen_targets["$candidate"]=1
+                    fi
+                done
+            done < "$tshark_output"
+        fi
+
+        coap_hits=0
+        {
+            printf '# CoAP probe log generated %s\n' "$(date -u +%FT%TZ)"
+        } >> "$COAP_LOG_FILE"
+
+        for ip in "${coap_targets[@]}"; do
+            [[ -z $ip ]] && continue
+            printf '%s probing coap://%s/.well-known/core\n' "$(date -u +%FT%TZ)" "$ip" >> "$COAP_LOG_FILE"
+            if coap-client -m get -B "$COAP_PROBE_TIMEOUT" "coap://$ip/.well-known/core" > "$coap_output_tmp" 2>> "$COAP_LOG_FILE"; then
+                if grep -q '<' "$coap_output_tmp"; then
+                    echo "$ip" >> "$COAP_OUTPUT_FILE"
+                    {
+                        printf '%s success\n' "$(date -u +%FT%TZ)"
+                        cat "$coap_output_tmp"
+                    } >> "$COAP_LOG_FILE"
+                    record_protocol_hit "$ip" "CoAP" '/.well-known/core responded'
+                else
+                    printf '%s responded without resource directory\n' "$(date -u +%FT%TZ)" >> "$COAP_LOG_FILE"
+                fi
+            else
+                printf '%s probe failed\n' "$(date -u +%FT%TZ)" >> "$COAP_LOG_FILE"
+            fi
+            : > "$coap_output_tmp"
+        done
+
+        if [[ -s $COAP_OUTPUT_FILE ]]; then
+            coap_hits=$(wc -l < "$COAP_OUTPUT_FILE" | tr -d ' ')
+            echo -e "${GREEN}CoAP devices found: $coap_hits${RESET}"
+            while IFS= read -r coap_ip; do
+                append_source "$coap_ip" "CoAP"
+            done < "$COAP_OUTPUT_FILE"
+        else
+            echo -e "${YELLOW}No CoAP devices found.${RESET}"
+            rm -f "$COAP_OUTPUT_FILE"
+        fi
+    rm -f "$coap_output_tmp"
+    coap_output_tmp=""
+    else
+        echo -e "${YELLOW}CoAP client (coap-client) not found; skipping CoAP discovery.${RESET}"
+    fi  
+
         # Process results and identify potential camera streams
     traffic_found=$(wc -l < "$tshark_output" | tr -d ' ')
         
@@ -931,13 +1008,18 @@ case ${answer:0:1} in
     if [[ -n $traffic_found && $traffic_found =~ ^[0-9]+$ ]] && (( traffic_found > 0 )); then
             echo -e "${YELLOW}Potential camera streams detected:${RESET}"
             sort "$tshark_output" | uniq -c | sort -nr | head -10
-            while IFS=',' read -r _time_rel src dst tcp_port udp_port _http_host http_uri _rtsp_request rtsp_uri; do
+            while IFS=',' read -r _time_rel src dst tcp_port udp_port _http_host http_uri rtsp_request; do
                 src=${src//\"/}
                 dst=${dst//\"/}
                 tcp_port=${tcp_port//\"/}
                 udp_port=${udp_port//\"/}
                 http_uri=${http_uri//\"/}
-                rtsp_uri=${rtsp_uri//\"/}
+                rtsp_request=${rtsp_request//\"/}
+                rtsp_uri=""
+                if [[ -n $rtsp_request ]]; then
+                    rtsp_uri=$(printf '%s\n' "$rtsp_request" | awk '{print $2}' 2>/dev/null)
+                    rtsp_uri=${rtsp_uri//\"/}
+                fi
 
                 if [[ -n $src ]]; then
                     append_source "$src" "TShark"
@@ -1252,6 +1334,12 @@ PY
         echo -e "${YELLOW}Review the results above for potential IP cameras on your network.${RESET}"
         echo -e "${CYAN}Artifacts stored under:${RESET} ${GREEN}$RUN_DIR${RESET}"
         echo -e "${CYAN}Key logs:${RESET} ${GREEN}$NMAP_OUTPUT_FILE${RESET}, ${GREEN}$MASSCAN_OUTPUT_FILE${RESET}, ${GREEN}$AVAHI_OUTPUT_FILE${RESET}, ${GREEN}$TSHARK_OUTPUT_FILE${RESET}"
+        if [[ -f "$COAP_LOG_FILE" ]]; then
+            echo -e "${CYAN}CoAP probe log:${RESET} ${GREEN}$COAP_LOG_FILE${RESET}"
+        fi
+        if [[ -f "$COAP_OUTPUT_FILE" ]]; then
+            echo -e "${CYAN}CoAP discovery list:${RESET} ${GREEN}$COAP_OUTPUT_FILE${RESET}"
+        fi
 
         # Clean up temporary files
         [[ -n ${nmap_output:-} ]] && rm -f "$nmap_output"
@@ -1262,6 +1350,7 @@ PY
         [[ -n ${tshark_output:-} ]] && rm -f "$tshark_output"
         [[ -n ${hosts_json_tmp:-} ]] && rm -f "$hosts_json_tmp"
         [[ -n ${discovery_enriched_tmp:-} ]] && rm -f "$discovery_enriched_tmp"
+    [[ -n ${coap_output_tmp:-} ]] && rm -f "$coap_output_tmp"
         ;;
     * )
         echo -e "${RED}Setup cancelled.${RESET}"
