@@ -4,7 +4,7 @@
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
 #
-# SPDX-License-Identifier: MIT
+# CamSniff is Licensed under the MIT License.
 # credential-probe.sh
 
 set -euo pipefail
@@ -96,7 +96,6 @@ fi
 
 mkdir -p "$(dirname "$OUTPUT_JSON")" "$THUMB_DIR" "$LOG_DIR"
 
-# Load mode configuration
 if ! mode_env_output="$("$SCRIPT_DIR/mode-config.sh" --mode "$MODE" --format export)"; then
     echo "Failed to resolve mode configuration" >&2
     exit 1

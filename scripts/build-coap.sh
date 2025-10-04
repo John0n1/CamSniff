@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Helper to build and install libcoap's coap-client binary for CamSniff.
+#
+# CamSniff- Automated IP camera reconnaissance toolkit
+# By John Hauger Mitander <john@on1.no>
+# Copyright 2025 John Hauger Mitander
+#
+# CamSniff is Licensed under the MIT License.
+# build-coap.sh
 
 set -euo pipefail
 

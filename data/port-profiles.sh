@@ -3,15 +3,12 @@
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
 #
-# SPDX-License-Identifier: MIT
-#
-
-# This file is sourced for variable definitions. It is not meant to be executed
-# directly, so we provide a no-op interpreter line to appease lintian.
+# CamSniff is Licensed under the MIT License.
+# port-profiles.sh
 
 # shellcheck disable=SC2034
 
-# Mapping of logical profile names to Nmap port lists.
+
 declare -A CAM_PORT_PROFILES_NMAP=(
   [minimal]="80,554"
   [core]="80,443,554"
@@ -22,7 +19,6 @@ declare -A CAM_PORT_PROFILES_NMAP=(
   [fallback]="80,443,554,8000,8080,8081,8554,9000,37777"
 )
 
-# Mapping of logical profile names to Masscan specifications.
 declare -A CAM_PORT_PROFILES_MASSCAN=(
   [minimal]="80,554"
   [core]="80,443,554"
@@ -33,7 +29,6 @@ declare -A CAM_PORT_PROFILES_MASSCAN=(
   [fallback]="80,443,554,8000-8100,9000-9100,37777"
 )
 
-# Human friendly labels for reporting.
 declare -A CAM_PORT_PROFILE_LABELS=(
   [minimal]="Minimal (HTTP/RTSP core)"
   [core]="Core camera services"

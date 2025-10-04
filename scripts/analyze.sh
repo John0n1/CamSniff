@@ -4,7 +4,7 @@
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
 #
-# SPDX-License-Identifier: MIT
+# CamSniff is Licensed under the MIT License.
 # analyze.sh
 
 set -euo pipefail

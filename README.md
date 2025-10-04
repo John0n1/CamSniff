@@ -6,6 +6,9 @@ Automated IP Camera & Network Video Stream Reconnaissance Toolkit
 
 [![Last Commit](https://img.shields.io/github/last-commit/John0n1/CamSniff?style=flat-square&logo=github&color=red)](https://github.com/John0n1/CamSniff/commits/main)
 [![Shell](https://img.shields.io/badge/language-bash-black?logo=gnubash&style=flat-square)](#)
+[![Python](https://img.shields.io/badge/language-python-black?logo=python&style=flat-square)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+
 
 <sup>Current version:</sup> `2.1.0`
 
@@ -112,17 +115,24 @@ Invoke via: `--mode <name>` (default: `nuke` if unspecified).
 
 ## Installation
 
-### Option 1: Package (Debian based)
+Package (Debian based)
 
 ```bash
 # Download from releases
 sudo apt install ./camsniff_*amd64.deb
 ```
 ## Quick Start
-### Option 2: Run From Source 
 
 Dependencies are installed automatically 
 when running the script for the first time.
+
+If installed from package, simply run:
+
+```bash
+sudo camsniff --mode medium
+```
+Or, to run from source:
+(eitherway auto-installs dependencies on first run)
 
 ```bash
 git clone https://github.com/John0n1/CamSniff.git
@@ -261,20 +271,11 @@ Extension points:
 
 ## Dependencies
 
-Core tooling (auto‑installed via `make install-deps` on supported package managers):
+Core tooling (auto‑installed via `sudo camsniff` or `sudo scripts/camsniff.sh` on supported package managers):
 
 - Nmap, Masscan, TShark, Avahi utilities, ffmpeg, curl, jq, python3 (+ venv), chafa (optional), libpcap.
 - Build essentials used for CoAP support (`git`, `cmake`, `make`/`build-essential`, `pkg-config`).
 - libcoap’s `coap-client` binary (built automatically via `scripts/build-coap.sh` when missing).
-
-Force a rebuild at any time with:
-
-```bash
-make build-coap
-```
-
-If dependency installation is skipped, missing tools simply reduce coverage (warnings emitted, run continues best‑effort).
-
 ---
 
 ## Troubleshooting

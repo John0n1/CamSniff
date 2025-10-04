@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2153
+
 # CamSniff- Automated IP camera reconnaissance toolkit
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
 #
-# SPDX-License-Identifier: MIT
+# CamSniff is Licensed under the MIT License.
+# ui-banner.sh
 #
-
+# shellcheck disable=SC2153
 
 cam_ui_visible_length() {
     local text="$1"

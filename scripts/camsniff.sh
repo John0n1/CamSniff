@@ -4,8 +4,9 @@
 # By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
 #
-# SPDX-License-Identifier: MIT
+# CamSniff is Licensed under the MIT License.
 # camsniff.sh
+
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -42,7 +43,6 @@ COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
 COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
 COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}"
 
-# Colors
 RED=""
 GREEN=""
 YELLOW=""
@@ -374,8 +374,6 @@ if [[ ! -f "$RTSP_URL_DICT" ]]; then
     echo "Warning: Custom RTSP dictionary missing at $RTSP_URL_DICT. Built-in NSE defaults will be used." >&2
 fi
 
-# Source mode configuration for downstream settings
-# Load mode configuration exports for the selected profile
 if ! mode_env_output="$("$MODE_CONFIG" --mode "$MODE_SELECTED" --format export)"; then
     echo "Failed to resolve mode configuration via $MODE_CONFIG" >&2
     exit 1
@@ -388,7 +386,6 @@ if [[ ! -f "$PORT_PROFILE_DATA" ]]; then
     exit 1
 fi
 
-# shellcheck source=../data/port-profiles.sh
 source "$PORT_PROFILE_DATA"
 
 if [[ ! -f "$UI_HELPER" ]]; then
@@ -396,7 +393,6 @@ if [[ ! -f "$UI_HELPER" ]]; then
     exit 1
 fi
 
-# shellcheck source=../data/ui-banner.sh
 source "$UI_HELPER"
 
 resolve_port_profiles() {
@@ -437,7 +433,6 @@ if command -v tput &> /dev/null; then
   RESET=$(tput sgr0)
 fi
 
-# Check if running as root/sudo
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Aborted. Try again with \"sudo camsniff\"${RESET}"
   exit 1
@@ -445,10 +440,8 @@ fi
 
 mkdir -p "$RESULTS_ROOT" "$RUN_DIR" "$LOG_DIR" "$THUMB_DIR"
 
-# Clear the screen for a clean start
 clear
 
-# Get terminal width for centering
 TERM_WIDTH=$(tput cols 2>/dev/null || echo 80)
 
 cam_ui_matrix_rain "$TERM_WIDTH" 12 24 0.045 "$GREEN" "$RESET"
@@ -594,7 +587,6 @@ match_device_profile() {
         [[ -n $unique_paths ]] && printf "  Observed paths: %s\n" "$unique_paths"
     fi
 }
-# Ask for confirmation
 if [[ $AUTO_CONFIRM == true ]]; then
     answer="y"
     cam_ui_center_line "$TERM_WIDTH" "${GREEN}Auto-confirm enabled. Proceeding with CamSniff.${RESET}"
@@ -607,7 +599,6 @@ case ${answer:0:1} in
     y|Y|"" )
         echo -e "${GREEN}Starting setup process...${RESET}"
         
-        # Source the dependency installation script
         if [[ -f "$DEPS_INSTALL" ]]; then
             "$DEPS_INSTALL"
         else
@@ -628,7 +619,6 @@ case ${answer:0:1} in
             echo -e "${YELLOW}Warning: Missing helper tools: ${missing_tools[*]}. Some stages may be skipped.${RESET}"
         fi
         
-        # Get the current IP and network
         current_ip=$(ip route get 1 | awk '{print $7;exit}')
         network=$(ip route | grep -m1 ^default | awk '{print $3}' | sed 's/\.[0-9]*$/.0\/24/')
         
@@ -637,10 +627,8 @@ case ${answer:0:1} in
         echo -e "${CYAN}Scanning network: ${GREEN}$network${RESET}"
         echo ""
         
-        # Common ports for IP cameras: HTTP, HTTPS, RTSP, and vendor-specific
         echo -e "${BLUE}Network scanning in progress...${RESET}"
 
-        # Store nmap results for reporting and hide verbose output
         nmap_output=$(mktemp)
         nmap_log=$(mktemp)
 
@@ -671,7 +659,6 @@ case ${answer:0:1} in
         "${nmap_cmd[@]}" > "$nmap_log" 2>&1 &
         pid=$!
         
-        # Display a loading animation
         spin='-\|/'
         i=0
         estimated_time=$(( 30 + CAM_MODE_TSHARK_DURATION / 2 ))
@@ -694,7 +681,6 @@ case ${answer:0:1} in
     printf "\r%sNmap scan completed!%s                                  \n" "$GREEN" "$RESET"
         wait $pid
         
-        # Generate nmap report
     hosts_found=$(grep -c "Nmap scan report" "$nmap_output" || echo "0")
     open_ports=$(grep -c "open" "$nmap_output" || echo "0")
         
@@ -840,14 +826,12 @@ case ${answer:0:1} in
         echo ""
         echo -e "${BLUE}Starting Avahi service discovery for cameras...${RESET}"
         
-        # Use Avahi to discover camera services on the network
         avahi_output=$(mktemp)
         avahi_duration=$(( CAM_MODE_TSHARK_DURATION / 2 ))
         (( avahi_duration < 15 )) && avahi_duration=15
         timeout "${avahi_duration}s" avahi-browse -art | grep -i -e camera -e webcam -e rtsp -e onvif -e axis > "$avahi_output" &
         pid=$!
         
-        # Display a loading animation for Avahi discovery
         i=0
         estimated_time=$avahi_duration
         start_time=$(date +%s)
@@ -869,7 +853,6 @@ case ${answer:0:1} in
     printf "\r%sService discovery completed!%s                                  \n" "$GREEN" "$RESET"
         wait $pid
         
-        # Generate Avahi report
         if ! services_found=$(grep -c "=" "$avahi_output" 2>/dev/null); then
             services_found=0
         fi
@@ -896,7 +879,6 @@ case ${answer:0:1} in
         echo ""
         echo -e "${BLUE}Capturing network traffic for camera protocols...${RESET}"
         
-        # Capture network traffic with TShark for camera protocols
         tshark_output=$(mktemp)
         tshark_duration=${CAM_MODE_TSHARK_DURATION:-30}
         timeout "${tshark_duration}s" tshark -n -i any \
@@ -907,7 +889,6 @@ case ${answer:0:1} in
             -e http.host -e http.request.uri -e rtsp.request > "$tshark_output" &
         pid=$!
         
-        # Display a loading animation for TShark capture
         i=0
         estimated_time=$tshark_duration
         start_time=$(date +%s)
@@ -929,7 +910,6 @@ case ${answer:0:1} in
     printf "\r%sTraffic analysis completed!%s                                  \n" "$GREEN" "$RESET"
         wait $pid
         
-    # Begin libcoap integration for CoAP discovery
     if command -v coap-client &> /dev/null; then
         echo ""
         echo -e "${BLUE}Probing for CoAP devices...${RESET}"
@@ -999,7 +979,6 @@ case ${answer:0:1} in
         echo -e "${YELLOW}CoAP client (coap-client) not found; skipping CoAP discovery.${RESET}"
     fi  
 
-        # Process results and identify potential camera streams
     traffic_found=$(wc -l < "$tshark_output" | tr -d ' ')
         
         echo ""
@@ -1341,7 +1320,6 @@ PY
             echo -e "${CYAN}CoAP discovery list:${RESET} ${GREEN}$COAP_OUTPUT_FILE${RESET}"
         fi
 
-        # Clean up temporary files
         [[ -n ${nmap_output:-} ]] && rm -f "$nmap_output"
         [[ -n ${nmap_log:-} ]] && rm -f "$nmap_log"
         [[ -n ${masscan_output:-} ]] && rm -f "$masscan_output"
