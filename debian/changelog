@@ -1,3 +1,24 @@
+camsniff (2.2.0) unstable; urgency=medium
+
+  * Overhaul extras UX with animated spinners, clearer banners, and quiet mode.
+  * Implement comprehensive IVRE integration for reconnaissance data management:
+    - Unified ivre-manager.sh orchestrates setup, ingestion, and queries
+    - Automatic MongoDB 7.0 installation via official repos or tarball fallback
+    - Python virtualenv auto-creation with IVRE and pymongo packages
+    - Vendor database enrichment from paths.csv (131 OUI entries)
+    - Credential mapping from credentials.json with thumbnail references
+    - Host deduplication before ingestion to prevent MongoDB collisions
+    - Direct store_host() ingestion replaces problematic bulk JSON method
+  * Provision DB-IP GeoIP City/ASN datasets automatically and export lookup
+    paths for IVRE, avoiding warnings during sync.
+  * Harden dependency installer for Debian trixie by removing unsupported
+    bookworm repository entries and modernising apt source management.
+  * Make requirements.txt optional in deps-install.sh for clean venv setup.
+  * Enhanced scripts with shellcheck compliance and removed obsolete comments.
+  * Improved error handling and logging across all IVRE integration points.
+
+ -- John Hauger Mitander <john@on1.no>  Sat, 11 Oct 2025 01:00:00 +0000
+
 camsniff (2.1.0) unstable; urgency=medium
 
   * Drop manual maintainer script cache refreshes and the empty scripts.

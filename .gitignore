@@ -12,3 +12,7 @@ debian/source/options
 debian/tests/*
 debian/upstream/*
 venv/*
+share/*
+.venv/*
+paused.conf
+__pycache__/*

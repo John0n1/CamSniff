@@ -94,6 +94,7 @@ cam_ui_render_banner() {
     local mode="${7:-unknown}"
     local port_label="${8:-Ports}"
     local run_dir="${9:-"./dev/results"}"
+    local extras_label="${10:-None}"
 
     local ascii_lines=(
         "▐▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▌"
@@ -103,32 +104,34 @@ cam_ui_render_banner() {
         "▐ ██║     ██╔══██║██║╚██╔╝██║╚════██║██║╚██╗██║██║██╔══╝  ██╔══╝   ▌"
         "▐ ╚██████╗██║  ██║██║ ╚═╝ ██║███████║██║ ╚████║██║██║     ██║      ▌"
         "▐  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝      ▌"
+        "▐                          Version 2.2.0                           ▌"
         "▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌"
     )
 
     for line in "${ascii_lines[@]}"; do
         cam_ui_center_line "${width}" "${line}" "${color_cyan}" "${color_reset}"
     done
-
-    cam_ui_center_line "${width}" "Version:${GREEN}2.1.0${RESET}"    
     cam_ui_center_line "${width}"""
     printf "\n"
     cam_ui_center_line "${width}" "${CYAN}CamSniff - IP Camera Reconnaissance${RESET}"
+    cam_ui_center_line "${width}"""
     cam_ui_center_line "${width}" "An automated IP-camera reconnaissance toolkit"
     cam_ui_center_line "${width}" "Performs multi-stage sweeps with advanced scanning"
     cam_ui_center_line "${width}" "Attempts to access and display video streams from identified devices."
     printf "\n"
-    cam_ui_center_line "${width}" "//////////////////////////////"
-    cam_ui_center_line "${width}" "${RED}Use only on authorized networks.${RESET}"
-    cam_ui_center_line "${width}" "/////////////////////////////"
+    cam_ui_center_line "${width}" "     ${RED}//////////////////////////////${RESET}"
+    cam_ui_center_line "${width}" "     ${RED}Use only on authorized networks.${RESET}"
+    cam_ui_center_line "${width}" "     ${RED}//////////////////////////////${RESET}"
     printf "\n"
-    cam_ui_center_line "${width}" "Mode: ${YELLOW}${mode}${RESET} (${port_label})"
+    cam_ui_center_line "${width}" "Mode: ${GREEN}${mode}${RESET} (${port_label})"
     cam_ui_center_line "${width}" "Run artifacts: ${GREEN}${run_dir}${RESET}"
+    cam_ui_center_line "${width}" "Extras enabled: ${GREEN}${extras_label}${RESET}"
     printf "\n\n"
 
     cam_ui_center_line "${width}" "Happens Next:" "${color_blue}" "${color_reset}"
     cam_ui_center_line "${width}" "${ORANGE}1.${RESET} dependencies check/install"
     cam_ui_center_line "${width}" "${ORANGE}2.${RESET} Scans local network configuration"
-    cam_ui_center_line "${width}" "${ORANGE}3.${RESET} Main scan phase (Bruteforce if enabled)"
+    cam_ui_center_line "${width}" "${ORANGE}3.${RESET} Main scan phase initialization (${GREEN}${mode}${RESET})"
+    cam_ui_center_line "${width}" "${ORANGE}4.${RESET} Service detection and camera identification"
     printf "\n"
 }

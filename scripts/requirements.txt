@@ -1,1 +1,8 @@
-# This file intentionally left blank; CamSniff relies only on the Python standard library.
+bottle==0.13.4
+cffi==2.0.0
+cryptography==46.0.2
+dnspython==2.8.0
+ivre==0.9.20
+pycparser==2.23
+pymongo==4.15.3
+pyOpenSSL==25.3.0

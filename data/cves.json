@@ -131,5 +131,117 @@
     "cvss": 8.6,
     "summary": "Foscam cameras vulnerable to stack overflow via RTSP DESCRIBE command.",
     "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-19054"]
+  },
+  {
+    "id": "CVE-2020-25078",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "D-Link DCS-2530L and DCS-2670L cameras expose an unauthenticated /config/getuser endpoint that returns the administrator password.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-25078"]
+  },
+  {
+    "id": "CVE-2022-23382",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Shenzhen Hichip IP cameras (firmware V11.4.8.1.1-20170926) have an input validation flaw allowing a crafted multicast packet to trigger a denial-of-service.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-23382"]
+  },
+  {
+    "id": "CVE-2022-3001",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "Milesight Video Management System (VMS) 40.7.0.79-r1 and earlier fail to properly sanitize HTTP input; an unauthenticated attacker can send a crafted request to crash the server (remote DoS).",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-3001"]
+  },
+  {
+    "id": "CVE-2022-37255",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "TP-Link Tapo C310 cameras (firmware 1.3.0) use hardcoded RTSP credentials allowing any network user to view the live video feed without authentication.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-37255"]
+  },
+  {
+    "id": "CVE-2022-41505",
+    "severity": "Medium",
+    "cvss": 6.4,
+    "summary": "TP-Link Tapo C200 V1 cameras suffer an access-control flaw: an attacker with physical UART access can halt the boot loader and set init=/bin/sh to gain root access.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-41505"]
+  },
+  {
+    "id": "CVE-2022-38700",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "OpenHarmony OS (used in some smart cameras) up to v3.1.1 has an authentication bypass in its multimedia subsystem; a LAN attacker can bypass permission checks and gain full control of the camera service.",
+    "references": ["https://app.opencve.io/cve/CVE-2022-38700"]
+  },
+  {
+    "id": "CVE-2023-26609",
+    "severity": "High",
+    "cvss": 7.2,
+    "summary": "ABUS TVIP 20000-21150 cameras allow remote code execution by injecting shell metacharacters into the /cgi-bin/mft/wireless_mft field of an HTTP request.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-26609"]
+  },
+  {
+    "id": "CVE-2023-3704",
+    "severity": "Medium",
+    "cvss": 5.3,
+    "summary": "CP-Plus DVRs have an improper input validation bug in the web interface; an unauthenticated attacker can send a crafted HTTP request to change the system time (DoS effect).",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-3704"]
+  },
+  {
+    "id": "CVE-2023-39509",
+    "severity": "High",
+    "cvss": 7.2,
+    "summary": "Bosch IP cameras contain a command injection vulnerability where an authenticated administrator can inject OS commands via unsanitized input to execute arbitrary code.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-39509"]
+  },
+  {
+    "id": "CVE-2023-47353",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "The Imou GO (Dahua) Android app v1.0.11 has a flaw in its DownloadFirmwareService allowing forced download of arbitrary files without integrity checks to device storage.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-47353"]
+  },
+  {
+    "id": "CVE-2023-51127",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "FLIR AX8 thermal sensor cameras (firmware ≤1.46.16) are vulnerable to directory traversal; an unauthenticated remote attacker can upload a malicious symbolic link to obtain sensitive files.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-51127"]
+  },
+  {
+    "id": "CVE-2023-51625",
+    "severity": "High",
+    "cvss": 8.0,
+    "summary": "D-Link DCS-8300LHV2 IP cameras have an ONVIF SetSystemDateAndTime command injection where an adjacent-network attacker can craft a malicious sch:TZ XML element to execute arbitrary commands as root.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-51625"]
+  },
+  {
+    "id": "CVE-2024-6476",
+    "severity": "Medium",
+    "cvss": 4.2,
+    "summary": "Axis Camera Station Pro has a privilege-escalation bug: a non-admin user can gain SYSTEM privileges by exploiting an improper file deletion redirect during service restart.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2024-6476"]
+  },
+  {
+    "id": "CVE-2024-6749",
+    "severity": "Medium",
+    "cvss": 6.3,
+    "summary": "Axis Camera Station (Windows client) leaks sensitive credentials in its Incident Report feature; if enabled, stored passwords may be accessible due to insufficient access control.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2024-6749"]
+  },
+  {
+    "id": "CVE-2024-6831",
+    "severity": "Medium",
+    "cvss": 4.4,
+    "summary": "Axis Camera Station Pro allows an authenticated user to edit or delete camera views without proper server-side permission checks.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2024-6831"]
+  },
+  {
+    "id": "CVE-2024-7696",
+    "severity": "Medium",
+    "cvss": 6.3,
+    "summary": "Axis Camera Station (Pro) audit log tampering: an authenticated client can inject malicious entries to corrupt the audit log or crash the Camera Station server, causing a denial-of-service.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2024-7696"]
   }
 ]

@@ -1,348 +1,302 @@
-<div align="center">
-
 # CamSniff
 
-Automated IP Camera & Network Video Stream Reconnaissance Toolkit
+> **Automated IP Camera & Network Video Stream Reconnaissance Toolkit**
+> Smart, mode-aware reconnaissance that maps every camera and stream across your infrastructure, from living rooms to datacenters.
 
-[![Last Commit](https://img.shields.io/github/last-commit/John0n1/CamSniff?style=flat-square&logo=github&color=red)](https://github.com/John0n1/CamSniff/commits/main)
-[![Shell](https://img.shields.io/badge/language-bash-black?logo=gnubash&style=flat-square)](#)
-[![Python](https://img.shields.io/badge/language-python-black?logo=python&style=flat-square)](#)
+<div align="center">
+
+[![Last Commit](https://img.shields.io/github/last-commit/John0n1/CamSniff?style=flat-square\&logo=github\&color=red)](https://github.com/John0n1/CamSniff/commits/main)
+[![Shell](https://img.shields.io/badge/language-bash-black?logo=gnubash\&style=flat-square)](#)
+[![Python](https://img.shields.io/badge/language-python-black?logo=python\&style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
+**Current version:** `2.2.0` · 
 
-<sup>Current version:</sup> `2.1.0`
-
-<br/>
-<img src="docs/camsniff.png" alt="CamSniff" width="150" />
-
-<br/>
+<img src="docs/camsniff.png" alt="CamSniff logo" width="320" />
 
 </div>
 
 ---
 
-## Table of Contents
+# Table of contents
 
 1. [Overview](#overview)
-2. [Feature Matrix](#feature-matrix)
-3. [Architecture & Flow](#architecture--flow)
-4. [Scanning Modes](#scanning-modes)
-5. [Installation](#installation)
-6. [Quick Start](#quick-start)
-7. [Command Line Usage](#command-line-usage)
-8. [Discovery & Profiling Logic](#discovery--profiling-logic)
-9. [Credential Probing](#credential-probing)
-10. [Outputs & Artifacts](#outputs--artifacts)
-11. [Data Dictionaries](#data-dictionaries)
-12. [Configuration & Extensibility](#configuration--extensibility)
-13. [Analysis Helper](#analysis-helper)
-14. [Dependencies](#dependencies)
-15. [Troubleshooting](#troubleshooting)
-16. [Hardening & Ethics](#hardening--ethics)
-17. [Contributing](#contributing)
-18. [Roadmap](#roadmap)
-19. [License](#license)
+2. [Why CamSniff?](#why-camsniff)
+3. [Feature matrix](#feature-matrix)
+4. [Architecture & flow](#architecture--flow)
+5. [Scanning modes](#scanning-modes)
+6. [Install & quick start](#install--quick-start)
+7. [Command line examples](#command-line-examples)
+8. [Output format & artifacts](#output-format--artifacts)
+9. [Discovery & profiling logic (short)](#discovery--profiling-logic-short)
+10. [Credential probing behavior](#credential-probing-behavior)
+11. [Configuration & extending dictionaries](#configuration--extending-dictionaries)
+12. [Analysis helper & IVRE integration](#analysis-helper--ivre-integration)
+13. [Dependencies](#dependencies)
+14. [Troubleshooting & tips](#troubleshooting--tips)
+15. [Hardening, ethics & responsible use](#hardening-ethics--responsible-use)
+16. [Contributing & roadmap](#contributing--roadmap)
+17. [License](#license)
 
 ---
 
-## Overview
+# Overview
 
-CamSniff is a mode‑aware, data‑driven reconnaissance toolkit focused on identifying IP cameras and related streaming / telemetry endpoints on a *local* network. It fuses coordinated active scanning (Nmap + optional Masscan) with passive / service discovery (Avahi/mDNS) and short opportunistic traffic captures (TShark) to build a unified host profile. It then enriches results using an embedded vendor intelligence catalogue (`data/paths.csv`) and performs adaptive HTTP + RTSP snapshot acquisition with credential heuristics.
+**CamSniff** is a modular reconnaissance toolkit focused on discovering, profiling and opportunistically acquiring snapshots/streams from IP cameras and networked video sources on *local networks*. It blends active scanning (Nmap, optional Masscan), passive discovery (Avahi/mDNS), short traffic sampling (TShark), and vendor templates (`data/paths.csv`) to produce structured, reproducible results.
 
-> ⚠️ **Responsible Use Only** – You must have explicit, written authorization to assess any network or device you target. All results can contain sensitive imagery or metadata; handle and store them appropriately.
+Key design points:
 
-Primary design goals:
+* Mode-aware: tune from **stealth** → **nuke** for noise vs coverage tradeoffs
+* Multi-protocol: RTSP, ONVIF, HLS, WebRTC, SRT, RTMP, CoAP probes, etc.
+* Output: structured JSON (`discovery.json`, `credentials.json`) + thumbnails & logs
+* Offline-friendly: no external lookups required — vendor intelligence lives in `data/`
 
-- Minimise manual iteration while keeping workflow transparent
-- Provide reproducible structured output (`discovery.json` + `credentials.json`)
-- Surface multi‑protocol exposure (RTSP / ONVIF / HLS / WebRTC / SRT / RTMP)
-- Offer tunable scan intensity profiles for stealth vs coverage
-- Maintain offline‑friendly operation (no external lookups required)
-
----
-
-## Feature Matrix
-
-| Category | Capabilities |
-|----------|--------------|
-| Discovery | Nmap (scripted RTSP brute), optional Masscan port sweep, UDP service probe (STUN/WS-Discovery/SRT) |
-| Passive / Broadcast | Avahi (mDNS/DNS‑SD) filtered for camera/service keywords |
-| Traffic Sampling | Targeted TShark capture (HTTP, RTSP, common media / control ports) to extract candidate paths |
-| Protocol Heuristics | ONVIF, HLS playlist probe, RTMP port detection, WebRTC (STUN/TURN & HTTP surface), SRT signature ports, CoAP /.well-known/core probe |
-| Vendor Profiling | OUI & port‑based profile match against `paths.csv`; CVE ID references and snapshot/RTSP templates |
-| RTSP Enumeration | Bundled `rtsp-url-brute.nse` + optional custom list `data/rtsp-urls.txt` |
-| Credential Strategy | Default credentials + combinatorial curated username/password sets (mode‑limited) |
-| Media Acquisition | HTTP snapshot endpoints & RTSP frame grabs (ffmpeg) with optional ASCII preview (chafa) |
-| Output | Structured JSON, terminal summary tables, thumbnails + logs |
-| Modes | `stealth` → `nuke` (max) adjusting ports, timing, retries, credential breadth |
-| Enrichment | Post‑scan Python enrichment to attach probabilistic vendor profile & candidate stream URLs |
-| Post Processing | `scripts/analyze.sh` summarises coverage & success metrics |
+> ⚠️ **Responsible use only** — Do **not** scan or capture media from devices/networks you are not explicitly authorized to test. Treat captured imagery and credentials as highly sensitive.
 
 ---
 
-## Architecture & Flow
+# Why CamSniff?
 
-1. Initialisation & mode resolution (`scripts/mode-config.sh`) → sets timing, port profile, credential caps
-2. Nmap TCP sweep + (if present) NSE RTSP brute script → collects open ports & RTSP path candidates
-3. Optional Masscan wide sweep (depending on mode) → merges additional port intelligence
-4. Avahi / mDNS enumeration → candidate IP + service hints
-5. Short TShark capture (duration mode‑dependent) → extracts HTTP/RTSP URIs to augment observed paths
-6. UDP micro‑scan (select protocol ports) → enriches ONVIF / WebRTC / SRT indicators
-7. CoAP resource enumeration via `coap-client` → probes `/.well-known/core` for IoT camera APIs
-8. Vendor matching (OUI regex & port heuristics) using `data/paths.csv` → candidate templates & CVEs
-9. JSON assembly (`discovery.json`) + enrichment (Python inline script)
-10. Credential & media acquisition phase (`scripts/credential-probe.sh`) → builds `credentials.json` & thumbnails
-11. Optional retrospective statistics (`scripts/analyze.sh`)
+* Reduce repetitive manual recon: one command yields a consistent, auditable dataset.
+* Templated vendor intelligence speeds up discovery of likely snapshot/RTSP endpoints.
+* Tunable credential probing keeps operations traceable and bounded by the chosen mode.
+* Designed to be integrated with IVRE for persistent, queryable reconnaissance databases.
 
 ---
 
-## Scanning Modes
+# Feature matrix
 
-Each mode tunes: port breadth, Masscan enablement & rate, Nmap timing, TShark duration, HTTP/RTSP timeouts, retry counts, and credential attempt ceiling.
-
-| Mode | Masscan | Port Profile | Nmap Speed | Credentials (max) | TShark (s) | Notes |
-|------|---------|--------------|------------|-------------------|------------|-------|
-| stealth | no | core | -T2 | 12 | 20 | Minimal footprint |
-| stealth+ | no | minimal | -T1 + scan delay | 8 | 15 | Slowest / least noisy |
-| medium | yes | standard | -T4 | 32 | 35 | Balanced default |
-| aggressive | yes | extended | -T4 -A | 64 | 45 | Adds service/version scripts |
-| war | yes | war | -T5 -A | 96 | 55 | Broad vendor coverage |
-| nuke | yes | total | -T5 -A --script vuln | 128 | 75 | Full 1–65535 spectrum, vuln scripts |
-
-Invoke via: `--mode <name>` (default: `nuke` if unspecified).
+| Area                | Highlights                                                                 |
+| ------------------- | -------------------------------------------------------------------------- |
+| Discovery           | Nmap TCP/UDP scan, NSE RTSP brute, optional Masscan for wide sweeps        |
+| Passive             | Avahi/mDNS & DNS-SD filtering for camera/service keywords                  |
+| Traffic sampling    | Targeted TShark captures to extract observed URIs                          |
+| Protocols           | ONVIF, RTSP, HLS, WebRTC/STUN, RTMP, SRT, CoAP `/.well-known/core`         |
+| Vendor profiling    | `data/paths.csv` maps OUI/heuristics → RTSP/HTTP templates + CVEs          |
+| Credential strategy | Mode-limited curated username/password lists, default combos               |
+| Acquisition         | ffmpeg RTSP grabs, HTTP snapshot requests, optional ASCII previews (chafa) |
+| Output              | `discovery.json`, `credentials.json`, thumbnails, structured logs          |
+| Extras              | IVRE sync script, post-scan analysis scripts, enrichers                    |
 
 ---
 
-## Installation
+# Architecture & flow (concise)
 
-Package (Debian based)
+1. Decide mode (timings, breadth, credential caps) via `scripts/mode-config.sh`.
+2. Active scan: Nmap (scripted RTSP brute NSE); optional Masscan merges ports.
+3. Passive discovery: Avahi/mDNS to pick up friendly names & services.
+4. Traffic sampling: TShark capture on observed hosts to find candidate URIs.
+5. UDP micro-scan for STUN/WS-Discovery/SRT indicators.
+6. CoAP probe to `/.well-known/core` for constrained devices.
+7. Vendor matching using `data/paths.csv` → produce candidate RTSP/HTTP templates.
+8. Assemble `discovery.json` and run credential/media acquisition phase.
+9. Optionally, push to IVRE with `--extra ivre`.
+
+---
+
+# Scanning modes (summary)
+
+Each mode adjusts port profiles, timing, Masscan usage, NSE breadth, and maximum credential attempts.
+
+|         Mode | Masscan |      Nmap speed      | Creds (max) | TShark (s) | Use case                |
+| -----------: | :-----: | :------------------: | :---------: | :--------: | ----------------------- |
+|   `stealth+` |    no   |          -T1         |      8      |     15     | Minimal noise, slowest  |
+|    `stealth` |    no   |          -T2         |      12     |     20     | Quiet local scans       |
+|     `medium` |   yes   |          -T4         |      32     |     35     | Default balanced        |
+| `aggressive` |   yes   |        -T4 -A        |      64     |     45     | More scripts/versioning |
+|        `war` |   yes   |        -T5 -A        |      96     |     55     | Broad vendor coverage   |
+|       `nuke` |   yes   | -T5 -A --script vuln |     128     |     75     | Full sweep (1–65535)    |
+
+Default: `--mode medium`. Example: `sudo camsniff --mode stealth`.
+
+---
+
+# Install & quick start
+
+## A — From releases (Debian package)
 
 ```bash
-# Download from releases
+# download latest release .deb
 sudo apt install ./camsniff_*amd64.deb
-```
-## Quick Start
-
-Dependencies are installed automatically 
-when running the script for the first time.
-
-If installed from package, simply run:
-
-```bash
+# run
 sudo camsniff --mode medium
 ```
-Or, to run from source:
-(eitherway auto-installs dependencies on first run)
+
+## B — From source (developer / live edits)
 
 ```bash
 git clone https://github.com/John0n1/CamSniff.git
 cd CamSniff
-chmod +x scripts/*.sh
-chmod +x data/*.sh
-sudo scripts/camsniff.sh
+chmod +x scripts/*.sh data/*.sh
+sudo scripts/camsniff.sh        # first run bootstraps dependencies if needed
 ```
 
-## Command Line Usage
+> On first run the script attempts to install or build missing runtime tooling (where possible). Read logs in `dev/results/<run>/logs/` if a dependency fails.
 
-```bash
-sudo camsniff --yes # skip confirmation prompt
---------------------------
-sudo camsniff --mode stealth+ # Very quiet
-sudo camsniff --mode stealth # quiet
-sudo camsniff --mode medium # balanced sweep
-sudo camsniff --mode war # aggressive
-sudo camsniff --mode nuke # maximum coverage
---------------------------
-sudo camsniff --version # print version
-sudo camsniff --help # show usage
-
-```
 ---
 
+# Command line examples
 
-## Discovery & Profiling Logic
+```bash
+# quick balanced scan (default intensity)
+sudo camsniff --mode medium
 
-After the core scan sequence, each host record in `discovery.json` includes:
+# quiet scan (low footprint)
+sudo camsniff --mode stealth+
+
+# aggressive, include IVRE ingestion
+sudo camsniff --mode aggressive --extra ivre
+
+# skip confirmation (non-interactive)
+sudo camsniff --yes
+
+# show help / version
+sudo camsniff --help
+sudo camsniff --version
+```
+
+---
+
+# Output format & artifacts
+
+All run outputs live in `dev/results/<UTC_TIMESTAMP>/`:
+
+* `discovery.json` — canonical host dataset with enrichment metadata
+* `credentials.json` — credential attempts & successes per host
+* `thumbnails/` — JPEG snapshots of successful grabs (organized per run)
+* `logs/` — raw phase logs (`nmap-output.txt`, `masscan-output.json`, `avahi-services.txt`, `tshark-traffic.csv`, `coap-probe.log`)
+* `analysis/` — optional aggregated statistics from `scripts/analyze.sh`
+
+`discovery.json` snapshot example (trimmed):
 
 ```jsonc
 {
-	"ip": "192.168.1.42",
-	"mac": "AA:BB:CC:DD:EE:FF",
-	"sources": ["Nmap", "TShark", "Avahi"],
-	"ports": [80, 554, 8443],
-	"observed_paths": ["/onvif/device_service", "rtsp://..."],
-	"rtsp_bruteforce": {
-		"discovered": ["rtsp://192.168.1.42:554/Streaming/Channels/101"],
-		"other_responses": {"401": ["rtsp://..."]}
-	},
-	"additional_protocols": [
-		{"protocol": "ONVIF", "detail": "https://192.168.1.42:8443/onvif/device_service (HTTP 401)"},
-		{"protocol": "HLS", "detail": "http://192.168.1.42:8080/live.m3u8"}
-	],
-	"profile_match": {
-		"vendor": "VendorX",
-		"model": "ModelY",
-		"matched_by": "oui",
-		"rtsp_candidates": [...],
-		"http_snapshot_candidates": [...],
-		"cve_ids": ["CVE-2024-XXXX"],
-		"reference": "https://support.vendorx.example/manual"
-	}
+  "ip": "192.168.1.42",
+  "mac": "AA:BB:CC:DD:EE:FF",
+  "sources": ["Nmap","TShark","Avahi"],
+  "ports": [80,554,8443],
+  "observed_paths": ["/onvif/device_service", "rtsp://..."],
+  "profile_match":{
+    "vendor":"VendorX",
+    "model":"ModelY",
+    "matched_by":"oui",
+    "rtsp_candidates":[...],
+    "http_snapshot_candidates":[...],
+    "cve_ids":["CVE-2024-XXXX"]
+  }
 }
 ```
 
-Protocol inference heuristics (e.g. HLS playlist detection, ONVIF endpoint status codes, STUN/TURN port presence, CoAP resource availability) populate `additional_protocols` to highlight multi‑surface exposure.
+---
+
+# Discovery & profiling logic (short)
+
+* **Observed evidence**: Nmap + TShark + Avahi merge into a host record.
+* **Heuristics**: port fingerprints, OUI regex, observed HTTP/RTSP URIs, ONVIF service behavior.
+* **Vendor templates**: `data/paths.csv` contains OUI & port heuristics → RTSP/HTTP templates + CVEs.
+* **Enrichment**: small Python post-processor ranks candidates and annotates `discovery.json`.
 
 ---
 
-## Credential Probing
+# Credential probing behavior
 
-`scripts/credential-probe.sh` consumes `discovery.json` and attempts snapshot retrieval using:
+`scripts/credential-probe.sh` uses:
 
-1. Vendor default credential combos + blank password variations
-2. Small curated username/password dictionaries (bounded per mode)
-3. Enumerated RTSP path candidates (profile + brute + observed traffic)
-4. Fallback HTTP snapshot templates (`data/http-paths.txt`)
+1. Vendor default combos (from `paths.csv`) + blank/empty password checks.
+2. Curated, mode-bounded username/password pair lists (`data/usernames.txt`, `data/passwords.txt`).
+3. Enumerated RTSP paths (profile + brute + observed from TShark).
+4. HTTP snapshot templated endpoints (`data/http-paths.txt`).
 
-Successful acquisitions produce:
-
-- Full‐resolution JPEG thumbnail (`dev/results/<run>/thumbnails/*.jpg`)
-- Optional ASCII preview (`*.txt`) if `chafa` is installed
-- Structured JSON row with credential pair (never obfuscated – treat as sensitive)
-
-Failures are still recorded with attempt counts for auditability.
+Successful attempts record: credential pair, endpoint used, thumbnail path, timestamp. **Credentials are stored in plain JSON** — treat them as sensitive material and secure results directories accordingly.
 
 ---
 
-## Outputs & Artifacts
+# Configuration & extending dictionaries
 
-`dev/results/<UTC_TIMESTAMP>/` contains:
+All dictionaries live in `data/` and are editable:
 
-| Path | Description |
-|------|-------------|
-| `discovery.json` | Canonical host dataset + enrichment metadata |
-| `credentials.json` | Per‑host success/failure credential attempts & media capture descriptors |
-| `logs/` | Raw command logs (`nmap-output.txt`, `masscan-output.json`, `avahi-services.txt`, `tshark-traffic.csv`, credential/CoAP probe logs) |
-| `thumbnails/` | Captured snapshots (HTTP/RTSP) + ASCII previews |
-| `logs/nmap-udp-output.txt` | UDP probe results (WS‑Discovery / STUN / SRT) |
-| `logs/coap-probe.log` | Time‑stamped CoAP probing transcript + responses |
-| `logs/coap-discovery.txt` | Unique IPs whose `/.well-known/core` responded successfully |
+* `paths.csv` — vendor OUI regex → default creds, RTSP/HTTP templates, CVE IDs
+* `rtsp-urls.txt` — extend RTSP brute dictionary for NSE
+* `http-paths.txt` — fallback HTTP snapshot endpoints (templated)
+* `usernames.txt` / `passwords.txt` — curated credential lists (comments ignored)
+* `port-profiles.sh` — logical named port sets used per scanning mode
+
+After edits, next run will use updated files. Keep additions concise, verifiable, and documented (one vendor per row ideally).
 
 ---
 
-## Data Dictionaries
+# Analysis helper & IVRE integration
 
-Located in `data/`:
-
-| File | Purpose |
-|------|---------|
-| `paths.csv` | Vendor OUI regex, default creds, CVE IDs, RTSP/HTTP templates, stream/channel enumerations |
-| `rtsp-url-brute.nse` | Embedded NSE dictionary for RTSP path brute‑forcing |
-| `rtsp-urls.txt` | Optional extended RTSP dictionary injected into NSE when present |
-| `http-paths.txt` | Fallback HTTP snapshot endpoints (templated) |
-| `usernames.txt` / `passwords.txt` | Curated credential lists (comments & blanks ignored) |
-| `port-profiles.sh` | Nmap/Masscan logical port set definitions & thread heuristics |
-| `cves.json` | Supplemental CVE reference metadata (consumed indirectly via enrichment) |
-
-All files are editable – updates take effect on next run.
+* `scripts/analyze.sh` — prints host counts, vendor diversity, RTSP discovery volume, credential success rate.
+* `scripts/ivre-manager.sh` — optionally bootstraps a Python venv with IVRE + pymongo and pushes enriched hosts into IVRE (use `--extra ivre`).
 
 ---
 
-## Configuration & Extensibility
+# Dependencies
 
-Extension points:
+Core runtime (auto-installed where possible):
 
-- Add new vendor patterns in `paths.csv` (regex on OUI or port) – include CVE IDs and snapshot/RTSP templates
-- Append extra RTSP paths to `rtsp-urls.txt` for NSE integration
-- Provide additional HTTP fallback patterns in `http-paths.txt`
-- Modify credential breadth / timing by adjusting mode logic in `scripts/mode-config.sh`
-- Insert new protocol heuristics inside `scripts/camsniff.sh` (see `detect_hls`, `detect_onvif`, etc.)
-- Tune CoAP probing intervals / build behaviour via `scripts/camsniff.sh` and `scripts/build-coap.sh`
-
-> Keep patches minimal & tested: run `make lint` before submitting PRs.
+* nmap, masscan (optional), tshark (wireshark/tshark), avahi-utils, ffmpeg, curl, jq, python3 (+ venv), chafa (optional, for ASCII previews), libpcap.
+* Build tools for libcoap / `coap-client` (`git`, `cmake`, `build-essential`, `pkg-config`) — script `scripts/build-coap.sh` will attempt to build if missing.
 
 ---
 
-## Analysis Helper
+# Troubleshooting & tips
 
-`scripts/analyze.sh` prints structured statistics (host counts, vendor diversity, protocol hits, RTSP discovery volume, credential success rate). Use it to baseline changes between scanning modes or dictionary adjustments.
-
----
-
-## Dependencies
-
-Core tooling (auto‑installed via `sudo camsniff` or `sudo scripts/camsniff.sh` on supported package managers):
-
-- Nmap, Masscan, TShark, Avahi utilities, ffmpeg, curl, jq, python3 (+ venv), chafa (optional), libpcap.
-- Build essentials used for CoAP support (`git`, `cmake`, `make`/`build-essential`, `pkg-config`).
-- libcoap’s `coap-client` binary (built automatically via `scripts/build-coap.sh` when missing).
----
-
-## Troubleshooting
-
-| Symptom | Possible Cause | Mitigation |
-|---------|----------------|-----------|
-| Empty `discovery.json` | No reachable hosts / blocked broadcast traffic | Verify network interface, run in less stealthy mode |
-| Masscan skipped | Mode disables it | Choose `medium` or higher |
-| Few credential attempts | Mode cap (see table) | Use higher intensity mode |
-| No thumbnails | Snapshot endpoints failed / ffmpeg missing | Confirm creds, install ffmpeg, inspect per‑host logs |
-| ONVIF not detected | Ports closed or HTTPS cert issues | Check with `curl -k` manually |
-| Slow run | Large port profile + vuln scripts | Use `medium` or custom reduced port profile |
-| High false positives | Broad port sweep in `nuke` | Cross‑check with targeted `standard` scan |
-| CoAP probe skipped | `coap-client` missing or build failure | Run `make build-coap`, review `logs/coap-probe.log`, re-run scan |
-
-Logs for each phase live under `dev/results/<run>/logs/`.
+* **Empty `discovery.json`** — verify interface, ARP visibility, run non-stealth mode for testing.
+* **Masscan skipped** — ensure `--mode` permits it (e.g., `medium`+).
+* **No thumbnails** — check `ffmpeg` availability and per-host logs in `dev/results/<run>/logs/`.
+* **ONVIF false negatives** — SSL/certificate redirects or nonstandard ports can hide endpoints — try `curl -k` manually against suspected endpoints.
+* **CoAP probes failing** — build `coap-client` via `scripts/build-coap.sh`, inspect `logs/coap-probe.log`.
+* **Performance** — if `nuke` takes too long, use `medium` or a custom port profile.
 
 Environment toggles:
 
-- `NO_ANIM=1` – skip matrix intro for non‑interactive terminals
-- `CAM_MODE_PORT_PROFILE` override (advanced, via mode modifications)
+* `NO_ANIM=1` — skip ASCII/intro animation (useful in CI).
+* `CAM_MODE_PORT_PROFILE` — override port profile programmatically (advanced).
 
 ---
 
-## Hardening & Ethics
+# Hardening, ethics & responsible use
 
-- Run only against authorised assets / lab networks
-- Secure captured media (may contain personally identifiable imagery)
-- Rotate credential dictionaries to avoid accidental inclusion of sensitive proprietary lists
-- Prefer lowest effective mode first (principle of minimal impact)
-- Treat CVE references as advisory; verification requires manual validation
-
----
-
-## Contributing
-
-1. Fork repository & create feature branch
-2. Make focused changes (one concern per PR)
-3. Run: `make lint` (requires `shellcheck` installed)
-4. Provide before/after explanation or sample output where applicable
-5. Submit PR referencing any related issues
-
-Scope guidelines:
-
-- Keep vendor catalog additions concise & verifiable
-- Avoid embedding large binary assets
-- Wrap new logic with comments describing rationale
+* **Authorization** — never use CamSniff on networks/devices without explicit, written permission.
+* **Data protection** — captured images, device metadata and credentials are sensitive — encrypt and limit access.
+* **Least impact** — start with `stealth` modes during discovery and escalate only when authorized.
+* **CVE data** — treated as advisory; manual verification and safe disclosure practices required.
+* **Avoid uncontrolled credential spraying** — credential attempts are mode-bounded; respect target operational stability.
 
 ---
 
-## Roadmap
+# Contributing
 
-- Optional web dashboard (real‑time JSON rendering)
-- Live stream mosaic / timeline mode
-- Encrypted credential store for sensitive captures
-- Multi‑interface enumeration & explicit interface selection flag
-- Pluggable output exporters (Markdown / HTML summary)
-- Additional protocol signatures (MQTT, SIP, proprietary vendor APIs)
+1. Fork → create feature branch.
+2. Make focused changes (one concern per PR).
+3. Run `make lint` (uses `shellcheck`) and `scripts/test` if available.
+4. Add sample outputs or before/after notes where relevant.
+5. Submit PR and reference related issues.
 
-Have a suggestion? Open an issue with a clear use case.
+Guidelines:
 
----
-
-## License
-
-MIT – see [LICENSE](LICENSE).
+* Document every vendor template change and source of truth.
+* Prefer small, testable commits; avoid large binary additions.
+* Keep default dictionaries conservative — do not include proprietary credential lists.
 
 ---
 
-<sub>© 2025 John Hauger Mitander. The authors disclaim responsibility for misuse. Practice ethical security research.</sub>
+# Roadmap (short)
+
+* Web dashboard: realtime JSON + thumbnails.
+* Live mosaic / timeline capture mode.
+* Encrypted credential store & role-based access.
+* Pluggable exporters: Markdown/HTML summary reports.
+* Additional protocol signatures (MQTT, SIP, more proprietary APIs).
+
+Have a feature idea? Please open an issue describing the use case.
+
+---
+
+# License
+
+MIT — see [LICENSE](LICENSE). <sub>© 2025 John Hauger Mitander. The authors disclaim responsibility for misuse. Practice ethical security research.</sub>
+
+

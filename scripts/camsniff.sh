@@ -7,7 +7,6 @@
 # CamSniff is Licensed under the MIT License.
 # camsniff.sh
 
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PATHS_FILE="${PATHS_FILE:-"$ROOT_DIR/data/paths.csv"}"
@@ -20,9 +19,11 @@ RTSP_URL_DICT="$ROOT_DIR/data/rtsp-urls.txt"
 PORT_PROFILE_DATA="$ROOT_DIR/data/port-profiles.sh"
 UI_HELPER="$ROOT_DIR/data/ui-banner.sh"
 
-MODE_DEFAULT="nuke"
+MODE_DEFAULT="medium"
 MODE_REQUESTED=""
 AUTO_CONFIRM=false
+declare -a EXTRA_OPTIONS=()
+EXTRA_IVRE_ENABLED=false
 
 RESULTS_ROOT="$ROOT_DIR/dev/results"
 RUN_STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
@@ -42,6 +43,10 @@ TSHARK_OUTPUT_FILE="$LOG_DIR/tshark-traffic.csv"
 COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
 COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
 COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}"
+IVRE_LOG_FILE="$LOG_DIR/ivre-sync.log"
+GEOIP_DIR="$ROOT_DIR/share/geoip"
+GEOIP_CITY_DB="$GEOIP_DIR/dbip-city-lite.mmdb"
+GEOIP_ASN_DB="$GEOIP_DIR/dbip-asn-lite.mmdb"
 
 RED=""
 GREEN=""
@@ -49,6 +54,10 @@ YELLOW=""
 BLUE=""
 CYAN=""
 RESET=""
+BLINK=""
+
+SPINNER_FRAMES='-\|/'
+PYTHON_BIN="$(command -v python3 || echo python3)"
 
 declare -A ip_sources
 declare -A ip_to_mac
@@ -72,13 +81,16 @@ coap_output_tmp=""
 
 print_usage() {
     cat <<'EOF'
-Usage: camsniff.sh [--mode <name>] [--yes] [--version] [--help]
+Usage: camsniff.sh [--mode <name>] [--yes] [--version] [--help] [--extra <name>]
 
 Options:
   -m, --mode <name>      Specify scanning mode (stealth, stealth+, medium, aggressive, war, nuke)
   -y, --yes              Auto-confirm interactive prompts
   -v, --version          Show version information and exit
   -h, --help             Display this help message and exit
+
+Optional integrations:
+    --extra <name>         Enable additional integrations (currently supported: ivre)
 
 If no mode is provided, the maximum profile (nuke) is used.
 EOF
@@ -346,6 +358,15 @@ while [[ $# -gt 0 ]]; do
             print_usage
             exit 0
             ;;
+        --extra)
+            extra_value="${2:-}"
+            if [[ -z $extra_value ]]; then
+                echo "--extra requires a value" >&2
+                exit 1
+            fi
+            EXTRA_OPTIONS+=("$extra_value")
+            shift 2
+            ;;
         --)
             shift
             break
@@ -364,6 +385,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 MODE_SELECTED=${MODE_REQUESTED:-$MODE_DEFAULT}
+
+if (( ${#EXTRA_OPTIONS[@]} )); then
+    for extra_flag in "${EXTRA_OPTIONS[@]}"; do
+        case "${extra_flag,,}" in
+            ivre)
+                EXTRA_IVRE_ENABLED=true
+                ;;
+            *)
+                echo "Unknown --extra integration: $extra_flag" >&2
+                exit 1
+                ;;
+        esac
+    done
+fi
 
 if [[ ! -f "$MODE_CONFIG" ]]; then
     echo "Missing mode configuration helper: $MODE_CONFIG" >&2
@@ -386,6 +421,7 @@ if [[ ! -f "$PORT_PROFILE_DATA" ]]; then
     exit 1
 fi
 
+# shellcheck source=data/port-profiles.sh
 source "$PORT_PROFILE_DATA"
 
 if [[ ! -f "$UI_HELPER" ]]; then
@@ -393,7 +429,133 @@ if [[ ! -f "$UI_HELPER" ]]; then
     exit 1
 fi
 
+# shellcheck source=data/ui-banner.sh
 source "$UI_HELPER"
+
+cam_run_with_spinner() {
+    local message="$1"
+    shift
+    local -a command=("$@")
+    if (( ${#command[@]} == 0 )); then
+        return 1
+    fi
+
+    echo -e "${CYAN}${message}...${RESET}"
+    "${command[@]}" &
+    local pid=$!
+    local frame=0
+    local frame_count=${#SPINNER_FRAMES}
+    local blink_state=0
+
+    while kill -0 "$pid" 2>/dev/null; do
+        if (( blink_state % 5 == 0 )); then
+            # Show spinner (visible for 0.5s out of each 1s cycle)
+            printf "\r${RED}[%c]${RESET} %s...${RESET} " "${SPINNER_FRAMES:frame:1}" "$message"
+        else
+            # Hide spinner (invisible for 0.5s out of each 1s cycle)
+            printf "\r${RED}[ ]${RESET} %s...${RESET} " "$message"
+        fi
+        frame=$(( (frame + 1) % frame_count ))
+        blink_state=$(( (blink_state + 1) % 10 ))
+        sleep 0.1
+    done
+
+    wait "$pid"
+    local status=$?
+    printf "\r%*s\r" 80 ""
+    if (( status == 0 )); then
+        echo -e "${GREEN}${message} complete!${RESET}"
+    else
+        echo -e "${RED}${message} failed (exit ${status}).${RESET}"
+    fi
+    return $status
+}
+
+cam_run_packinst() {
+    local message="$1"
+    shift
+    local -a command=("$@")
+    if (( ${#command[@]} == 0 )); then
+        return 1
+    fi
+
+    echo -e "${CYAN}${message}...${RESET}"
+    "${command[@]}" &
+    local pid=$!
+    local frame=0
+    local packages=("📦")
+    local frame_count=${#packages[@]}
+
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r${BLINK}${RED}%s${RESET} %s...${RESET} " "${packages[frame]}" "$message"
+        frame=$(( (frame + 1) % frame_count ))
+        sleep 0.3
+    done
+
+    wait "$pid"
+    local status=$?
+    printf "\r%*s\r" 80 ""
+    if (( status == 0 )); then
+        echo -e "${GREEN}${message} complete!${RESET}"
+    else
+        echo -e "${RED}${message} failed (exit ${status}).${RESET}"
+    fi
+    return $status
+}
+
+do_coap_probe() {
+    local tshark_output="$1"
+    rm -f "$COAP_OUTPUT_FILE"
+    : > "$COAP_LOG_FILE"
+    local coap_output_tmp=$(mktemp /tmp/camsniff-coap.XXXXXX)
+
+    declare -a coap_targets=()
+    declare -A coap_seen_targets=()
+
+    for ip in "${!all_ips[@]}"; do
+        [[ -z $ip ]] && continue
+        coap_targets+=("$ip")
+        coap_seen_targets["$ip"]=1
+    done
+
+    if [[ -s $tshark_output ]]; then
+        while IFS=',' read -r _time_rel src dst _rest; do
+            for candidate in "$src" "$dst"; do
+                candidate=${candidate//\"/}
+                if [[ $candidate =~ ^[0-9]+(\.[0-9]+){3}$ ]] && [[ -z ${coap_seen_targets[$candidate]+set} ]]; then
+                    coap_targets+=("$candidate")
+                    coap_seen_targets["$candidate"]=1
+                fi
+            done
+        done < "$tshark_output"
+    fi
+
+    {
+        printf '# CoAP probe log generated %s\n' "$(date -u +%FT%TZ)"
+    } >> "$COAP_LOG_FILE"
+
+    for ip in "${coap_targets[@]}"; do
+        [[ -z $ip ]] && continue
+        printf '%s probing coap://%s/.well-known/core\n' "$(date -u +%FT%TZ)" "$ip" >> "$COAP_LOG_FILE"
+        if coap-client -m get -B "$COAP_PROBE_TIMEOUT" "coap://$ip/.well-known/core" > "$coap_output_tmp" 2>> "$COAP_LOG_FILE"; then
+            if grep -q '<' "$coap_output_tmp"; then
+                echo "$ip" >> "$COAP_OUTPUT_FILE"
+                {
+                    printf '%s success\n' "$(date -u +%FT%TZ)"
+                    cat "$coap_output_tmp"
+                } >> "$COAP_LOG_FILE"
+                record_protocol_hit "$ip" "CoAP" '/.well-known/core responded'
+            else
+                printf '%s responded without resource directory\n' "$(date -u +%FT%TZ)" >> "$COAP_LOG_FILE"
+            fi
+        else
+            printf '%s probe failed\n' "$(date -u +%FT%TZ)" >> "$COAP_LOG_FILE"
+        fi
+        : > "$coap_output_tmp"
+    done
+
+    rm -f "$coap_output_tmp"
+}
 
 resolve_port_profiles() {
     local profile="${CAM_MODE_PORT_PROFILE:-fallback}"
@@ -429,7 +591,7 @@ if command -v tput &> /dev/null; then
   YELLOW=$(tput setaf 3)
   BLUE=$(tput setaf 4)
   CYAN=$(tput setaf 6)
-  ORANGE=$(tput setaf 214)
+  BLINK=$(tput blink)
   RESET=$(tput sgr0)
 fi
 
@@ -439,6 +601,25 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 mkdir -p "$RESULTS_ROOT" "$RUN_DIR" "$LOG_DIR" "$THUMB_DIR"
+if [[ $EXTRA_IVRE_ENABLED == true ]]; then
+    : > "$IVRE_LOG_FILE"
+    
+    if ! "$SCRIPT_DIR/ivre-manager.sh" check >/dev/null 2>&1; then
+        if cam_run_with_spinner "Setting up IVRE integration" sudo "$SCRIPT_DIR/ivre-manager.sh" auto-setup --quiet; then
+            echo -e "${GREEN}✓ IVRE integration ready${RESET}"
+        else
+            echo -e "${YELLOW}Warning: IVRE setup incomplete, disabling integration${RESET}"
+            EXTRA_IVRE_ENABLED=false
+        fi
+    fi
+fi
+
+if [[ -f "$GEOIP_CITY_DB" ]]; then
+    export IVRE_GEOIP_CITY_DB="$GEOIP_CITY_DB"
+fi
+if [[ -f "$GEOIP_ASN_DB" ]]; then
+    export IVRE_GEOIP_ASN_DB="$GEOIP_ASN_DB"
+fi
 
 clear
 
@@ -446,7 +627,11 @@ TERM_WIDTH=$(tput cols 2>/dev/null || echo 80)
 
 cam_ui_matrix_rain "$TERM_WIDTH" 12 24 0.045 "$GREEN" "$RESET"
 clear
-cam_ui_render_banner "$TERM_WIDTH" "$CYAN" "$GREEN" "$YELLOW" "$BLUE" "$RESET" "$CAM_MODE_NORMALIZED" "$PORT_SUMMARY_LABEL" "$RUN_DIR"
+extras_label="None"
+if [[ $EXTRA_IVRE_ENABLED == true ]]; then
+    extras_label="Ivre"
+fi
+cam_ui_render_banner "$TERM_WIDTH" "$CYAN" "$GREEN" "$YELLOW" "$BLUE" "$RESET" "$CAM_MODE_NORMALIZED" "$PORT_SUMMARY_LABEL" "$RUN_DIR" "$extras_label"
 
 append_source() {
     local ip="$1"
@@ -593,14 +778,32 @@ if [[ $AUTO_CONFIRM == true ]]; then
     cam_ui_center_line "$TERM_WIDTH" ""
 else
     prompt=$(cam_ui_build_centered "$TERM_WIDTH" "Proceed with CamSniff setup and scan? ${GREEN}Yes [Y]${RESET} | ${RED}No [N]${RESET} ")
-    read -r -p "$prompt" answer
+    read -r -p "$prompt" answer && clear
 fi
 case ${answer:0:1} in
     y|Y|"" )
         echo -e "${GREEN}Starting setup process...${RESET}"
         
         if [[ -f "$DEPS_INSTALL" ]]; then
-            "$DEPS_INSTALL"
+            install_log_tmp=$(mktemp)
+            if cam_run_packinst "Installing dependencies" env CAM_INSTALL_LOG_EXPORT="$install_log_tmp" CAM_REQUIRE_IVRE="$EXTRA_IVRE_ENABLED" "$DEPS_INSTALL" --quiet; then
+                if [[ -s $install_log_tmp ]]; then
+                    install_log_path=$(<"$install_log_tmp")
+                    if [[ -n $install_log_path ]]; then
+                        echo -e "${CYAN}Detailed install log:${RESET} ${GREEN}$install_log_path${RESET}"
+                    fi
+                fi
+            else
+                install_log_path=""
+                if [[ -s $install_log_tmp ]]; then
+                    install_log_path=$(<"$install_log_tmp")
+                fi
+                [[ -n $install_log_path ]] && echo -e "${YELLOW}Dependency install log:${RESET} ${install_log_path}"
+                echo -e "${RED}Dependency installation failed; aborting.${RESET}"
+                rm -f "$install_log_tmp"
+                exit 1
+            fi
+            rm -f "$install_log_tmp"
         else
             echo -e "${YELLOW}Warning: deps-install.sh not found. Continuing without installing dependencies.${RESET}"
         fi
@@ -617,6 +820,26 @@ case ${answer:0:1} in
         done
         if (( ${#missing_tools[@]} > 0 )); then
             echo -e "${YELLOW}Warning: Missing helper tools: ${missing_tools[*]}. Some stages may be skipped.${RESET}"
+        fi
+
+        if [[ -x "$ROOT_DIR/venv/bin/python3" ]]; then
+            PYTHON_BIN="$ROOT_DIR/venv/bin/python3"
+        fi
+
+        # Build coap-client on demand using the shared spinner helper
+        if ! command -v coap-client &> /dev/null; then
+            coap_build_log="$LOG_DIR/coap-build.log"
+            if cam_run_packinst "Building coap-client (libcoap)" env COAP_BUILD_LOG="$coap_build_log" CAM_COAP_HELPER="$SCRIPT_DIR/build-coap.sh" bash -c '"$CAM_COAP_HELPER" &>> "$COAP_BUILD_LOG"'; then
+                echo -e "${CYAN}CoAP build log:${RESET} ${GREEN}$coap_build_log${RESET}"
+            else
+                echo -e "${RED}Failed to build coap-client; see ${coap_build_log}.${RESET}"
+                exit 1
+            fi
+        fi
+
+        # IVRE integration check is handled earlier during setup
+        if [[ $EXTRA_IVRE_ENABLED == true ]]; then
+            echo -e "${GREEN}IVRE integration enabled. Results will sync to IVRE after discovery.${RESET}"
         fi
         
         current_ip=$(ip route get 1 | awk '{print $7;exit}')
@@ -912,69 +1135,18 @@ case ${answer:0:1} in
         
     if command -v coap-client &> /dev/null; then
         echo ""
-        echo -e "${BLUE}Probing for CoAP devices...${RESET}"
-        rm -f "$COAP_OUTPUT_FILE"
-        : > "$COAP_LOG_FILE"
-        coap_output_tmp=$(mktemp /tmp/camsniff-coap.XXXXXX)
-
-        declare -a coap_targets=()
-        declare -A coap_seen_targets=()
-
-        for ip in "${!all_ips[@]}"; do
-            [[ -z $ip ]] && continue
-            coap_targets+=("$ip")
-            coap_seen_targets["$ip"]=1
-        done
-
-        if [[ -s $tshark_output ]]; then
-            while IFS=',' read -r _time_rel src dst _rest; do
-                for candidate in "$src" "$dst"; do
-                    candidate=${candidate//\"/}
-                    if [[ $candidate =~ ^[0-9]+(\.[0-9]+){3}$ ]] && [[ -z ${coap_seen_targets[$candidate]+set} ]]; then
-                        coap_targets+=("$candidate")
-                        coap_seen_targets["$candidate"]=1
-                    fi
-                done
-            done < "$tshark_output"
-        fi
-
-        coap_hits=0
-        {
-            printf '# CoAP probe log generated %s\n' "$(date -u +%FT%TZ)"
-        } >> "$COAP_LOG_FILE"
-
-        for ip in "${coap_targets[@]}"; do
-            [[ -z $ip ]] && continue
-            printf '%s probing coap://%s/.well-known/core\n' "$(date -u +%FT%TZ)" "$ip" >> "$COAP_LOG_FILE"
-            if coap-client -m get -B "$COAP_PROBE_TIMEOUT" "coap://$ip/.well-known/core" > "$coap_output_tmp" 2>> "$COAP_LOG_FILE"; then
-                if grep -q '<' "$coap_output_tmp"; then
-                    echo "$ip" >> "$COAP_OUTPUT_FILE"
-                    {
-                        printf '%s success\n' "$(date -u +%FT%TZ)"
-                        cat "$coap_output_tmp"
-                    } >> "$COAP_LOG_FILE"
-                    record_protocol_hit "$ip" "CoAP" '/.well-known/core responded'
-                else
-                    printf '%s responded without resource directory\n' "$(date -u +%FT%TZ)" >> "$COAP_LOG_FILE"
-                fi
+        if cam_run_with_spinner "Probing for CoAP devices" do_coap_probe "$tshark_output"; then
+            if [[ -s $COAP_OUTPUT_FILE ]]; then
+                coap_hits=$(wc -l < "$COAP_OUTPUT_FILE" | tr -d ' ')
+                echo -e "${GREEN}CoAP devices found: $coap_hits${RESET}"
+                while IFS= read -r coap_ip; do
+                    append_source "$coap_ip" "CoAP"
+                done < "$COAP_OUTPUT_FILE"
             else
-                printf '%s probe failed\n' "$(date -u +%FT%TZ)" >> "$COAP_LOG_FILE"
+                echo -e "${YELLOW}No CoAP devices found.${RESET}"
+                rm -f "$COAP_OUTPUT_FILE"
             fi
-            : > "$coap_output_tmp"
-        done
-
-        if [[ -s $COAP_OUTPUT_FILE ]]; then
-            coap_hits=$(wc -l < "$COAP_OUTPUT_FILE" | tr -d ' ')
-            echo -e "${GREEN}CoAP devices found: $coap_hits${RESET}"
-            while IFS= read -r coap_ip; do
-                append_source "$coap_ip" "CoAP"
-            done < "$COAP_OUTPUT_FILE"
-        else
-            echo -e "${YELLOW}No CoAP devices found.${RESET}"
-            rm -f "$COAP_OUTPUT_FILE"
         fi
-    rm -f "$coap_output_tmp"
-    coap_output_tmp=""
     else
         echo -e "${YELLOW}CoAP client (coap-client) not found; skipping CoAP discovery.${RESET}"
     fi  
@@ -1148,7 +1320,7 @@ case ${answer:0:1} in
 
         if [[ -f "$PATHS_FILE" && -s "$DISCOVERY_JSON" ]]; then
             discovery_enriched_tmp=$(mktemp)
-            if ! python3 - "$PATHS_FILE" "$DISCOVERY_JSON" "$discovery_enriched_tmp" <<'PY'
+            if ! "$PYTHON_BIN" - "$PATHS_FILE" "$DISCOVERY_JSON" "$discovery_enriched_tmp" <<'PY'
 import csv
 import json
 import re
@@ -1288,6 +1460,17 @@ PY
             echo -e "${CYAN}Discovery dataset saved to:${RESET} ${GREEN}$DISCOVERY_JSON${RESET}"
         fi
 
+        if [[ $EXTRA_IVRE_ENABLED == true && -f "$DISCOVERY_JSON" ]]; then
+            echo ""
+            echo -e "${BLUE}Syncing discovery dataset with IVRE...${RESET}"
+            
+            if "$SCRIPT_DIR/ivre-manager.sh" ingest "$DISCOVERY_JSON" --quiet; then
+                echo -e "${GREEN}IVRE sync complete.${RESET}"
+            else
+                echo -e "${YELLOW}IVRE sync encountered issues. Review ${IVRE_LOG_FILE} for details.${RESET}"
+            fi
+        fi
+
         if [[ -f "$CREDENTIAL_PROBE" && -f "$DISCOVERY_JSON" ]]; then
             echo ""
             echo -e "${BLUE}Launching automated credential probe...${RESET}"
@@ -1318,6 +1501,9 @@ PY
         fi
         if [[ -f "$COAP_OUTPUT_FILE" ]]; then
             echo -e "${CYAN}CoAP discovery list:${RESET} ${GREEN}$COAP_OUTPUT_FILE${RESET}"
+        fi
+        if [[ $EXTRA_IVRE_ENABLED == true && -s "$IVRE_LOG_FILE" ]]; then
+            echo -e "${CYAN}IVRE sync log:${RESET} ${GREEN}$IVRE_LOG_FILE${RESET}"
         fi
 
         [[ -n ${nmap_output:-} ]] && rm -f "$nmap_output"
