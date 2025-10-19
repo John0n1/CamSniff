@@ -92,6 +92,7 @@ Options:
   -h, --help             Display this help message and exit
   -t, --targets <file>   Load target IP addresses/ranges from file (JSON or text format)
                          JSON format: {"targets": ["192.168.1.0/24", "10.0.0.1"]}
+                         (Requires 'jq' for JSON parsing; if jq is missing, file is treated as plain text)
                          Text format: one IP address or CIDR range per line
 
 Optional integrations:
