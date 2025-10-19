@@ -69,6 +69,7 @@ Key design points:
 | Area                | Highlights                                                                 |
 | ------------------- | -------------------------------------------------------------------------- |
 | Discovery           | Nmap TCP/UDP scan, NSE RTSP brute, optional Masscan for wide sweeps        |
+| Target specification| Auto-detect local network or load from JSON/text files with `--targets`    |
 | Passive             | Avahi/mDNS & DNS-SD filtering for camera/service keywords                  |
 | Traffic sampling    | Targeted TShark captures to extract observed URIs                          |
 | Protocols           | ONVIF, RTSP, HLS, WebRTC/STUN, RTMP, SRT, CoAP `/.well-known/core`         |
@@ -150,6 +151,12 @@ sudo camsniff --mode aggressive --extra ivre
 # skip confirmation (non-interactive)
 sudo camsniff --yes
 
+# scan specific IP ranges from a JSON file
+sudo camsniff --mode medium --targets /path/to/targets.json
+
+# scan specific IP ranges from a text file
+sudo camsniff --mode war --targets /path/to/targets.txt
+
 # show help / version
 sudo camsniff --help
 sudo camsniff --version
@@ -208,6 +215,58 @@ All run outputs live in `dev/results/<UTC_TIMESTAMP>/`:
 4. HTTP snapshot templated endpoints (`data/http-paths.txt`).
 
 Successful attempts record: credential pair, endpoint used, thumbnail path, timestamp. **Credentials are stored in plain JSON** — treat them as sensitive material and secure results directories accordingly.
+
+---
+
+# Target file formats
+
+CamSniff can ingest IP addresses and CIDR ranges from external files using the `--targets` flag. This allows for pre-defined target lists and integration with other reconnaissance tools.
+
+## JSON format
+
+```json
+{
+  "targets": [
+    "192.168.1.0/24",
+    "10.0.0.1",
+    "172.16.0.0/28"
+  ]
+}
+```
+
+The JSON file must contain a `targets` array with IP addresses and/or CIDR ranges as strings.
+
+## Text format
+
+```
+# Comment lines starting with # are ignored
+192.168.1.0/24
+10.0.0.1
+
+# Another network
+172.16.0.0/28
+```
+
+Text files support one IP address or CIDR range per line. Empty lines and lines starting with `#` are ignored. Whitespace is automatically trimmed.
+
+## Usage examples
+
+```bash
+# Scan targets from JSON file
+sudo camsniff --mode medium --targets /path/to/targets.json
+
+# Scan targets from text file
+sudo camsniff --mode war --targets /path/to/targets.txt
+
+# Use the included example files
+sudo camsniff --mode medium --targets data/example-targets.json
+```
+
+Example target files are provided in the `data/` directory:
+- `data/example-targets.json` — JSON format example
+- `data/example-targets.txt` — Text format example
+
+When using `--targets`, the script bypasses automatic network detection and scans only the specified targets.
 
 ---
 

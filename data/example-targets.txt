@@ -1,0 +1,12 @@
+# Example target file for CamSniff
+# One IP address or CIDR range per line
+# Lines starting with # are comments
+
+# Local network scan
+192.168.1.0/24
+
+# Specific IP address
+10.0.0.1
+
+# Another subnet
+172.16.0.0/28
