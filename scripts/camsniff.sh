@@ -114,17 +114,27 @@ parse_target_file() {
     if command -v jq >/dev/null 2>&1; then
         if jq empty "$file" 2>/dev/null; then
             # Valid JSON - extract targets array
-            local targets_json
-            targets_json=$(jq -r '.targets[]?' "$file" 2>/dev/null)
-            if [[ -n $targets_json ]]; then
-                while IFS= read -r target; do
-                    [[ -z $target ]] && continue
-                    parsed_targets+=("$target")
-                done <<< "$targets_json"
-            else
-                echo "Error: JSON file missing 'targets' array" >&2
+            # Check if .targets key exists
+            if ! jq -e 'has("targets")' "$file" >/dev/null 2>&1; then
+                echo "Error: JSON file missing 'targets' key" >&2
                 return 1
             fi
+            # Check if .targets is an array
+            if ! jq -e '.targets | type == "array"' "$file" >/dev/null 2>&1; then
+                echo "Error: JSON file 'targets' key is not an array" >&2
+                return 1
+            fi
+            # Check if .targets array is empty
+            if [[ $(jq '.targets | length' "$file") -eq 0 ]]; then
+                echo "Error: JSON file 'targets' array is empty" >&2
+                return 1
+            fi
+            local targets_json
+            targets_json=$(jq -r '.targets[]' "$file" 2>/dev/null)
+            while IFS= read -r target; do
+                [[ -z $target ]] && continue
+                parsed_targets+=("$target")
+            done <<< "$targets_json"
         else
             # Not valid JSON, treat as text file
             while IFS= read -r line || [[ -n $line ]]; do
