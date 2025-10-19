@@ -69,6 +69,7 @@ Key design points:
 | Area                | Highlights                                                                 |
 | ------------------- | -------------------------------------------------------------------------- |
 | Discovery           | Nmap TCP/UDP scan, NSE RTSP brute, optional Masscan for wide sweeps        |
+| Target specification| Auto-detect local network or load from JSON/text files with `--targets`    |
 | Passive             | Avahi/mDNS & DNS-SD filtering for camera/service keywords                  |
 | Traffic sampling    | Targeted TShark captures to extract observed URIs                          |
 | Protocols           | ONVIF, RTSP, HLS, WebRTC/STUN, RTMP, SRT, CoAP `/.well-known/core`         |
@@ -256,7 +257,14 @@ sudo camsniff --mode medium --targets /path/to/targets.json
 
 # Scan targets from text file
 sudo camsniff --mode war --targets /path/to/targets.txt
+
+# Use the included example files
+sudo camsniff --mode medium --targets data/example-targets.json
 ```
+
+Example target files are provided in the `data/` directory:
+- `data/example-targets.json` — JSON format example
+- `data/example-targets.txt` — Text format example
 
 When using `--targets`, the script bypasses automatic network detection and scans only the specified targets.
 
