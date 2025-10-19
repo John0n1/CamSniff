@@ -131,9 +131,15 @@ parse_target_file() {
             fi
             local targets_json
             targets_json=$(jq -r '.targets[]' "$file" 2>/dev/null)
+            # Regex for IPv4 address with optional CIDR (e.g., 192.168.1.1 or 10.0.0.0/24)
+            local ipv4_cidr_regex='^([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]|[12][0-9]|3[0-2]))?$'
             while IFS= read -r target; do
                 [[ -z $target ]] && continue
-                parsed_targets+=("$target")
+                if [[ $target =~ $ipv4_cidr_regex ]]; then
+                    parsed_targets+=("$target")
+                else
+                    echo "Warning: Skipping malformed target '$target'" >&2
+                fi
             done <<< "$targets_json"
         else
             # Not valid JSON, treat as text file
