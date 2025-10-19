@@ -24,6 +24,8 @@ MODE_REQUESTED=""
 AUTO_CONFIRM=false
 declare -a EXTRA_OPTIONS=()
 EXTRA_IVRE_ENABLED=false
+TARGET_FILE=""
+declare -a TARGET_IPS=()
 
 RESULTS_ROOT="$ROOT_DIR/dev/results"
 RUN_STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
@@ -81,19 +83,79 @@ coap_output_tmp=""
 
 print_usage() {
     cat <<'EOF'
-Usage: camsniff.sh [--mode <name>] [--yes] [--version] [--help] [--extra <name>]
+Usage: camsniff.sh [--mode <name>] [--yes] [--version] [--help] [--extra <name>] [--targets <file>]
 
 Options:
   -m, --mode <name>      Specify scanning mode (stealth, stealth+, medium, aggressive, war, nuke)
   -y, --yes              Auto-confirm interactive prompts
   -v, --version          Show version information and exit
   -h, --help             Display this help message and exit
+  -t, --targets <file>   Load target IP addresses/ranges from file (JSON or text format)
+                         JSON format: {"targets": ["192.168.1.0/24", "10.0.0.1"]}
+                         Text format: one IP address or CIDR range per line
 
 Optional integrations:
     --extra <name>         Enable additional integrations (currently supported: ivre)
 
 If no mode is provided, the maximum profile (nuke) is used.
 EOF
+}
+
+parse_target_file() {
+    local file="$1"
+    local -a parsed_targets=()
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: Target file not found: $file" >&2
+        return 1
+    fi
+    
+    # Try to parse as JSON first
+    if command -v jq >/dev/null 2>&1; then
+        if jq empty "$file" 2>/dev/null; then
+            # Valid JSON - extract targets array
+            local targets_json
+            targets_json=$(jq -r '.targets[]?' "$file" 2>/dev/null)
+            if [[ -n $targets_json ]]; then
+                while IFS= read -r target; do
+                    [[ -z $target ]] && continue
+                    parsed_targets+=("$target")
+                done <<< "$targets_json"
+            else
+                echo "Error: JSON file missing 'targets' array" >&2
+                return 1
+            fi
+        else
+            # Not valid JSON, treat as text file
+            while IFS= read -r line || [[ -n $line ]]; do
+                # Skip empty lines and comments
+                [[ -z $line || $line =~ ^[[:space:]]*# ]] && continue
+                # Trim whitespace
+                line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                [[ -z $line ]] && continue
+                parsed_targets+=("$line")
+            done < "$file"
+        fi
+    else
+        # No jq available, treat as text file
+        while IFS= read -r line || [[ -n $line ]]; do
+            # Skip empty lines and comments
+            [[ -z $line || $line =~ ^[[:space:]]*# ]] && continue
+            # Trim whitespace
+            line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [[ -z $line ]] && continue
+            parsed_targets+=("$line")
+        done < "$file"
+    fi
+    
+    if (( ${#parsed_targets[@]} == 0 )); then
+        echo "Error: No valid targets found in file: $file" >&2
+        return 1
+    fi
+    
+    # Return targets as newline-separated list
+    printf '%s\n' "${parsed_targets[@]}"
+    return 0
 }
 
 record_protocol_hit() {
@@ -357,6 +419,14 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             print_usage
             exit 0
+            ;;
+        -t|--targets|--target-file)
+            TARGET_FILE="${2:-}"
+            if [[ -z $TARGET_FILE ]]; then
+                echo "--targets requires a file path" >&2
+                exit 1
+            fi
+            shift 2
             ;;
         --extra)
             extra_value="${2:-}"
@@ -842,13 +912,37 @@ case ${answer:0:1} in
             echo -e "${GREEN}IVRE integration enabled. Results will sync to IVRE after discovery.${RESET}"
         fi
         
-        current_ip=$(ip route get 1 | awk '{print $7;exit}')
-        network=$(ip route | grep -m1 ^default | awk '{print $3}' | sed 's/\.[0-9]*$/.0\/24/')
-        
-        echo ""
-        echo -e "${CYAN}Your IP address: ${GREEN}$current_ip${RESET}"
-        echo -e "${CYAN}Scanning network: ${GREEN}$network${RESET}"
-        echo ""
+        # Load targets from file if provided
+        if [[ -n $TARGET_FILE ]]; then
+            echo -e "${CYAN}Loading targets from file: ${GREEN}$TARGET_FILE${RESET}"
+            if ! target_list=$(parse_target_file "$TARGET_FILE"); then
+                echo -e "${RED}Failed to parse target file${RESET}"
+                exit 1
+            fi
+            while IFS= read -r target; do
+                [[ -z $target ]] && continue
+                TARGET_IPS+=("$target")
+            done <<< "$target_list"
+            
+            if (( ${#TARGET_IPS[@]} == 0 )); then
+                echo -e "${RED}No valid targets loaded from file${RESET}"
+                exit 1
+            fi
+            
+            echo ""
+            echo -e "${CYAN}Loaded ${GREEN}${#TARGET_IPS[@]}${CYAN} target(s) from file${RESET}"
+            echo -e "${CYAN}Scanning targets: ${GREEN}${TARGET_IPS[*]}${RESET}"
+            echo ""
+            network="${TARGET_IPS[*]}"
+        else
+            current_ip=$(ip route get 1 | awk '{print $7;exit}')
+            network=$(ip route | grep -m1 ^default | awk '{print $3}' | sed 's/\.[0-9]*$/.0\/24/')
+            
+            echo ""
+            echo -e "${CYAN}Your IP address: ${GREEN}$current_ip${RESET}"
+            echo -e "${CYAN}Scanning network: ${GREEN}$network${RESET}"
+            echo ""
+        fi
         
         echo -e "${BLUE}Network scanning in progress...${RESET}"
 
