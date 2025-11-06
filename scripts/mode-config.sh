@@ -61,8 +61,8 @@ case "$norm_mode" in
         TSHARK_DURATION=20
         CURL_TIMEOUT=5
         FFMPEG_TIMEOUT=6
-        MAX_CREDENTIALS=12
-        HTTP_RETRIES=1
+        MAX_CREDENTIALS=128
+        HTTP_RETRIES=2
         BRUTE_WINDOW=60
         ;;
     stealth+|stealth-plus)
@@ -74,8 +74,8 @@ case "$norm_mode" in
         TSHARK_DURATION=15
         CURL_TIMEOUT=6
         FFMPEG_TIMEOUT=8
-        MAX_CREDENTIALS=8
-        HTTP_RETRIES=1
+        MAX_CREDENTIALS=128
+        HTTP_RETRIES=4
         BRUTE_WINDOW=90
         norm_mode="stealth+"
         ;;
@@ -88,22 +88,22 @@ case "$norm_mode" in
         TSHARK_DURATION=35
         CURL_TIMEOUT=8
         FFMPEG_TIMEOUT=10
-        MAX_CREDENTIALS=32
-        HTTP_RETRIES=2
+        MAX_CREDENTIALS=128
+        HTTP_RETRIES=6
         BRUTE_WINDOW=120
         norm_mode="medium"
         ;;
     aggressive)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=5000
-        NMAP_SPEED="-T4"
+        NMAP_SPEED="-T5"
         NMAP_EXTRA="-A"
         PORT_PROFILE="extended"
         TSHARK_DURATION=45
         CURL_TIMEOUT=10
         FFMPEG_TIMEOUT=12
-        MAX_CREDENTIALS=64
-        HTTP_RETRIES=2
+        MAX_CREDENTIALS=128
+        HTTP_RETRIES=8
         BRUTE_WINDOW=150
         ;;
     war|aggressive+)
@@ -115,8 +115,8 @@ case "$norm_mode" in
         TSHARK_DURATION=55
         CURL_TIMEOUT=12
         FFMPEG_TIMEOUT=15
-        MAX_CREDENTIALS=96
-        HTTP_RETRIES=3
+        MAX_CREDENTIALS=128
+        HTTP_RETRIES=12
         BRUTE_WINDOW=180
         ;;
     nuke|full|total)
@@ -129,7 +129,7 @@ case "$norm_mode" in
         CURL_TIMEOUT=15
         FFMPEG_TIMEOUT=20
         MAX_CREDENTIALS=128
-        HTTP_RETRIES=4
+        HTTP_RETRIES=16
         BRUTE_WINDOW=240
         norm_mode="nuke"
         ;;
