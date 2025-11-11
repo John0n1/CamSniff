@@ -10,7 +10,7 @@
 [![Python](https://img.shields.io/badge/language-python-black?logo=python\&style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-**Current version:** `2.2.0` · 
+**Current version:** `2.2.1` · 
 
 <img src="docs/camsniff.png" alt="CamSniff logo" width="320" />
 
