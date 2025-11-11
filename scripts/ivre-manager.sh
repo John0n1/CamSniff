@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 #
-# IVRE Manager - Unified IVRE Integration for CamSniff
-# Handles setup, ingestion, and querying in one script
-#
 # Copyright 2025 John Hauger Mitander
 # Licensed under the MIT License
+#
 
 set -euo pipefail
 
@@ -137,7 +135,6 @@ EOREPO
         return 1
     fi
     
-    MONGODB_INSTALLED=true
     log_success "✓ MongoDB installed"
     return 0
 }

@@ -1,3 +1,14 @@
+camsniff (2.2.1) unstable; urgency=medium
+  * Move PORT_PROFILE_DATA and UI_HELPER to scripts/ for proper shellcheck sourcing.
+  * implemented new scanning features and bug fixes.
+  * Refactor script paths in analyze.sh and camsniff.sh for consistency
+  * Moved Python scripts that resided in camsniff.sh to scripts/ for better organization.
+  * 
+  * Add missing shellcheck disable directives to sourced UI scripts.
+  * Fix UI banner
+
+ -- John Hauger Mitander <john@on1.no>  Sat, 11 Oct 2025 01:00:00 +0000
+
 camsniff (2.2.0) unstable; urgency=medium
 
   * Overhaul extras UX with animated spinners, clearer banners, and quiet mode.

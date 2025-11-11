@@ -1,6 +1,9 @@
 build.log
+.venv/*
+
 dev/results/*
 !dev/results/.gitkeep
+scripts/venv/*
 scripts/paused.conf
 debian/.debhelper/*
 debian/debhelper-build-stamp

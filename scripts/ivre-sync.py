@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+#
+# Copyright 2025 John Hauger Mitander
+# Licensed under the MIT License
+#
 """CamSniff to IVRE integration bridge."""
 
 from __future__ import annotations
@@ -13,15 +17,43 @@ from typing import Any, Dict, List, Optional, Set
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Sync CamSniff discovery data into IVRE")
-    parser.add_argument("--input", required=True, help="Path to CamSniff discovery.json")
-    parser.add_argument("--mode", required=True, help="CamSniff mode label")
-    parser.add_argument("--network", required=True, help="Network scope string")
-    parser.add_argument("--run-dir", required=True, help="Run directory for this execution")
-    parser.add_argument("--timestamp", required=True, help="UTC timestamp in YYYYMMDDTHHMMSSZ format")
-    parser.add_argument("--log", required=True, help="Log file to append integration status")
-    parser.add_argument("--credentials", help="Path to CamSniff credentials.json (optional)")
-    parser.add_argument("--paths-csv", help="Path to paths.csv for vendor mapping (optional)")
+    parser = argparse.ArgumentParser(
+        description="Sync CamSniff discovery data into IVRE"
+    )
+    parser.add_argument(
+        "--input",
+        required=True,
+        help="Path to CamSniff discovery.json",
+    )
+    parser.add_argument(
+        "--mode", required=True, help="CamSniff mode label"
+    )
+    parser.add_argument(
+        "--network", required=True, help="Network scope string"
+    )
+    parser.add_argument(
+        "--run-dir",
+        required=True,
+        help="Run directory for this execution",
+    )
+    parser.add_argument(
+        "--timestamp",
+        required=True,
+        help="UTC timestamp in YYYYMMDDTHHMMSSZ format",
+    )
+    parser.add_argument(
+        "--log",
+        required=True,
+        help="Log file to append integration status",
+    )
+    parser.add_argument(
+        "--credentials",
+        help="Path to CamSniff credentials.json (optional)",
+    )
+    parser.add_argument(
+        "--paths-csv",
+        help="Path to paths.csv for vendor mapping (optional)",
+    )
     return parser
 
 
@@ -60,12 +92,14 @@ def normalise_port(value: Any) -> int | None:
     return None
 
 
-def load_vendor_database(paths_csv: Optional[Path]) -> Dict[str, Dict[str, str]]:
+def load_vendor_database(
+    paths_csv: Optional[Path],
+) -> Dict[str, Dict[str, str]]:
     vendor_db: Dict[str, Dict[str, str]] = {}
-    
+
     if not paths_csv or not paths_csv.is_file():
         return vendor_db
-    
+
     try:
         with paths_csv.open("r", encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
@@ -73,10 +107,10 @@ def load_vendor_database(paths_csv: Optional[Path]) -> Dict[str, Dict[str, str]]
                 company = row.get("company", "").strip()
                 model = row.get("model", "").strip()
                 oui_regex = row.get("oui_regex", "").strip()
-                
+
                 if not company or not oui_regex:
                     continue
-                
+
                 oui_list = oui_regex.strip("()").split("|")
                 for oui in oui_list:
                     oui_clean = oui.strip().upper()
@@ -88,35 +122,39 @@ def load_vendor_database(paths_csv: Optional[Path]) -> Dict[str, Dict[str, str]]
                         }
     except Exception:
         pass
-    
+
     return vendor_db
 
 
-def match_vendor_by_mac(mac: Optional[str], vendor_db: Dict[str, Dict[str, str]]) -> Optional[Dict[str, str]]:
+def match_vendor_by_mac(
+    mac: Optional[str], vendor_db: Dict[str, Dict[str, str]]
+) -> Optional[Dict[str, str]]:
     if not mac or not vendor_db:
         return None
-    
+
     mac_upper = mac.strip().upper().replace("-", ":")
     oui = ":".join(mac_upper.split(":")[:3])
-    
+
     return vendor_db.get(oui)
 
 
-def load_credentials(credentials_json: Optional[Path]) -> Dict[str, Dict[str, Any]]:
+def load_credentials(
+    credentials_json: Optional[Path],
+) -> Dict[str, Dict[str, Any]]:
     creds_db: Dict[str, Dict[str, Any]] = {}
-    
+
     if not credentials_json or not credentials_json.is_file():
         return creds_db
-    
+
     try:
         with credentials_json.open("r", encoding="utf-8") as handle:
             creds_list = json.load(handle)
-            
+
         for entry in creds_list:
             ip_addr = entry.get("ip")
             if not ip_addr:
                 continue
-            
+
             creds_db[ip_addr] = {
                 "success": entry.get("success", False),
                 "username": entry.get("username", ""),
@@ -131,13 +169,20 @@ def load_credentials(credentials_json: Optional[Path]) -> Dict[str, Dict[str, An
             }
     except Exception:
         pass
-    
+
     return creds_db
 
 
-def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_dir: str,
-                          timestamp: dt.datetime, vendor_db: Dict[str, Dict[str, str]],
-                          creds_db: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+def build_host_documents(
+    data: Dict[str, Any],
+    *,
+    mode: str,
+    network: str,
+    run_dir: str,
+    timestamp: dt.datetime,
+    vendor_db: Dict[str, Dict[str, str]],
+    creds_db: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     from ivre import xmlnmap  # type: ignore
 
     hosts = data.get("hosts", []) or []
@@ -167,7 +212,16 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
                 "state_state": "open",
                 "state_reason": "script",
             }
-            if port_number in {80, 81, 88, 8000, 8001, 8080, 8081, 8443}:
+            if port_number in {
+                80,
+                81,
+                88,
+                8000,
+                8001,
+                8080,
+                8081,
+                8443,
+            }:
                 entry["service_name"] = "http"
             if port_number in {443, 7443, 8443, 9443, 10443}:
                 entry["service_name"] = "http"
@@ -178,12 +232,18 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
 
         rtsp_data = host.get("rtsp_bruteforce", {}) or {}
         observed_paths = host.get("observed_paths", []) or []
-        additional_protocols = host.get("additional_protocols", []) or []
+        additional_protocols = (
+            host.get("additional_protocols", []) or []
+        )
         sources = host.get("sources", []) or []
-        
+
         mac_addr = host.get("mac")
-        vendor_info = match_vendor_by_mac(mac_addr, vendor_db) if mac_addr else None
-        
+        vendor_info = (
+            match_vendor_by_mac(mac_addr, vendor_db)
+            if mac_addr
+            else None
+        )
+
         cred_info = creds_db.get(ip_addr)
 
         summary_lines = [
@@ -191,7 +251,7 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
             f"network={network}",
             f"sources={','.join(sources) if sources else 'n/a'}",
         ]
-        
+
         if vendor_info:
             summary_lines.append(f"vendor={vendor_info['company']}")
             if vendor_info.get("model"):
@@ -199,24 +259,44 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
             if vendor_info.get("cve_ids"):
                 summary_lines.append(f"cves={vendor_info['cve_ids']}")
         elif cred_info:
-            summary_lines.append(f"vendor={cred_info.get('vendor', 'Unknown')}")
-            summary_lines.append(f"model={cred_info.get('model', 'Unknown')}")
-        
+            summary_lines.append(
+                f"vendor={cred_info.get('vendor', 'Unknown')}"
+            )
+            summary_lines.append(
+                f"model={cred_info.get('model', 'Unknown')}"
+            )
+
         if cred_info and cred_info.get("success"):
             summary_lines.append("credentials=FOUND")
-            summary_lines.append(f"  username={cred_info['username']}")
-            summary_lines.append(f"  password={cred_info['password']}")
+            summary_lines.append(
+                f"  username={cred_info['username']}"
+            )
+            summary_lines.append(
+                f"  password={cred_info['password']}"
+            )
             summary_lines.append(f"  method={cred_info['method']}")
             if cred_info.get("rtsp_url"):
-                summary_lines.append(f"  rtsp_url={cred_info['rtsp_url']}")
+                summary_lines.append(
+                    f"  rtsp_url={cred_info['rtsp_url']}"
+                )
             if cred_info.get("http_url"):
-                summary_lines.append(f"  http_url={cred_info['http_url']}")
+                summary_lines.append(
+                    f"  http_url={cred_info['http_url']}"
+                )
             if cred_info.get("thumbnail"):
-                summary_lines.append(f"  thumbnail={cred_info['thumbnail']}")
-        
+                summary_lines.append(
+                    f"  thumbnail={cred_info['thumbnail']}"
+                )
+
         if ports_seen:
             summary_lines.append(
-                "ports=" + ",".join(str(port) for _, port in sorted(ports_seen, key=lambda item: item[1]))
+                "ports="
+                + ",".join(
+                    str(port)
+                    for _, port in sorted(
+                        ports_seen, key=lambda item: item[1]
+                    )
+                )
             )
         if observed_paths:
             summary_lines.append("observed_paths:")
@@ -234,7 +314,7 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
                 summary_lines.append(f"  - {proto_name}: {detail}")
 
         host_scripts: List[Dict[str, Any]] = []
-        
+
         summary_data = {
             "mode": mode,
             "network": network,
@@ -244,12 +324,12 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
             "rtsp": rtsp_data,
             "additional_protocols": additional_protocols,
         }
-        
+
         if vendor_info:
             summary_data["vendor"] = vendor_info["company"]
             summary_data["model"] = vendor_info.get("model", "")
             summary_data["cves"] = vendor_info.get("cve_ids", "")
-        
+
         if cred_info:
             summary_data["credentials"] = {
                 "success": cred_info.get("success", False),
@@ -260,7 +340,7 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
                 "http_url": cred_info.get("http_url", ""),
                 "thumbnail": cred_info.get("thumbnail", ""),
             }
-        
+
         host_scripts.append(
             {
                 "id": "camsniff-summary",
@@ -274,7 +354,7 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
                 {
                     "id": "camsniff-protocols",
                     "output": "\n".join(
-                        f"{entry.get('protocol', 'unknown')}: {entry.get('detail', '')}"
+                        f" {entry.get('detail', '')}"
                         for entry in additional_protocols
                     ),
                     "camsniff-protocols": additional_protocols,
@@ -283,48 +363,80 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
 
         if rtsp_data.get("other_responses"):
             formatted = []
-            for status, urls in sorted(rtsp_data["other_responses"].items()):
+            for status, urls in sorted(
+                rtsp_data["other_responses"].items()
+            ):
                 for url in urls:
                     formatted.append(f"{status}: {url}")
             host_scripts.append(
                 {
                     "id": "camsniff-rtsp-responses",
                     "output": "\n".join(formatted),
-                    "camsniff-rtsp-responses": rtsp_data["other_responses"],
+                    "camsniff-rtsp-responses": rtsp_data[
+                        "other_responses"
+                    ],
                 }
             )
-        
+
         if vendor_info or cred_info:
             vendor_script_output = []
             vendor_script_data = {}
-            
+
             if vendor_info:
-                vendor_script_output.append(f"Company: {vendor_info['company']}")
-                vendor_script_output.append(f"Model: {vendor_info.get('model', 'N/A')}")
+                vendor_script_output.append(
+                    f"Company: {vendor_info['company']}"
+                )
+                vendor_script_output.append(
+                    f"Model: {vendor_info.get('model', 'N/A')}"
+                )
                 if vendor_info.get("cve_ids"):
-                    vendor_script_output.append(f"CVEs: {vendor_info['cve_ids']}")
+                    vendor_script_output.append(
+                        f"CVEs: {vendor_info['cve_ids']}"
+                    )
                 vendor_script_data["company"] = vendor_info["company"]
-                vendor_script_data["model"] = vendor_info.get("model", "")
-                vendor_script_data["cves"] = vendor_info.get("cve_ids", "")
+                vendor_script_data["model"] = vendor_info.get(
+                    "model", ""
+                )
+                vendor_script_data["cves"] = vendor_info.get(
+                    "cve_ids", ""
+                )
             elif cred_info:
-                vendor_script_output.append(f"Company: {cred_info.get('vendor', 'Unknown')}")
-                vendor_script_output.append(f"Model: {cred_info.get('model', 'Unknown')}")
-                vendor_script_data["company"] = cred_info.get("vendor", "Unknown")
-                vendor_script_data["model"] = cred_info.get("model", "Unknown")
-            
+                vendor_script_output.append(
+                    f"Company: {cred_info.get('vendor', 'Unknown')}"
+                )
+                vendor_script_output.append(
+                    f"Model: {cred_info.get('model', 'Unknown')}"
+                )
+                vendor_script_data["company"] = cred_info.get(
+                    "vendor", "Unknown"
+                )
+                vendor_script_data["model"] = cred_info.get(
+                    "model", "Unknown"
+                )
+
             if cred_info and cred_info.get("success"):
                 vendor_script_output.append("Credentials: SUCCESS")
-                vendor_script_output.append(f"  Username: {cred_info['username']}")
-                vendor_script_output.append(f"  Password: {cred_info['password']}")
-                vendor_script_output.append(f"  Method: {cred_info['method']}")
+                vendor_script_output.append(
+                    f"  Username: {cred_info['username']}"
+                )
+                vendor_script_output.append(
+                    f"  Password: {cred_info['password']}"
+                )
+                vendor_script_output.append(
+                    f"  Method: {cred_info['method']}"
+                )
                 vendor_script_data["credentials_found"] = True
                 vendor_script_data["username"] = cred_info["username"]
                 vendor_script_data["password"] = cred_info["password"]
-                
+
                 if cred_info.get("thumbnail"):
-                    vendor_script_output.append(f"  Thumbnail: {cred_info['thumbnail']}")
-                    vendor_script_data["thumbnail"] = cred_info["thumbnail"]
-            
+                    vendor_script_output.append(
+                        f"  Thumbnail: {cred_info['thumbnail']}"
+                    )
+                    vendor_script_data["thumbnail"] = cred_info[
+                        "thumbnail"
+                    ]
+
             host_scripts.append(
                 {
                     "id": "camsniff-vendor",
@@ -351,16 +463,23 @@ def build_host_documents(data: Dict[str, Any], *, mode: str, network: str, run_d
             "starttime": ts_rendered,
             "endtime": ts_rendered,
             "source": "CamSniff",
-            "categories": ["camsniff", f"camsniff-mode:{mode.lower()}"],
+            "categories": [
+                "camsniff",
+                f"camsniff-mode:{mode.lower()}",
+            ],
             "ports": port_documents,
         }
-        
+
         if vendor_info:
-            document["categories"].append(f"vendor:{vendor_info['company'].lower().replace(' ', '-')}")
+            document["categories"].append(
+                f"vendor:{vendor_info['company'].lower().replace(' ', '-')}"
+            )
         elif cred_info:
             vendor_name = cred_info.get("vendor", "unknown")
-            document["categories"].append(f"vendor:{vendor_name.lower().replace(' ', '-')}")
-        
+            document["categories"].append(
+                f"vendor:{vendor_name.lower().replace(' ', '-')}"
+            )
+
         if cred_info and cred_info.get("success"):
             document["categories"].append("credentials-found")
 
@@ -387,9 +506,13 @@ def main() -> int:
         return 1
 
     try:
-        run_timestamp = dt.datetime.strptime(args.timestamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.UTC)
+        run_timestamp = dt.datetime.strptime(
+            args.timestamp, "%Y%m%dT%H%M%SZ"
+        ).replace(tzinfo=dt.UTC)
     except ValueError as exc:
-        log_line(log_path, f"invalid timestamp '{args.timestamp}': {exc}")
+        log_line(
+            log_path, f"invalid timestamp '{args.timestamp}': {exc}"
+        )
         return 1
 
     try:
@@ -398,12 +521,17 @@ def main() -> int:
     except (OSError, json.JSONDecodeError) as exc:
         log_line(log_path, f"failed to read discovery payload: {exc}")
         return 1
-    
+
     paths_csv_path = Path(args.paths_csv) if args.paths_csv else None
     vendor_db = load_vendor_database(paths_csv_path)
-    log_line(log_path, f"loaded {len(vendor_db)} vendor entries from paths.csv")
-    
-    credentials_path = Path(args.credentials) if args.credentials else None
+    log_line(
+        log_path,
+        f"loaded {len(vendor_db)} vendor entries from paths.csv",
+    )
+
+    credentials_path = (
+        Path(args.credentials) if args.credentials else None
+    )
     creds_db = load_credentials(credentials_path)
     log_line(log_path, f"loaded {len(creds_db)} credential entries")
 
@@ -431,26 +559,35 @@ def main() -> int:
     if not documents:
         log_line(log_path, "no hosts to sync – skipping IVRE import")
         return 0
-    
+
     try:
-        ips_to_update = [doc["addr"] for doc in documents if doc.get("addr")]
+        ips_to_update = [
+            doc["addr"] for doc in documents if doc.get("addr")
+        ]
         if ips_to_update:
             removed_count = 0
             for ip_addr in ips_to_update:
                 host_filter = dbase.searchhost(ip_addr)
                 source_filter = dbase.searchsource("CamSniff")
-                combined_filter = dbase.flt_and(host_filter, source_filter)
-                
+                combined_filter = dbase.flt_and(
+                    host_filter, source_filter
+                )
+
                 existing_scans = list(dbase.get(combined_filter))
-                
+
                 for scan in existing_scans:
                     dbase.remove(scan)
                     removed_count += 1
-            
+
             if removed_count > 0:
-                log_line(log_path, f"removed {removed_count} existing CamSniff scan(s) before re-ingestion")
+                log_line(
+                    log_path,
+                    f"removed {removed_count} hosts before re-ingestion",
+                )
     except Exception as exc:
-        log_line(log_path, f"warning: failed to remove old scans: {exc}")
+        log_line(
+            log_path, f"warning: failed to remove old scans: {exc}"
+        )
 
     try:
         stored_count = 0
@@ -461,12 +598,20 @@ def main() -> int:
     except Exception as exc:
         log_line(log_path, f"IVRE ingestion failed: {exc}")
         return 1
-    
-    vendor_count = sum(1 for doc in documents if any("vendor:" in cat for cat in doc.get("categories", [])))
-    creds_count = sum(1 for doc in documents if "credentials-found" in doc.get("categories", []))
+
+    vendor_count = sum(
+        1
+        for doc in documents
+        if any("vendor:" in cat for cat in doc.get("categories", []))
+    )
+    creds_count = sum(
+        1
+        for doc in documents
+        if "credentials-found" in doc.get("categories", [])
+    )
     log_line(log_path, f"  - {vendor_count} hosts with vendor info")
     log_line(log_path, f"  - {creds_count} hosts with credentials")
-    
+
     return 0
 
 

@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 #
-# CamSniff- Automated IP camera reconnaissance toolkit
-# By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
+# Licensed under the MIT License
 #
-# CamSniff is Licensed under the MIT License.
-# mode-config.sh
 
 set -euo pipefail
 
@@ -64,6 +61,10 @@ case "$norm_mode" in
         MAX_CREDENTIALS=128
         HTTP_RETRIES=2
         BRUTE_WINDOW=60
+        ONVIF_PROBE_ENABLE=false
+        SSDP_ENABLE=false
+        HTTP_METADATA_ENABLE=false
+        FOLLOWUP_SERVICE_SCAN_ENABLE=false
         ;;
     stealth+|stealth-plus)
         MASSCAN_ENABLE=false
@@ -78,6 +79,10 @@ case "$norm_mode" in
         HTTP_RETRIES=4
         BRUTE_WINDOW=90
         norm_mode="stealth+"
+        ONVIF_PROBE_ENABLE=false
+        SSDP_ENABLE=false
+        HTTP_METADATA_ENABLE=false
+        FOLLOWUP_SERVICE_SCAN_ENABLE=false
         ;;
     medium|default)
         MASSCAN_ENABLE=true
@@ -92,6 +97,10 @@ case "$norm_mode" in
         HTTP_RETRIES=6
         BRUTE_WINDOW=120
         norm_mode="medium"
+        ONVIF_PROBE_ENABLE=true
+        SSDP_ENABLE=true
+        HTTP_METADATA_ENABLE=true
+        FOLLOWUP_SERVICE_SCAN_ENABLE=true
         ;;
     aggressive)
         MASSCAN_ENABLE=true
@@ -105,6 +114,10 @@ case "$norm_mode" in
         MAX_CREDENTIALS=128
         HTTP_RETRIES=8
         BRUTE_WINDOW=150
+        ONVIF_PROBE_ENABLE=true
+        SSDP_ENABLE=true
+        HTTP_METADATA_ENABLE=true
+        FOLLOWUP_SERVICE_SCAN_ENABLE=true
         ;;
     war|aggressive+)
         MASSCAN_ENABLE=true
@@ -118,6 +131,10 @@ case "$norm_mode" in
         MAX_CREDENTIALS=128
         HTTP_RETRIES=12
         BRUTE_WINDOW=180
+        ONVIF_PROBE_ENABLE=true
+        SSDP_ENABLE=true
+        HTTP_METADATA_ENABLE=true
+        FOLLOWUP_SERVICE_SCAN_ENABLE=true
         ;;
     nuke|full|total)
         MASSCAN_ENABLE=true
@@ -132,6 +149,10 @@ case "$norm_mode" in
         HTTP_RETRIES=16
         BRUTE_WINDOW=240
         norm_mode="nuke"
+        ONVIF_PROBE_ENABLE=true
+        SSDP_ENABLE=true
+        HTTP_METADATA_ENABLE=true
+        FOLLOWUP_SERVICE_SCAN_ENABLE=true
         ;;
     *)
         echo "Unknown mode: $MODE" >&2
@@ -155,6 +176,10 @@ case "$FORMAT" in
         CAM_MODE_MAX_CREDENTIALS="$MAX_CREDENTIALS"
         CAM_MODE_HTTP_RETRIES="$HTTP_RETRIES"
         CAM_MODE_BRUTE_WINDOW="$BRUTE_WINDOW"
+        CAM_MODE_ONVIF_PROBE_ENABLE="$ONVIF_PROBE_ENABLE"
+        CAM_MODE_SSDP_ENABLE="$SSDP_ENABLE"
+        CAM_MODE_HTTP_METADATA_ENABLE="$HTTP_METADATA_ENABLE"
+        CAM_MODE_FOLLOWUP_SERVICE_SCAN_ENABLE="$FOLLOWUP_SERVICE_SCAN_ENABLE"
 
         export \
             CAM_MODE_RAW \
@@ -169,7 +194,11 @@ case "$FORMAT" in
             CAM_MODE_FFMPEG_TIMEOUT \
             CAM_MODE_MAX_CREDENTIALS \
             CAM_MODE_HTTP_RETRIES \
-            CAM_MODE_BRUTE_WINDOW
+            CAM_MODE_BRUTE_WINDOW \
+            CAM_MODE_ONVIF_PROBE_ENABLE \
+            CAM_MODE_SSDP_ENABLE \
+            CAM_MODE_HTTP_METADATA_ENABLE \
+            CAM_MODE_FOLLOWUP_SERVICE_SCAN_ENABLE
 
         if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             cat <<EOF
@@ -186,6 +215,10 @@ export CAM_MODE_FFMPEG_TIMEOUT="$CAM_MODE_FFMPEG_TIMEOUT"
 export CAM_MODE_MAX_CREDENTIALS="$CAM_MODE_MAX_CREDENTIALS"
 export CAM_MODE_HTTP_RETRIES="$CAM_MODE_HTTP_RETRIES"
 export CAM_MODE_BRUTE_WINDOW="$CAM_MODE_BRUTE_WINDOW"
+export CAM_MODE_ONVIF_PROBE_ENABLE="$CAM_MODE_ONVIF_PROBE_ENABLE"
+export CAM_MODE_SSDP_ENABLE="$CAM_MODE_SSDP_ENABLE"
+export CAM_MODE_HTTP_METADATA_ENABLE="$CAM_MODE_HTTP_METADATA_ENABLE"
+export CAM_MODE_FOLLOWUP_SERVICE_SCAN_ENABLE="$CAM_MODE_FOLLOWUP_SERVICE_SCAN_ENABLE"
 EOF
         fi
         ;;
@@ -204,6 +237,10 @@ EOF
             --argjson max_credentials "$MAX_CREDENTIALS" \
             --argjson http_retries "$HTTP_RETRIES" \
             --argjson brute_window "$BRUTE_WINDOW" \
+            --arg onvif_enable "$ONVIF_PROBE_ENABLE" \
+            --arg ssdp_enable "$SSDP_ENABLE" \
+            --arg http_meta_enable "$HTTP_METADATA_ENABLE" \
+            --arg followup_enable "$FOLLOWUP_SERVICE_SCAN_ENABLE" \
             ' {
                 mode: $raw,
                 normalized: $normalized,
@@ -217,7 +254,11 @@ EOF
                 ffmpeg_timeout: $ffmpeg_timeout,
                 max_credentials: $max_credentials,
                 http_retries: $http_retries,
-                brute_window: $brute_window
+                brute_window: $brute_window,
+                onvif_probe_enable: ($onvif_enable == "true"),
+                ssdp_enable: ($ssdp_enable == "true"),
+                http_metadata_enable: ($http_meta_enable == "true"),
+                followup_service_scan_enable: ($followup_enable == "true")
             }'
         ;;
     *)

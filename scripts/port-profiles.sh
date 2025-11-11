@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-# CamSniff- Automated IP camera reconnaissance toolkit
-# By John Hauger Mitander <john@on1.no>
-# Copyright 2025 John Hauger Mitander
-#
-# CamSniff is Licensed under the MIT License.
-# port-profiles.sh
-
 # shellcheck disable=SC2034
-
+#
+# Copyright 2025 John Hauger Mitander
+# Licensed under the MIT License
+#
 
 declare -A CAM_PORT_PROFILES_NMAP=(
   [minimal]="80,554"

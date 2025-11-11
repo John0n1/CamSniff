@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# CamSniff dependency installer
-# Installs system packages, configures the Python virtual environment, and builds helper binaries.
-
+#
+# Copyright 2025 John Hauger Mitander
+# Licensed under the MIT License
+#
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

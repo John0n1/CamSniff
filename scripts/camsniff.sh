@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 #
-# CamSniff- Automated IP camera reconnaissance toolkit
-# By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
+# Licensed under the MIT License
 #
-# CamSniff is Licensed under the MIT License.
-# camsniff.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -16,8 +13,8 @@ CREDENTIAL_PROBE="$SCRIPT_DIR/credential-probe.sh"
 NMAP_RTSP_SCRIPT="$ROOT_DIR/data/rtsp-url-brute.nse"
 NMAP_RTSP_THREADS=10
 RTSP_URL_DICT="$ROOT_DIR/data/rtsp-urls.txt"
-PORT_PROFILE_DATA="$ROOT_DIR/data/port-profiles.sh"
-UI_HELPER="$ROOT_DIR/data/ui-banner.sh"
+PORT_PROFILE_DATA="$SCRIPT_DIR/port-profiles.sh"
+UI_HELPER="$SCRIPT_DIR/ui-banner.sh"
 
 MODE_DEFAULT="medium"
 MODE_REQUESTED=""
@@ -46,6 +43,7 @@ COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
 COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
 COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}"
 IVRE_LOG_FILE="$LOG_DIR/ivre-sync.log"
+CATALOG_JSON="$RUN_DIR/paths.json"
 GEOIP_DIR="$ROOT_DIR/share/geoip"
 GEOIP_CITY_DB="$GEOIP_DIR/dbip-city-lite.mmdb"
 GEOIP_ASN_DB="$GEOIP_DIR/dbip-asn-lite.mmdb"
@@ -80,6 +78,7 @@ tshark_output=""
 hosts_json_tmp=""
 discovery_enriched_tmp=""
 coap_output_tmp=""
+coap_build_log=""
 
 print_usage() {
     cat <<'EOF'
@@ -173,6 +172,17 @@ parse_target_file() {
     # Return targets as newline-separated list
     printf '%s\n' "${parsed_targets[@]}"
     return 0
+}
+
+detect_capture_interface() {
+    local iface=""
+    if command -v ip >/dev/null 2>&1; then
+        iface=$(ip route show default 2>/dev/null | awk '/default/ {print $5; exit}')
+    fi
+    if [[ -z $iface && -r /proc/net/route ]]; then
+        iface=$(awk '($2 == "00000000") {print $1; exit}' /proc/net/route)
+    fi
+    printf '%s' "$iface"
 }
 
 record_protocol_hit() {
@@ -508,7 +518,7 @@ if [[ ! -f "$PORT_PROFILE_DATA" ]]; then
     exit 1
 fi
 
-# shellcheck source=data/port-profiles.sh
+# shellcheck source=port-profiles.sh
 source "$PORT_PROFILE_DATA"
 
 if [[ ! -f "$UI_HELPER" ]]; then
@@ -516,7 +526,7 @@ if [[ ! -f "$UI_HELPER" ]]; then
     exit 1
 fi
 
-# shellcheck source=data/ui-banner.sh
+# shellcheck source=ui-banner.sh
 source "$UI_HELPER"
 
 cam_run_with_spinner() {
@@ -590,11 +600,19 @@ cam_run_packinst() {
     return $status
 }
 
+# shellcheck disable=SC2329
+build_coap_with_log() {
+    [[ -z ${coap_build_log:-} ]] && return 1
+    "$SCRIPT_DIR/build-coap.sh" &>> "$coap_build_log"
+}
+
+# shellcheck disable=SC2329
 do_coap_probe() {
     local tshark_output="$1"
     rm -f "$COAP_OUTPUT_FILE"
     : > "$COAP_LOG_FILE"
-    local coap_output_tmp=$(mktemp /tmp/camsniff-coap.XXXXXX)
+    local coap_output_tmp
+    coap_output_tmp=$(mktemp /tmp/camsniff-coap.XXXXXX)
 
     declare -a coap_targets=()
     declare -A coap_seen_targets=()
@@ -686,6 +704,17 @@ if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Aborted. Try again with \"sudo camsniff\"${RESET}"
   exit 1
 fi
+
+if [[ -z ${TSHARK_INTERFACE:-} ]]; then
+    detected_iface=$(detect_capture_interface)
+    if [[ -n $detected_iface ]]; then
+        TSHARK_INTERFACE="$detected_iface"
+    else
+        TSHARK_INTERFACE="any"
+        echo -e "${YELLOW}Warning: Unable to auto-detect default interface. Falling back to 'any'.${RESET}"
+    fi
+fi
+export TSHARK_INTERFACE
 
 mkdir -p "$RESULTS_ROOT" "$RUN_DIR" "$LOG_DIR" "$THUMB_DIR"
 if [[ $EXTRA_IVRE_ENABLED == true ]]; then
@@ -913,10 +942,19 @@ case ${answer:0:1} in
             PYTHON_BIN="$ROOT_DIR/venv/bin/python3"
         fi
 
+        if [[ -f "$PATHS_FILE" ]]; then
+            if command -v "$PYTHON_BIN" >/dev/null 2>&1 && "$PYTHON_BIN" "$SCRIPT_DIR/profile_resolver.py" catalog --paths "$PATHS_FILE" --output "$CATALOG_JSON" >/dev/null 2>&1; then
+                echo -e "${CYAN}Exported catalog to:${RESET} ${GREEN}$CATALOG_JSON${RESET}"
+            else
+                echo -e "${YELLOW}Warning: Failed to export catalog JSON. Verify Python availability and $PATHS_FILE formatting.${RESET}"
+            fi
+        fi
+
         # Build coap-client on demand using the shared spinner helper
         if ! command -v coap-client &> /dev/null; then
             coap_build_log="$LOG_DIR/coap-build.log"
-            if cam_run_packinst "Building coap-client (libcoap)" env COAP_BUILD_LOG="$coap_build_log" CAM_COAP_HELPER="$SCRIPT_DIR/build-coap.sh" bash -c '"$CAM_COAP_HELPER" &>> "$COAP_BUILD_LOG"'; then
+            : > "$coap_build_log"
+            if cam_run_packinst "Building coap-client (libcoap)" build_coap_with_log; then
                 echo -e "${CYAN}CoAP build log:${RESET} ${GREEN}$coap_build_log${RESET}"
             else
                 echo -e "${RED}Failed to build coap-client; see ${coap_build_log}.${RESET}"
@@ -1212,10 +1250,11 @@ case ${answer:0:1} in
         
         echo ""
         echo -e "${BLUE}Capturing network traffic for camera protocols...${RESET}"
+        echo -e "${CYAN}Using interface:${RESET} ${GREEN}$TSHARK_INTERFACE${RESET}"
         
         tshark_output=$(mktemp)
         tshark_duration=${CAM_MODE_TSHARK_DURATION:-30}
-        timeout "${tshark_duration}s" tshark -n -i any \
+        timeout "${tshark_duration}s" tshark -n -i "$TSHARK_INTERFACE" \
             -f "tcp port 80 or tcp port 554 or tcp port 8554 or udp portrange 5000-5010" \
             -Y "rtsp || http.request || udp.port == 3702" \
             -T fields -E header=n -E separator=, -E quote=d \
@@ -1431,135 +1470,7 @@ case ${answer:0:1} in
 
         if [[ -f "$PATHS_FILE" && -s "$DISCOVERY_JSON" ]]; then
             discovery_enriched_tmp=$(mktemp)
-            if ! "$PYTHON_BIN" - "$PATHS_FILE" "$DISCOVERY_JSON" "$discovery_enriched_tmp" <<'PY'
-import csv
-import json
-import re
-import sys
-
-paths_file, discovery_file, output_file = sys.argv[1:4]
-
-try:
-    with open(discovery_file, "r", encoding="utf-8") as fh:
-        data = json.load(fh)
-except FileNotFoundError:
-    data = {"hosts": []}
-
-try:
-    with open(paths_file, "r", encoding="utf-8") as handle:
-        catalog = list(csv.DictReader(handle))
-except FileNotFoundError:
-    catalog = []
-
-def parse_list(value):
-    if not value:
-        return []
-    parts = [item.strip() for item in value.split(';') if item.strip()]
-    return parts
-
-def coerce_port(value):
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-    try:
-        return int(str(value).strip())
-    except (TypeError, ValueError):
-        return None
-
-for host in data.get("hosts", []):
-    ports = set()
-    for entry in host.get("ports", []):
-        converted = coerce_port(entry)
-        if converted is not None:
-            ports.add(converted)
-    mac = (host.get("mac") or "").upper()
-    best = None
-    best_score = -1
-    for row in catalog:
-        matched_by = None
-        pattern = (row.get("oui_regex") or "").strip()
-        if mac and pattern:
-            try:
-                if re.search(pattern, mac, re.IGNORECASE):
-                    matched_by = "oui"
-            except re.error:
-                pass
-        if not matched_by:
-            candidate_port = coerce_port(row.get("port"))
-            if candidate_port is not None and candidate_port in ports:
-                matched_by = "port"
-        if not matched_by:
-            continue
-        score = 2 if matched_by == "oui" else 1
-        if score <= best_score:
-            continue
-        best = (row, matched_by)
-        best_score = score
-
-    if not best:
-        continue
-
-    row, matched_by = best
-
-    def build_rtsp_candidates():
-        template = row.get("rtsp_url") or ""
-        if not template:
-            return []
-        port_val = coerce_port(row.get("port"))
-        streams = parse_list(row.get("streams")) or ["0"]
-        channels = parse_list(row.get("channels")) or ["1"]
-        candidates = []
-        for channel in channels[:3]:
-            for stream in streams[:3]:
-                candidates.append({
-                    "template": template,
-                    "port": port_val if port_val is not None else (row.get("port") or 554),
-                    "channel": channel,
-                    "stream": stream,
-                    "transport": "tcp"
-                })
-                if len(candidates) >= 6:
-                    return candidates
-        return candidates
-
-    def build_http_candidates():
-        template = row.get("http_snapshot_url") or ""
-        if not template:
-            return []
-        port_val = coerce_port(row.get("port"))
-        streams = parse_list(row.get("streams")) or ["0"]
-        channels = parse_list(row.get("channels")) or ["1"]
-        port_guess = port_val if port_val is not None else (443 if template.lower().startswith("https") else 80)
-        return [{
-            "template": template,
-            "port": port_guess,
-            "channel": channels[0],
-            "stream": streams[0]
-        }]
-
-    profile = {
-        "vendor": row.get("company") or "Unknown",
-        "model": row.get("model") or "Unknown",
-        "type": row.get("type") or "Unknown",
-        "matched_by": matched_by,
-        "default_username": row.get("username") or "",
-        "default_password": row.get("password") or "",
-        "digest_auth": str(row.get("is_digest_auth_supported") or "").lower() in {"true", "yes", "1"},
-        "video_encoding": row.get("video_encoding") or "",
-        "rtsp_candidates": build_rtsp_candidates(),
-        "http_snapshot_candidates": build_http_candidates(),
-        "onvif_profiles": parse_list(row.get("onvif_profile_path")),
-        "cve_ids": parse_list(row.get("cve_ids")),
-        "reference": row.get("user_manual_url") or ""
-    }
-
-    host["profile_match"] = profile
-
-with open(output_file, "w", encoding="utf-8") as fh:
-    json.dump(data, fh, indent=2)
-PY
-            then
+            if "$PYTHON_BIN" "$SCRIPT_DIR/profile_resolver.py" enrich --paths "$PATHS_FILE" --input "$DISCOVERY_JSON" --output "$discovery_enriched_tmp" --limit 3; then
                 mv "$discovery_enriched_tmp" "$DISCOVERY_JSON"
             else
                 echo -e "${YELLOW}Warning: Unable to enrich device profiles; see above for details.${RESET}"
@@ -1612,6 +1523,9 @@ PY
         fi
         if [[ -f "$COAP_OUTPUT_FILE" ]]; then
             echo -e "${CYAN}CoAP discovery list:${RESET} ${GREEN}$COAP_OUTPUT_FILE${RESET}"
+        fi
+        if [[ -f "$CATALOG_JSON" ]]; then
+            echo -e "${CYAN}Catalog snapshot:${RESET} ${GREEN}$CATALOG_JSON${RESET}"
         fi
         if [[ $EXTRA_IVRE_ENABLED == true && -s "$IVRE_LOG_FILE" ]]; then
             echo -e "${CYAN}IVRE sync log:${RESET} ${GREEN}$IVRE_LOG_FILE${RESET}"

@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-#
-# CamSniff- Automated IP camera reconnaissance toolkit
-# By John Hauger Mitander <john@on1.no>
 # Copyright 2025 John Hauger Mitander
+# Licensed under the MIT License
 #
-# CamSniff is Licensed under the MIT License.
-# credential-probe.sh
 
 set -euo pipefail
 
@@ -272,6 +268,17 @@ while IFS= read -r host_json; do
     protocols_json=$(jq -c '.additional_protocols // []' <<<"$host_json")
     [[ -z $protocols_json ]] && protocols_json='[]'
 
+    profile_matches_json=$(jq -c '.profile_matches // []' <<<"$host_json")
+    [[ -z $profile_matches_json ]] && profile_matches_json='[]'
+    sources_json=$(jq -c '.sources // []' <<<"$host_json")
+    [[ -z $sources_json ]] && sources_json='[]'
+    ports_json=$(jq -c '.ports // []' <<<"$host_json")
+    [[ -z $ports_json ]] && ports_json='[]'
+    observed_paths_json=$(jq -c '.observed_paths // []' <<<"$host_json")
+    [[ -z $observed_paths_json ]] && observed_paths_json='[]'
+    rtsp_bruteforce_json=$(jq -c '.rtsp_bruteforce // {}' <<<"$host_json")
+    [[ -z $rtsp_bruteforce_json ]] && rtsp_bruteforce_json='{}'
+
     readarray -t rtsp_candidates < <(jq -c '.profile_match.rtsp_candidates[]?' <<<"$host_json")
     readarray -t http_candidates < <(jq -c '.profile_match.http_snapshot_candidates[]?' <<<"$host_json")
     readarray -t brute_rtsp_hits < <(jq -r '.rtsp_bruteforce.discovered[]?' <<<"$host_json")
@@ -325,6 +332,16 @@ while IFS= read -r host_json; do
                     --arg snapshot "$snapshot_file" \
                     --arg ascii "$ascii_file" \
                     --arg timestamp "$timestamp" \
+                    --arg attempt "$attempt" \
+                    --arg channel "$channel" \
+                    --arg stream "$stream" \
+                    --arg port "$port" \
+                    --arg protocol "http" \
+                    --argjson sources "$sources_json" \
+                    --argjson ports "$ports_json" \
+                    --argjson observed "$observed_paths_json" \
+                    --argjson rtsp_bruteforce "$rtsp_bruteforce_json" \
+                    --argjson profile_matches "$profile_matches_json" \
                     --argjson protocols "$protocols_json" \
                     '{
                         ip: $ip,
@@ -333,9 +350,23 @@ while IFS= read -r host_json; do
                         vendor: $vendor,
                         model: $model,
                         matched_by: $matched_by,
+                        attempt_index: ($attempt | tonumber? // null),
                         credentials: {username: $username, password: $password},
                         artifact: {snapshot: $snapshot, ascii_preview: $ascii},
                         url: $url,
+                        request: {
+                            protocol: $protocol,
+                            origin: $origin,
+                            port: ($port | tonumber? // null),
+                            channel: $channel,
+                            stream: $stream,
+                            url: $url
+                        },
+                        sources: $sources,
+                        ports: $ports,
+                        observed_paths: $observed,
+                        rtsp_bruteforce: $rtsp_bruteforce,
+                        profile_matches: $profile_matches,
                         timestamp: $timestamp,
                         protocols: $protocols
                     }')
@@ -380,6 +411,16 @@ while IFS= read -r host_json; do
                         --arg snapshot "$snapshot_file" \
                         --arg ascii "$ascii_file" \
                         --arg timestamp "$timestamp" \
+                        --arg attempt "$attempt" \
+                        --arg channel "$fallback_channel" \
+                        --arg stream "$fallback_stream" \
+                        --arg port "$fallback_port" \
+                        --arg protocol "http" \
+                        --argjson sources "$sources_json" \
+                        --argjson ports "$ports_json" \
+                        --argjson observed "$observed_paths_json" \
+                        --argjson rtsp_bruteforce "$rtsp_bruteforce_json" \
+                        --argjson profile_matches "$profile_matches_json" \
                         --argjson protocols "$protocols_json" \
                         '{
                             ip: $ip,
@@ -388,9 +429,23 @@ while IFS= read -r host_json; do
                             vendor: $vendor,
                             model: $model,
                             matched_by: $matched_by,
+                            attempt_index: ($attempt | tonumber? // null),
                             credentials: {username: $username, password: $password},
                             artifact: {snapshot: $snapshot, ascii_preview: $ascii},
                             url: $url,
+                            request: {
+                                protocol: $protocol,
+                                origin: $origin,
+                                port: ($port | tonumber? // null),
+                                channel: $channel,
+                                stream: $stream,
+                                url: $url
+                            },
+                            sources: $sources,
+                            ports: $ports,
+                            observed_paths: $observed,
+                            rtsp_bruteforce: $rtsp_bruteforce,
+                            profile_matches: $profile_matches,
                             timestamp: $timestamp,
                             protocols: $protocols
                         }')
@@ -433,6 +488,16 @@ while IFS= read -r host_json; do
                     --arg ascii "$ascii_file" \
                     --arg transport "$transport" \
                     --arg timestamp "$timestamp" \
+                    --arg attempt "$attempt" \
+                    --arg channel "$channel" \
+                    --arg stream "$stream" \
+                    --arg port "$port" \
+                    --arg protocol "rtsp" \
+                    --argjson sources "$sources_json" \
+                    --argjson ports "$ports_json" \
+                    --argjson observed "$observed_paths_json" \
+                    --argjson rtsp_bruteforce "$rtsp_bruteforce_json" \
+                    --argjson profile_matches "$profile_matches_json" \
                     --argjson protocols "$protocols_json" \
                     '{
                         ip: $ip,
@@ -442,9 +507,24 @@ while IFS= read -r host_json; do
                         model: $model,
                         matched_by: $matched_by,
                         transport: $transport,
+                        attempt_index: ($attempt | tonumber? // null),
                         credentials: {username: $username, password: $password},
                         artifact: {snapshot: $snapshot, ascii_preview: $ascii},
                         url: $url,
+                        request: {
+                            protocol: $protocol,
+                            origin: $origin,
+                            transport: $transport,
+                            port: ($port | tonumber? // null),
+                            channel: $channel,
+                            stream: $stream,
+                            url: $url
+                        },
+                        sources: $sources,
+                        ports: $ports,
+                        observed_paths: $observed,
+                        rtsp_bruteforce: $rtsp_bruteforce,
+                        profile_matches: $profile_matches,
                         timestamp: $timestamp,
                         protocols: $protocols
                     }')
@@ -483,6 +563,17 @@ while IFS= read -r host_json; do
                     --arg ascii "$ascii_file" \
                     --arg timestamp "$timestamp" \
                     --arg discovered "$discovered_url" \
+                    --arg attempt "$attempt" \
+                    --arg protocol "rtsp" \
+                    --arg transport "unknown" \
+                    --arg channel "" \
+                    --arg stream "" \
+                    --arg port "" \
+                    --argjson sources "$sources_json" \
+                    --argjson ports "$ports_json" \
+                    --argjson observed "$observed_paths_json" \
+                    --argjson rtsp_bruteforce "$rtsp_bruteforce_json" \
+                    --argjson profile_matches "$profile_matches_json" \
                     --argjson protocols "$protocols_json" \
                     '{
                         ip: $ip,
@@ -491,13 +582,29 @@ while IFS= read -r host_json; do
                         vendor: $vendor,
                         model: $model,
                         matched_by: $matched_by,
-                        transport: "unknown",
+                        transport: $transport,
+                        attempt_index: ($attempt | tonumber? // null),
                         credentials: {username: $username, password: $password},
                         artifact: {snapshot: $snapshot, ascii_preview: $ascii},
                         url: $url,
+                        discovered_url: $discovered,
+                        request: {
+                            protocol: $protocol,
+                            origin: $origin,
+                            transport: $transport,
+                            port: ($port | tonumber? // null),
+                            channel: ($channel | select(length > 0)),
+                            stream: ($stream | select(length > 0)),
+                            url: $url,
+                            seed: $discovered
+                        },
+                        sources: $sources,
+                        ports: $ports,
+                        observed_paths: $observed,
+                        rtsp_bruteforce: $rtsp_bruteforce,
+                        profile_matches: $profile_matches,
                         timestamp: $timestamp,
-                        protocols: $protocols,
-                        discovered_source: $discovered
+                        protocols: $protocols
                     }')
                 success=true
                 break 2
@@ -519,6 +626,11 @@ while IFS= read -r host_json; do
             --arg attempts "$attempt" \
             --arg timestamp "$timestamp" \
             --argjson protocols "$protocols_json" \
+            --argjson sources "$sources_json" \
+            --argjson ports "$ports_json" \
+            --argjson observed "$observed_paths_json" \
+            --argjson rtsp_bruteforce "$rtsp_bruteforce_json" \
+            --argjson profile_matches "$profile_matches_json" \
             '{
                 ip: $ip,
                 success: false,
@@ -526,8 +638,14 @@ while IFS= read -r host_json; do
                 model: $model,
                 matched_by: $matched_by,
                 attempts: ($attempts|tonumber),
+                attempt_index: ($attempts|tonumber),
                 timestamp: $timestamp,
-                protocols: $protocols
+                protocols: $protocols,
+                sources: $sources,
+                ports: $ports,
+                observed_paths: $observed,
+                rtsp_bruteforce: $rtsp_bruteforce,
+                profile_matches: $profile_matches
             }')
         printf '%s\n' "$failure_payload" >> "$RESULTS_TMP"
     fi

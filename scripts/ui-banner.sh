@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-
-# CamSniff- Automated IP camera reconnaissance toolkit
-# By John Hauger Mitander <john@on1.no>
-# Copyright 2025 John Hauger Mitander
-#
-# CamSniff is Licensed under the MIT License.
-# ui-banner.sh
-#
 # shellcheck disable=SC2153
+#
+# Copyright 2025 John Hauger Mitander
+# Licensed under the MIT License
+#
 
 cam_ui_visible_length() {
     local text="$1"
@@ -104,7 +100,7 @@ cam_ui_render_banner() {
         "▐ ██║     ██╔══██║██║╚██╔╝██║╚════██║██║╚██╗██║██║██╔══╝  ██╔══╝   ▌"
         "▐ ╚██████╗██║  ██║██║ ╚═╝ ██║███████║██║ ╚████║██║██║     ██║      ▌"
         "▐  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝      ▌"
-        "▐                          Version 2.2.0                           ▌"
+        "▐                          Version 2.2.1                           ▌"
         "▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌"
     )
 
