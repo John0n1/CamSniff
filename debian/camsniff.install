@@ -1,6 +1,6 @@
 scripts/*.sh usr/lib/camsniff/scripts
-scripts/ivre-sync.py usr/lib/camsniff/scripts
-scripts/requirements.txt usr/lib/camsniff/scripts
+scripts/*.py usr/lib/camsniff/scripts
+scripts/*.txt usr/lib/camsniff/scripts
 data/* usr/lib/camsniff/data
 VERSION usr/lib/camsniff
 docs/camsniff.png usr/share/doc/camsniff/screenshots
