@@ -343,8 +343,8 @@ def _render_text_profile(ip: str, profile: Dict[str, object]) -> str:
         "default_password"
     ):
         username = profile.get("default_username") or "<custom>"
-        password = profile.get("default_password") or "<password>"
-        lines.append(f"    Default creds: {username}/{password}")
+        # Do not print the actual password in clear text; redact/mask it.
+        lines.append(f"    Default creds: {username}/<redacted>")
     encoding = profile.get("video_encoding")
     if encoding:
         lines.append(f"    Encoding: {encoding}")
