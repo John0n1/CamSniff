@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Copyright 2025 John Hauger Mitander
-# Licensed under the MIT License
+# https://github.com/John0n1/CamSniff
 #
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
 
 set -euo pipefail
 
@@ -54,6 +55,8 @@ case "$norm_mode" in
         MASSCAN_RATE=0
         NMAP_SPEED="-T2"
         NMAP_EXTRA=""
+        NMAP_OSSCAN=true
+        NMAP_VERSION_DETECT=true
         PORT_PROFILE="core"
         TSHARK_DURATION=20
         CURL_TIMEOUT=5
@@ -71,6 +74,8 @@ case "$norm_mode" in
         MASSCAN_RATE=0
         NMAP_SPEED="-T1"
         NMAP_EXTRA="--scan-delay 200ms"
+        NMAP_OSSCAN=true
+        NMAP_VERSION_DETECT=true
         PORT_PROFILE="minimal"
         TSHARK_DURATION=15
         CURL_TIMEOUT=6
@@ -89,6 +94,8 @@ case "$norm_mode" in
         MASSCAN_RATE=1000
         NMAP_SPEED="-T4"
         NMAP_EXTRA=""
+        NMAP_OSSCAN=true
+        NMAP_VERSION_DETECT=true
         PORT_PROFILE="standard"
         TSHARK_DURATION=35
         CURL_TIMEOUT=8
@@ -107,6 +114,8 @@ case "$norm_mode" in
         MASSCAN_RATE=5000
         NMAP_SPEED="-T5"
         NMAP_EXTRA="-A"
+        NMAP_OSSCAN=true
+        NMAP_VERSION_DETECT=true
         PORT_PROFILE="extended"
         TSHARK_DURATION=45
         CURL_TIMEOUT=10
@@ -124,6 +133,8 @@ case "$norm_mode" in
         MASSCAN_RATE=12000
         NMAP_SPEED="-T5"
         NMAP_EXTRA="-A"
+        NMAP_OSSCAN=true
+        NMAP_VERSION_DETECT=true
         PORT_PROFILE="war"
         TSHARK_DURATION=55
         CURL_TIMEOUT=12
@@ -141,6 +152,8 @@ case "$norm_mode" in
         MASSCAN_RATE=20000
         NMAP_SPEED="-T5"
         NMAP_EXTRA="-A --script vuln"
+        NMAP_OSSCAN=true
+        NMAP_VERSION_DETECT=true
         PORT_PROFILE="total"
         TSHARK_DURATION=75
         CURL_TIMEOUT=15
@@ -169,6 +182,8 @@ case "$FORMAT" in
         CAM_MODE_MASSCAN_RATE="$MASSCAN_RATE"
         CAM_MODE_NMAP_SPEED="$NMAP_SPEED"
         CAM_MODE_NMAP_EXTRA="$NMAP_EXTRA"
+        CAM_MODE_NMAP_OSSCAN_ENABLE="$NMAP_OSSCAN"
+        CAM_MODE_NMAP_VERSION_ENABLE="$NMAP_VERSION_DETECT"
         CAM_MODE_PORT_PROFILE="$PORT_PROFILE"
         CAM_MODE_TSHARK_DURATION="$TSHARK_DURATION"
         CAM_MODE_CURL_TIMEOUT="$CURL_TIMEOUT"
@@ -208,6 +223,8 @@ export CAM_MODE_MASSCAN_ENABLE="$CAM_MODE_MASSCAN_ENABLE"
 export CAM_MODE_MASSCAN_RATE="$CAM_MODE_MASSCAN_RATE"
 export CAM_MODE_NMAP_SPEED="$CAM_MODE_NMAP_SPEED"
 export CAM_MODE_NMAP_EXTRA="$CAM_MODE_NMAP_EXTRA"
+export CAM_MODE_NMAP_OSSCAN_ENABLE="$CAM_MODE_NMAP_OSSCAN_ENABLE"
+export CAM_MODE_NMAP_VERSION_ENABLE="$CAM_MODE_NMAP_VERSION_ENABLE"
 export CAM_MODE_PORT_PROFILE="$CAM_MODE_PORT_PROFILE"
 export CAM_MODE_TSHARK_DURATION="$CAM_MODE_TSHARK_DURATION"
 export CAM_MODE_CURL_TIMEOUT="$CAM_MODE_CURL_TIMEOUT"
@@ -230,6 +247,8 @@ EOF
             --argjson masscan_rate "$MASSCAN_RATE" \
             --arg nmap_speed "$NMAP_SPEED" \
             --arg nmap_extra "$NMAP_EXTRA" \
+            --arg nmap_osscan "$NMAP_OSSCAN" \
+            --arg nmap_version "$NMAP_VERSION_DETECT" \
             --arg port_profile "$PORT_PROFILE" \
             --argjson tshark_duration "$TSHARK_DURATION" \
             --argjson curl_timeout "$CURL_TIMEOUT" \
@@ -248,6 +267,8 @@ EOF
                 masscan_rate: $masscan_rate,
                 nmap_speed: $nmap_speed,
                 nmap_extra: $nmap_extra,
+                nmap_osscan: ($nmap_osscan == "true"),
+                nmap_version: ($nmap_version == "true"),
                 port_profile: $port_profile,
                 tshark_duration: $tshark_duration,
                 curl_timeout: $curl_timeout,

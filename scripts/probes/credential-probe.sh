@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# Copyright 2025 John Hauger Mitander
-# Licensed under the MIT License
 #
+# https://github.com/John0n1/CamSniff
+#
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 INPUT_JSON=""
-USERNAMES_FILE="$ROOT_DIR/data/usernames.txt"
-PASSWORDS_FILE="$ROOT_DIR/data/passwords.txt"
-HTTP_PATHS_FILE="$ROOT_DIR/data/http-paths.txt"
+USERNAMES_FILE="$ROOT_DIR/data/dictionaries/usernames.txt"
+PASSWORDS_FILE="$ROOT_DIR/data/dictionaries/passwords.txt"
+HTTP_PATHS_FILE="$ROOT_DIR/data/dictionaries/http-paths.txt"
 MODE="medium"
 OUTPUT_JSON="$ROOT_DIR/dev/results/credentials.json"
 THUMB_DIR="$ROOT_DIR/dev/results/thumbnails"
@@ -92,7 +94,7 @@ fi
 
 mkdir -p "$(dirname "$OUTPUT_JSON")" "$THUMB_DIR" "$LOG_DIR"
 
-if ! mode_env_output="$("$SCRIPT_DIR/mode-config.sh" --mode "$MODE" --format export)"; then
+if ! mode_env_output="$("$ROOT_DIR/scripts/core/mode-config.sh" --mode "$MODE" --format export)"; then
     echo "Failed to resolve mode configuration" >&2
     exit 1
 fi

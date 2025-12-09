@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 #
-# Copyright 2025 John Hauger Mitander
-# Licensed under the MIT License
+# https://github.com/John0n1/CamSniff
 #
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RESULTS_ROOT="$ROOT_DIR/dev/results"
 IVRE_SYNC="$SCRIPT_DIR/ivre-sync.py"
-PATHS_FILE="$ROOT_DIR/data/paths.csv"
+PATHS_FILE="$ROOT_DIR/data/catalog/paths.csv"
 VENV_DIR="$ROOT_DIR/venv"
 GEOIP_DIR="$ROOT_DIR/share/geoip"
 PYTHON_BIN="${VENV_DIR}/bin/python3"

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 #
-# Copyright 2025 John Hauger Mitander
-# Licensed under the MIT License
+# https://github.com/John0n1/CamSniff
 #
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
+# shellcheck disable=SC2317
+
 """Parse ONVIF GetDeviceInformation SOAP responses."""
 from __future__ import annotations
 

@@ -1,6 +1,5 @@
 build.log
 .venv/*
-
 dev/results/*
 !dev/results/.gitkeep
 scripts/venv/*
@@ -18,4 +17,4 @@ venv/*
 share/*
 .venv/*
 paused.conf
-__pycache__/*
+*__pycache__*

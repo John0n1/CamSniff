@@ -1,10 +1,9 @@
 #!/usr/bin/make -f
 #
-# CamSniff- Automated IP camera reconnaissance toolkit
-# By John Hauger Mitander <john@on1.no>
-# Copyright 2025 John Hauger Mitander
+# https://github.com/John0n1/CamSniff
 #
-# CamSniff is Licensed under the MIT License.
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
 
 export DH_VERBOSE ?= 1
 

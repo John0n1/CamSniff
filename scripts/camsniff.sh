@@ -1,20 +1,31 @@
 #!/usr/bin/env bash
 #
-# Copyright 2025 John Hauger Mitander
-# Licensed under the MIT License
+# https://github.com/John0n1/CamSniff
 #
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PATHS_FILE="${PATHS_FILE:-"$ROOT_DIR/data/paths.csv"}"
-MODE_CONFIG="$SCRIPT_DIR/mode-config.sh"
-DEPS_INSTALL="$SCRIPT_DIR/deps-install.sh"
-CREDENTIAL_PROBE="$SCRIPT_DIR/credential-probe.sh"
-NMAP_RTSP_SCRIPT="$ROOT_DIR/data/rtsp-url-brute.nse"
+CORE_DIR="$SCRIPT_DIR/core"
+HELPER_DIR="$SCRIPT_DIR/helpers"
+PROBE_DIR="$SCRIPT_DIR/probes"
+SETUP_DIR="$SCRIPT_DIR/setup"
+INTEGRATION_DIR="$SCRIPT_DIR/integrations"
+UI_DIR="$SCRIPT_DIR/ui"
+PATHS_FILE="${PATHS_FILE:-"$ROOT_DIR/data/catalog/paths.csv"}"
+MODE_CONFIG="$CORE_DIR/mode-config.sh"
+DEPS_INSTALL="$SETUP_DIR/deps-install.sh"
+CREDENTIAL_PROBE="$PROBE_DIR/credential-probe.sh"
+NMAP_RTSP_SCRIPT="$ROOT_DIR/data/protocols/rtsp-url-brute.nse"
 NMAP_RTSP_THREADS=10
-RTSP_URL_DICT="$ROOT_DIR/data/rtsp-urls.txt"
-PORT_PROFILE_DATA="$SCRIPT_DIR/port-profiles.sh"
-UI_HELPER="$SCRIPT_DIR/ui-banner.sh"
+RTSP_URL_DICT="$ROOT_DIR/data/dictionaries/rtsp-urls.txt"
+PORT_PROFILE_DATA="$CORE_DIR/port-profiles.sh"
+UI_HELPER="$UI_DIR/banner.sh"
+PROFILE_RESOLVER="$HELPER_DIR/profile_resolver.py"
+HTTP_META_PARSER="$HELPER_DIR/http_metadata_parser.py"
+ONVIF_PARSER="$PROBE_DIR/onvif_device_info.py"
+SSDP_PROBE_HELPER="$PROBE_DIR/ssdp_probe.py"
 
 MODE_DEFAULT="medium"
 MODE_REQUESTED=""
@@ -43,6 +54,9 @@ COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
 COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
 COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}"
 IVRE_LOG_FILE="$LOG_DIR/ivre-sync.log"
+HTTP_META_LOG="$LOG_DIR/http-metadata.jsonl"
+SSDP_OUTPUT_FILE="$LOG_DIR/ssdp-discovery.jsonl"
+ONVIF_OUTPUT_FILE="$LOG_DIR/onvif-discovery.jsonl"
 CATALOG_JSON="$RUN_DIR/paths.json"
 GEOIP_DIR="$ROOT_DIR/share/geoip"
 GEOIP_CITY_DB="$GEOIP_DIR/dbip-city-lite.mmdb"
@@ -51,6 +65,7 @@ GEOIP_ASN_DB="$GEOIP_DIR/dbip-asn-lite.mmdb"
 RED=""
 GREEN=""
 YELLOW=""
+ORANGE=""
 BLUE=""
 CYAN=""
 RESET=""
@@ -67,6 +82,9 @@ declare -A all_ips
 declare -A ip_rtsp_discovered
 declare -A ip_rtsp_other
 declare -A ip_protocol_hits
+declare -A ip_http_metadata
+declare -A ip_onvif_info
+declare -A ip_ssdp_info
 declare -A protocol_seen
 
 nmap_output=""
@@ -97,7 +115,7 @@ Options:
 Optional integrations:
     --extra <name>         Enable additional integrations (currently supported: ivre)
 
-If no mode is provided, the maximum profile (nuke) is used.
+If no mode is provided, the balanced profile (medium) is used.
 EOF
 }
 
@@ -183,6 +201,21 @@ detect_capture_interface() {
         iface=$(awk '($2 == "00000000") {print $1; exit}' /proc/net/route)
     fi
     printf '%s' "$iface"
+}
+
+detect_default_network() {
+    local iface=""
+    local cidr=""
+    if command -v ip >/dev/null 2>&1; then
+        iface=$(ip route show default 2>/dev/null | awk '/default/ {print $5; exit}')
+        if [[ -n $iface ]]; then
+            cidr=$(ip -o -f inet addr show dev "$iface" 2>/dev/null | awk 'NR==1 {print $4; exit}')
+        fi
+    fi
+    if [[ -z $cidr ]]; then
+        cidr=$(ip route | awk '/default/ {print $3; exit}' | sed 's/\.[0-9]*$/.0\/24/')
+    fi
+    printf '%s' "$cidr"
 }
 
 record_protocol_hit() {
@@ -330,6 +363,108 @@ detect_webrtc() {
     done
 }
 
+collect_http_metadata_for_ip() {
+    local ip="$1"
+    local ports_string="$2"
+    local max_ports=4
+    local count=0
+    local headers_tmp body_tmp
+    headers_tmp=$(mktemp /tmp/camsniff-http-headers.XXXXXX)
+    body_tmp=$(mktemp /tmp/camsniff-http-body.XXXXXX)
+    local -a candidate_ports=()
+    local known_http_ports=(80 81 82 88 443 7443 8000 8001 8080 8081 8088 8443 9000 10443)
+    while IFS= read -r port; do
+        [[ -z $port ]] && continue
+        for known in "${known_http_ports[@]}"; do
+            if [[ $port == "$known" ]]; then
+                candidate_ports+=("$port")
+                break
+            fi
+        done
+    done <<< "$ports_string"
+
+    (( ${#candidate_ports[@]} == 0 )) && { rm -f "$headers_tmp" "$body_tmp"; return; }
+
+    for port in "${candidate_ports[@]}"; do
+        (( count >= max_ports )) && break
+        local scheme
+        scheme=$(http_scheme_for_port "$port")
+        local url="${scheme}://${ip}:${port}/"
+        local log_path="$LOG_DIR/http-${ip//[^a-zA-Z0-9._-]/_}-${port}.log"
+        local http_code=""
+        http_code=$(curl -k -sS -m "$CURL_TIMEOUT" --connect-timeout "$CURL_TIMEOUT" \
+            --retry "$HTTP_RETRIES" --retry-delay 1 --retry-connrefused \
+            --location --dump-header "$headers_tmp" --output "$body_tmp" \
+            -w "%{http_code}" "$url" 2>"$log_path" || true)
+        if [[ -z $http_code ]]; then
+            continue
+        fi
+
+        if command -v "$PYTHON_BIN" >/dev/null 2>&1 && [[ -f $HTTP_META_PARSER ]]; then
+            local meta_json
+            meta_json=$("$PYTHON_BIN" "$HTTP_META_PARSER" --headers "$headers_tmp" --body "$body_tmp" --ip "$ip" --port "$port" --scheme "$scheme" 2>/dev/null || true)
+            if [[ -n $meta_json ]]; then
+                ip_http_metadata["$ip"]+="$meta_json"$'\n'
+                echo "$meta_json" >> "$HTTP_META_LOG"
+                if [[ $http_code =~ ^(200|201|202|204|301|302|401|403|404)$ ]]; then
+                    record_protocol_hit "$ip" "HTTP" "$url (HTTP $http_code)"
+                fi
+            fi
+        fi
+        ((count++))
+    done
+    rm -f "$headers_tmp" "$body_tmp"
+}
+
+probe_onvif_device_info() {
+    local ip="$1"
+    local ports_string="$2"
+    local soap_payload
+    soap_payload='<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+  <s:Body>
+    <tds:GetDeviceInformation xmlns:tds="http://www.onvif.org/ver10/device/wsdl"/>
+  </s:Body>
+</s:Envelope>'
+    local max_ports=3
+    local count=0
+    while IFS= read -r port; do
+        [[ -z $port ]] && continue
+        case "$port" in
+            80|81|88|8000|8080|8081|8088|8443|443|7443)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+        (( count >= max_ports )) && break
+        local scheme
+        scheme=$(http_scheme_for_port "$port")
+        local url="${scheme}://${ip}:${port}/onvif/device_service"
+        local body_tmp
+        body_tmp=$(mktemp /tmp/camsniff-onvif.XXXXXX)
+        local log_path="$LOG_DIR/onvif-${ip//[^a-zA-Z0-9._-]/_}-${port}.log"
+        local http_code=""
+        http_code=$(curl -k -sS -m "$CURL_TIMEOUT" --connect-timeout "$CURL_TIMEOUT" \
+            -H "Content-Type: application/soap+xml; charset=utf-8" \
+            -H "SOAPAction: \"http://www.onvif.org/ver10/device/wsdl/GetDeviceInformation\"" \
+            -d "$soap_payload" -o "$body_tmp" -w "%{http_code}" "$url" 2>"$log_path" || true)
+        if [[ $http_code =~ ^(200|401|500)$ ]]; then
+            record_protocol_hit "$ip" "ONVIF" "$url (HTTP $http_code)"
+        fi
+        if command -v "$PYTHON_BIN" >/dev/null 2>&1 && [[ -f $ONVIF_PARSER ]]; then
+            local parsed
+            parsed=$("$PYTHON_BIN" "$ONVIF_PARSER" --input "$body_tmp" --ip "$ip" --port "$port" --scheme "$scheme" 2>/dev/null || true)
+            if [[ -n $parsed && $parsed != "{}" ]]; then
+                ip_onvif_info["$ip"]+="$parsed"$'\n'
+                echo "$parsed" >> "$ONVIF_OUTPUT_FILE"
+            fi
+        fi
+        rm -f "$body_tmp"
+        ((count++))
+    done <<< "$ports_string"
+}
+
 detect_srt_from_ports() {
     local ip="$1"
     local ports_string="$2"
@@ -401,6 +536,9 @@ probe_additional_protocols() {
     local ip
     local ports_string
     local ip_list=()
+    if [[ ${CAM_MODE_FOLLOWUP_SERVICE_SCAN_ENABLE,,} != "true" ]]; then
+        return
+    fi
     for ip in "${!all_ips[@]}"; do
         ip_list+=("$ip")
     done
@@ -419,6 +557,87 @@ probe_additional_protocols() {
         detect_hls "$ip" "$ports_string"
         detect_webrtc "$ip" "$ports_string"
     done
+}
+
+collect_http_metadata() {
+    [[ ${CAM_MODE_HTTP_METADATA_ENABLE,,} != "true" ]] && return
+    (( ${#all_ips[@]} == 0 )) && return
+    if [[ ! -f $HTTP_META_PARSER ]]; then
+        echo -e "${YELLOW}Skipping HTTP metadata collection (missing helper: $HTTP_META_PARSER).${RESET}"
+        return
+    fi
+    if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+        echo -e "${YELLOW}Skipping HTTP metadata collection (python3 unavailable).${RESET}"
+        return
+    fi
+    : > "$HTTP_META_LOG"
+    local ip
+    for ip in "${!all_ips[@]}"; do
+        local ports_string
+        ports_string=$(printf "%s" "${ip_ports[$ip]}" | tr ' ' '\n' | sed '/^$/d' | sort -u)
+        collect_http_metadata_for_ip "$ip" "$ports_string"
+    done
+}
+
+run_onvif_metadata_probe() {
+    [[ ${CAM_MODE_ONVIF_PROBE_ENABLE,,} != "true" ]] && return
+    (( ${#all_ips[@]} == 0 )) && return
+    if [[ ! -f $ONVIF_PARSER ]]; then
+        echo -e "${YELLOW}Skipping ONVIF metadata probe (missing parser: $ONVIF_PARSER).${RESET}"
+        return
+    fi
+    if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+        echo -e "${YELLOW}Skipping ONVIF metadata probe (python3 unavailable).${RESET}"
+        return
+    fi
+    : > "$ONVIF_OUTPUT_FILE"
+    local ip
+    for ip in "${!all_ips[@]}"; do
+        local ports_string
+        ports_string=$(printf "%s" "${ip_ports[$ip]}" | tr ' ' '\n' | sed '/^$/d' | sort -u)
+        probe_onvif_device_info "$ip" "$ports_string"
+    done
+}
+
+run_ssdp_discovery() {
+    [[ ${CAM_MODE_SSDP_ENABLE,,} != "true" ]] && return
+    if [[ ! -f $SSDP_PROBE_HELPER ]]; then
+        echo -e "${YELLOW}Skipping SSDP discovery (helper missing: $SSDP_PROBE_HELPER).${RESET}"
+        return
+    fi
+    if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+        echo -e "${YELLOW}Skipping SSDP discovery (python3 unavailable).${RESET}"
+        return
+    fi
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${YELLOW}Skipping SSDP discovery (jq unavailable).${RESET}"
+        return
+    fi
+    local ssdp_tmp
+    ssdp_tmp=$(mktemp /tmp/camsniff-ssdp.XXXXXX)
+    if "$PYTHON_BIN" "$SSDP_PROBE_HELPER" --timeout 4 --mx 2 --st "ssdp:all" --output "$ssdp_tmp" >/dev/null 2>&1; then
+        : > "$SSDP_OUTPUT_FILE"
+        while IFS= read -r line; do
+            [[ -z $line ]] && continue
+            local ip
+            ip=$(jq -r '.ip // empty' <<<"$line")
+            [[ -z $ip ]] && continue
+            append_source "$ip" "SSDP"
+            ip_ssdp_info["$ip"]+="$line"$'\n'
+            local st
+            st=$(jq -r '.st // "ssdp:all"' <<<"$line")
+            record_protocol_hit "$ip" "SSDP" "$st"
+            local location
+            location=$(jq -r '.location // empty' <<<"$line")
+            if [[ $location =~ ^https?://[^/:]+:([0-9]+) ]]; then
+                track_port "$ip" "${BASH_REMATCH[1]}"
+            fi
+            echo "$line" >> "$SSDP_OUTPUT_FILE"
+        done < "$ssdp_tmp"
+    else
+        echo -e "${YELLOW}SSDP discovery failed to run successfully.${RESET}"
+    fi
+    rm -f "$ssdp_tmp"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -513,12 +732,19 @@ fi
 eval "$mode_env_output"
 unset mode_env_output
 
+CURL_TIMEOUT=${CAM_MODE_CURL_TIMEOUT:-8}
+HTTP_RETRIES=${CAM_MODE_HTTP_RETRIES:-2}
+FFMPEG_TIMEOUT=${CAM_MODE_FFMPEG_TIMEOUT:-10}
+NMAP_OSSCAN_ENABLE=${CAM_MODE_NMAP_OSSCAN_ENABLE:-false}
+NMAP_VERSION_ENABLE=${CAM_MODE_NMAP_VERSION_ENABLE:-true}
+export FFMPEG_TIMEOUT CURL_TIMEOUT HTTP_RETRIES
+
 if [[ ! -f "$PORT_PROFILE_DATA" ]]; then
     echo "Missing port profile data: $PORT_PROFILE_DATA" >&2
     exit 1
 fi
 
-# shellcheck source=port-profiles.sh
+# shellcheck source=core/port-profiles.sh
 source "$PORT_PROFILE_DATA"
 
 if [[ ! -f "$UI_HELPER" ]]; then
@@ -526,7 +752,7 @@ if [[ ! -f "$UI_HELPER" ]]; then
     exit 1
 fi
 
-# shellcheck source=ui-banner.sh
+# shellcheck source=ui/banner.sh
 source "$UI_HELPER"
 
 cam_run_with_spinner() {
@@ -600,13 +826,13 @@ cam_run_packinst() {
     return $status
 }
 
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317
 build_coap_with_log() {
     [[ -z ${coap_build_log:-} ]] && return 1
-    "$SCRIPT_DIR/build-coap.sh" &>> "$coap_build_log"
+    "$SETUP_DIR/build-coap.sh" &>> "$coap_build_log"
 }
 
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317
 do_coap_probe() {
     local tshark_output="$1"
     rm -f "$COAP_OUTPUT_FILE"
@@ -694,11 +920,13 @@ if command -v tput &> /dev/null; then
   RED=$(tput setaf 1)
   GREEN=$(tput setaf 2)
   YELLOW=$(tput setaf 3)
+  ORANGE=$(tput setaf 3)
   BLUE=$(tput setaf 4)
   CYAN=$(tput setaf 6)
   BLINK=$(tput blink)
   RESET=$(tput sgr0)
 fi
+[[ -z $ORANGE ]] && ORANGE="$YELLOW"
 
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Aborted. Try again with \"sudo camsniff\"${RESET}"
@@ -720,8 +948,8 @@ mkdir -p "$RESULTS_ROOT" "$RUN_DIR" "$LOG_DIR" "$THUMB_DIR"
 if [[ $EXTRA_IVRE_ENABLED == true ]]; then
     : > "$IVRE_LOG_FILE"
     
-    if ! "$SCRIPT_DIR/ivre-manager.sh" check >/dev/null 2>&1; then
-        if cam_run_with_spinner "Setting up IVRE integration" sudo "$SCRIPT_DIR/ivre-manager.sh" auto-setup --quiet; then
+    if ! "$INTEGRATION_DIR/ivre-manager.sh" check >/dev/null 2>&1; then
+        if cam_run_with_spinner "Setting up IVRE integration" sudo "$INTEGRATION_DIR/ivre-manager.sh" auto-setup --quiet; then
             echo -e "${GREEN}✓ IVRE integration ready${RESET}"
         else
             echo -e "${YELLOW}Warning: IVRE setup incomplete, disabling integration${RESET}"
@@ -902,12 +1130,11 @@ case ${answer:0:1} in
         
         if [[ -f "$DEPS_INSTALL" ]]; then
             install_log_tmp=$(mktemp)
-            if cam_run_packinst "Installing dependencies" env CAM_INSTALL_LOG_EXPORT="$install_log_tmp" CAM_REQUIRE_IVRE="$EXTRA_IVRE_ENABLED" "$DEPS_INSTALL" --quiet; then
+            echo -e "${CYAN}Installing dependencies (verbose)...${RESET}"
+            if env CAM_INSTALL_LOG_EXPORT="$install_log_tmp" CAM_REQUIRE_IVRE="$EXTRA_IVRE_ENABLED" "$DEPS_INSTALL"; then
                 if [[ -s $install_log_tmp ]]; then
                     install_log_path=$(<"$install_log_tmp")
-                    if [[ -n $install_log_path ]]; then
-                        echo -e "${CYAN}Detailed install log:${RESET} ${GREEN}$install_log_path${RESET}"
-                    fi
+                    [[ -n $install_log_path ]] && echo -e "${CYAN}Install log saved to:${RESET} ${GREEN}$install_log_path${RESET}"
                 fi
             else
                 install_log_path=""
@@ -943,7 +1170,7 @@ case ${answer:0:1} in
         fi
 
         if [[ -f "$PATHS_FILE" ]]; then
-            if command -v "$PYTHON_BIN" >/dev/null 2>&1 && "$PYTHON_BIN" "$SCRIPT_DIR/profile_resolver.py" catalog --paths "$PATHS_FILE" --output "$CATALOG_JSON" >/dev/null 2>&1; then
+            if command -v "$PYTHON_BIN" >/dev/null 2>&1 && "$PYTHON_BIN" "$PROFILE_RESOLVER" catalog --paths "$PATHS_FILE" --output "$CATALOG_JSON" >/dev/null 2>&1; then
                 echo -e "${CYAN}Exported catalog to:${RESET} ${GREEN}$CATALOG_JSON${RESET}"
             else
                 echo -e "${YELLOW}Warning: Failed to export catalog JSON. Verify Python availability and $PATHS_FILE formatting.${RESET}"
@@ -968,6 +1195,8 @@ case ${answer:0:1} in
         fi
         
         # Load targets from file if provided
+        declare -a scan_targets=()
+        scan_scope="auto"
         if [[ -n $TARGET_FILE ]]; then
             echo -e "${CYAN}Loading targets from file: ${GREEN}$TARGET_FILE${RESET}"
             if ! target_list=$(parse_target_file "$TARGET_FILE"); then
@@ -988,15 +1217,23 @@ case ${answer:0:1} in
             echo -e "${CYAN}Loaded ${GREEN}${#TARGET_IPS[@]}${CYAN} target(s) from file${RESET}"
             echo -e "${CYAN}Scanning targets: ${GREEN}${TARGET_IPS[*]}${RESET}"
             echo ""
-            network="${TARGET_IPS[*]}"
+            scan_targets=("${TARGET_IPS[@]}")
+            scan_scope="${TARGET_IPS[*]}"
         else
             current_ip=$(ip route get 1 | awk '{print $7;exit}')
-            network=$(ip route | grep -m1 ^default | awk '{print $3}' | sed 's/\.[0-9]*$/.0\/24/')
+            default_net=$(detect_default_network)
+            scan_scope="$default_net"
+            scan_targets=("$default_net")
             
             echo ""
             echo -e "${CYAN}Your IP address: ${GREEN}$current_ip${RESET}"
-            echo -e "${CYAN}Scanning network: ${GREEN}$network${RESET}"
+            echo -e "${CYAN}Scanning network: ${GREEN}$scan_scope${RESET}"
             echo ""
+        fi
+
+        if (( ${#scan_targets[@]} == 0 )) || [[ -z ${scan_targets[0]} ]]; then
+            echo -e "${RED}No valid scan targets resolved.${RESET}"
+            exit 1
         fi
         
         echo -e "${BLUE}Network scanning in progress...${RESET}"
@@ -1014,7 +1251,13 @@ case ${answer:0:1} in
             read -r -a __extra <<< "$CAM_MODE_NMAP_EXTRA"
             nmap_cmd+=("${__extra[@]}")
         fi
-        nmap_cmd+=(-p "$NMAP_PORT_LIST" --open "$network" -oN "$nmap_output")
+        if [[ ${NMAP_OSSCAN_ENABLE,,} == "true" ]]; then
+            nmap_cmd+=(-O --osscan-guess --fuzzy)
+        fi
+        if [[ ${NMAP_VERSION_ENABLE,,} == "true" ]]; then
+            nmap_cmd+=(-sV --version-all)
+        fi
+        nmap_cmd+=(-p "$NMAP_PORT_LIST" --open "${scan_targets[@]}" -oN "$nmap_output")
         if [[ -f "$NMAP_RTSP_SCRIPT" ]]; then
             nmap_cmd+=(--script "$NMAP_RTSP_SCRIPT")
             rtsp_script_args="rtsp-url-brute.threads=$NMAP_RTSP_THREADS"
@@ -1139,7 +1382,7 @@ case ${answer:0:1} in
             echo -e "${BLUE}Starting more comprehensive scan with masscan...${RESET}"
             masscan_output=$(mktemp)
             masscan_log=$(mktemp)
-            masscan_cmd=(masscan -p "$MASSCAN_PORT_SPEC" --rate "$CAM_MODE_MASSCAN_RATE" "$network" -oJ "$masscan_output")
+            masscan_cmd=(masscan -p "$MASSCAN_PORT_SPEC" --rate "$CAM_MODE_MASSCAN_RATE" "${scan_targets[@]}" -oJ "$masscan_output")
             "${masscan_cmd[@]}" > "$masscan_log" 2>&1 &
             pid=$!
 
@@ -1193,6 +1436,16 @@ case ${answer:0:1} in
             echo -e "${YELLOW}Masscan disabled in ${CAM_MODE_NORMALIZED} mode.${RESET}"
             masscan_output=""
             masscan_log=""
+        fi
+
+        if [[ ${CAM_MODE_SSDP_ENABLE,,} == "true" ]]; then
+            echo ""
+            echo -e "${BLUE}Running SSDP discovery sweep...${RESET}"
+            run_ssdp_discovery
+            if [[ -s $SSDP_OUTPUT_FILE ]]; then
+                ssdp_count=$(wc -l < "$SSDP_OUTPUT_FILE" | tr -d ' ')
+                echo -e "${CYAN}SSDP responses recorded: ${GREEN}$ssdp_count${RESET}"
+            fi
         fi
         
         echo ""
@@ -1349,6 +1602,13 @@ case ${answer:0:1} in
 
         if (( ${#all_ips[@]} > 0 )); then
             echo ""
+            echo -e "${BLUE}Collecting HTTP metadata and ONVIF fingerprints...${RESET}"
+            collect_http_metadata
+            run_onvif_metadata_probe
+        fi
+
+        if (( ${#all_ips[@]} > 0 )); then
+            echo ""
             echo -e "${BLUE}Probing additional streaming protocols (SRT/WebRTC/ONVIF/RTMP/HLS)...${RESET}"
             probe_additional_protocols
         fi
@@ -1412,6 +1672,18 @@ case ${answer:0:1} in
                         echo "    - ${proto_name}: ${proto_detail}"
                     done < <(printf '%s' "${ip_protocol_hits[$ip]}" | sed '/^$/d')
                 fi
+                if [[ -n ${ip_http_metadata[$ip]} ]]; then
+                    http_meta_count=$(printf '%s' "${ip_http_metadata[$ip]}" | sed '/^$/d' | wc -l | tr -d ' ')
+                    echo "  HTTP metadata entries: $http_meta_count"
+                fi
+                if [[ -n ${ip_onvif_info[$ip]} ]]; then
+                    onvif_meta_count=$(printf '%s' "${ip_onvif_info[$ip]}" | sed '/^$/d' | wc -l | tr -d ' ')
+                    echo "  ONVIF metadata entries: $onvif_meta_count"
+                fi
+                if [[ -n ${ip_ssdp_info[$ip]} ]]; then
+                    ssdp_meta_count=$(printf '%s' "${ip_ssdp_info[$ip]}" | sed '/^$/d' | wc -l | tr -d ' ')
+                    echo "  SSDP responses: $ssdp_meta_count"
+                fi
                 echo ""
 
                 rtsp_discovered_json="[]"
@@ -1426,6 +1698,18 @@ case ${answer:0:1} in
                 if [[ -n ${ip_protocol_hits[$ip]} ]]; then
                     protocol_hits_json=$(printf '%s' "${ip_protocol_hits[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | split("|") | {protocol: .[0], detail: ((.[1:] | join("|")) // "")} )')
                 fi
+                http_metadata_json="[]"
+                if [[ -n ${ip_http_metadata[$ip]} ]]; then
+                    http_metadata_json=$(printf '%s' "${ip_http_metadata[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | (try fromjson catch empty)) | map(select(. != null))')
+                fi
+                onvif_metadata_json="[]"
+                if [[ -n ${ip_onvif_info[$ip]} ]]; then
+                    onvif_metadata_json=$(printf '%s' "${ip_onvif_info[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | (try fromjson catch empty)) | map(select(. != null))')
+                fi
+                ssdp_metadata_json="[]"
+                if [[ -n ${ip_ssdp_info[$ip]} ]]; then
+                    ssdp_metadata_json=$(printf '%s' "${ip_ssdp_info[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | (try fromjson catch empty)) | map(select(. != null))')
+                fi
 
                 host_json=$(jq -n \
                     --arg ip "$ip" \
@@ -1436,6 +1720,9 @@ case ${answer:0:1} in
                     --argjson rtsp_discovered "$rtsp_discovered_json" \
                     --argjson rtsp_other "$rtsp_other_json" \
                     --argjson protocol_hits "$protocol_hits_json" \
+                    --argjson http_metadata "$http_metadata_json" \
+                    --argjson onvif_metadata "$onvif_metadata_json" \
+                    --argjson ssdp_metadata "$ssdp_metadata_json" \
                     '{
                         ip: $ip,
                         mac: (if $mac == "Unknown" or $mac == "" then null else $mac end),
@@ -1446,7 +1733,10 @@ case ${answer:0:1} in
                             discovered: $rtsp_discovered,
                             other_responses: $rtsp_other
                         },
-                        additional_protocols: $protocol_hits
+                        additional_protocols: $protocol_hits,
+                        http_metadata: $http_metadata,
+                        onvif: $onvif_metadata,
+                        ssdp: $ssdp_metadata
                     }')
                 printf '%s\n' "$host_json" >> "$hosts_json_tmp"
             done < <(printf "%s\n" "${!all_ips[@]}" | sort -V)
@@ -1463,14 +1753,14 @@ case ${answer:0:1} in
         jq --arg mode "$CAM_MODE_NORMALIZED" \
            --arg raw "$CAM_MODE_RAW" \
            --arg timestamp "$RUN_STAMP" \
-           --arg network "$network" \
+           --arg network "$scan_scope" \
            '.metadata = {mode: $mode, mode_raw: $raw, generated_at: $timestamp, network: $network}' \
            "$DISCOVERY_JSON" > "$DISCOVERY_JSON.tmp"
         mv "$DISCOVERY_JSON.tmp" "$DISCOVERY_JSON"
 
         if [[ -f "$PATHS_FILE" && -s "$DISCOVERY_JSON" ]]; then
             discovery_enriched_tmp=$(mktemp)
-            if "$PYTHON_BIN" "$SCRIPT_DIR/profile_resolver.py" enrich --paths "$PATHS_FILE" --input "$DISCOVERY_JSON" --output "$discovery_enriched_tmp" --limit 3; then
+            if "$PYTHON_BIN" "$PROFILE_RESOLVER" enrich --paths "$PATHS_FILE" --input "$DISCOVERY_JSON" --output "$discovery_enriched_tmp" --limit 3; then
                 mv "$discovery_enriched_tmp" "$DISCOVERY_JSON"
             else
                 echo -e "${YELLOW}Warning: Unable to enrich device profiles; see above for details.${RESET}"
@@ -1486,7 +1776,7 @@ case ${answer:0:1} in
             echo ""
             echo -e "${BLUE}Syncing discovery dataset with IVRE...${RESET}"
             
-            if "$SCRIPT_DIR/ivre-manager.sh" ingest "$DISCOVERY_JSON" --quiet; then
+            if "$INTEGRATION_DIR/ivre-manager.sh" ingest "$DISCOVERY_JSON" --quiet; then
                 echo -e "${GREEN}IVRE sync complete.${RESET}"
             else
                 echo -e "${YELLOW}IVRE sync encountered issues. Review ${IVRE_LOG_FILE} for details.${RESET}"
@@ -1523,6 +1813,15 @@ case ${answer:0:1} in
         fi
         if [[ -f "$COAP_OUTPUT_FILE" ]]; then
             echo -e "${CYAN}CoAP discovery list:${RESET} ${GREEN}$COAP_OUTPUT_FILE${RESET}"
+        fi
+        if [[ -f "$HTTP_META_LOG" ]]; then
+            echo -e "${CYAN}HTTP metadata:${RESET} ${GREEN}$HTTP_META_LOG${RESET}"
+        fi
+        if [[ -f "$SSDP_OUTPUT_FILE" ]]; then
+            echo -e "${CYAN}SSDP captures:${RESET} ${GREEN}$SSDP_OUTPUT_FILE${RESET}"
+        fi
+        if [[ -f "$ONVIF_OUTPUT_FILE" ]]; then
+            echo -e "${CYAN}ONVIF captures:${RESET} ${GREEN}$ONVIF_OUTPUT_FILE${RESET}"
         fi
         if [[ -f "$CATALOG_JSON" ]]; then
             echo -e "${CYAN}Catalog snapshot:${RESET} ${GREEN}$CATALOG_JSON${RESET}"

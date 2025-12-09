@@ -1,3 +1,14 @@
+camsniff (2.2.2) unstable; urgency=medium
+  * Restructure scripts/ into core/setup/probes/helpers/integrations/tools/ui and
+    data/ into catalog/dictionaries/examples/protocols for clearer ownership.
+  * Wire new HTTP banner, SSDP, and ONVIF device-info harvesting into discovery
+    output with accompanying logs to strengthen profiling coverage.
+  * Fix target handling by passing multiple CIDRs directly to Nmap/Masscan and
+    auto-detecting the default network instead of guessing /24.
+  * Update packaging install lists for the new layout and refresh documentation,
+    man page paths, and README flow; bump version string to 2.2.2.
+ -- John Hauger Mitander <john@on1.no>  Tue, 09 Dec 2025 01:00:00 +0000
+
 camsniff (2.2.1) unstable; urgency=medium
   * Move PORT_PROFILE_DATA and UI_HELPER to scripts/ for proper shellcheck sourcing.
   * implemented new scanning features and bug fixes.
@@ -63,4 +74,3 @@ camsniff (1.0.0) unstable; urgency=medium
   * Document mode-aware CLI, credential probing, and packaging workflow.
 
  -- John Hauger Mitander <john@on1.no>  Mon, 29 Sep 2025 00:00:00 +0000
-
