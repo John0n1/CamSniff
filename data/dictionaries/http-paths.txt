@@ -1,0 +1,43 @@
+# template|port|channel|stream|label
+http://{{username}}:{{password}}@{{ip_address}}/snapshot.jpg|80|1|0|generic snapshot
+http://{{username}}:{{password}}@{{ip_address}}/image.jpg|80|1|0|generic image
+http://{{username}}:{{password}}@{{ip_address}}/jpg/image.jpg|80|1|0|grandstream image
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/snapshot.cgi|80|1|0|generic cgi snapshot
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/api.cgi?cmd=Snap&channel={{channel}}&rs={{stream}}|80|1|0|reolink api
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/snapshot.cgi?channel={{channel}}&subtype={{stream}}|80|1|0|dahua subtype snapshot
+http://{{username}}:{{password}}@{{ip_address}}/Streaming/channels/{{channel}}01/picture|80|1|0|hikvision legacy snapshot
+http://{{username}}:{{password}}@{{ip_address}}/ISAPI/Streaming/channels/{{channel}}01/picture|80|1|0|hikvision isapi snapshot
+http://{{username}}:{{password}}@{{ip_address}}/axis-cgi/jpg/image.cgi|80|1|0|axis jpg image
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/viewer/video.jpg|80|1|0|vivotek viewer
+http://{{username}}:{{password}}@{{ip_address}}/webcapture.jpg?command=snap&channel={{channel}}|80|1|0|swann webcapture
+http://{{username}}:{{password}}@{{ip_address}}/image/jpeg.cgi|80|1|0|panasonic/dlink jpeg
+http://{{username}}:{{password}}@{{ip_address}}/GetData.cgi?CH={{channel}}&Codec=mjpeg|80|1|0|wirepath mjpeg
+https://{{username}}:{{password}}@{{ip_address}}/cgi-bin/snapshot.cgi|443|1|0|https snapshot
+http://{{username}}:{{password}}@{{ip_address}}/video.jpg|80|1|0|amcrest/generic snapshot
+http://{{username}}:{{password}}@{{ip_address}}/onvif-http/snapshot?channel={{channel}}&stream={{stream}}|80|1|0|onvif snapshot
+http://{{username}}:{{password}}@{{ip_address}}/snap.jpg|80|1|0|bosch snapshot
+http://{{username}}:{{password}}@{{ip_address}}/record/current.jpg|80|1|0|mobotix current
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/faststream.jpg|80|1|0|mobotix faststream
+http://{{username}}:{{password}}@{{ip_address}}/LAPI/V1.0/Channels/{{channel}}/Media/Video/Streams/{{stream}}/Snapshot|80|1|0|uniview lapi snapshot
+http://{{username}}:{{password}}@{{ip_address}}/images/snapshot.jpg|80|1|0|uniview legacy
+http://{{username}}:{{password}}@{{ip_address}}/jpeg|80|1|0|pelco sarix jpeg
+http://{{username}}:{{password}}@{{ip_address}}/jpeg/pull|80|1|0|pelco sarix pull
+http://{{username}}:{{password}}@{{ip_address}}/snapshot.jpg?user={{username}}&pwd={{password}}&strm={{channel}}|80|1|0|avtech snapshot
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/guest/Video.cgi?media=JPEG|80|1|0|geovision guest
+http://{{username}}:{{password}}@{{ip_address}}/cam{{channel}}.jpg|80|1|0|geovision cam
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/mjpeg|80|1|0|basler mjpeg
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/media.cgi?action=getSnapshot|80|1|0|brickcom snapshot
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/CGIProxy.fcgi?cmd=snapPicture&usr={{username}}&pwd={{password}}|80|1|0|foscam cgi proxy
+http://{{username}}:{{password}}@{{ip_address}}/oneshotimage.jpg|80|1|0|sony oneshot
+http://{{username}}:{{password}}@{{ip_address}}/img/snapshot.cgi?size=3|80|1|0|cisco snapshot
+http://{{username}}:{{password}}@{{ip_address}}/image|80|1|0|arecont/generic image
+http://{{username}}:{{password}}@{{ip_address}}/tmpfs/auto.jpg|80|1|0|zkteco/generic
+http://{{username}}:{{password}}@{{ip_address}}/api/v1/snap.cgi?chn=0|80|1|0|wansview api
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/net_jpeg.cgi?ch={{channel}}|80|1|0|wansview legacy
+http://{{username}}:{{password}}@{{ip_address}}/snap.jpeg|80|1|0|ubiquiti anonymous
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/video.cgi?msubmenu=jpg|80|1|0|hanwha/samsung
+http://{{username}}:{{password}}@{{ip_address}}/goform/video2|80|1|0|trendnet/linksys
+http://{{username}}:{{password}}@{{ip_address}}/cgi-bin/jpg/image.cgi|80|1|0|trendnet jpg
+http://{{username}}:{{password}}@{{ip_address}}/-wvhttp-01-/GetOneShot?frame_id=1|80|1|0|canon vb
+http://{{username}}:{{password}}@{{ip_address}}/image/jpeg.cgi?profileid=1|80|1|0|dlink profile
+http://{{username}}:{{password}}@{{ip_address}}/dms.jpg|80|1|0|dlink dms

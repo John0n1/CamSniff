@@ -39,10 +39,10 @@ run:
 	sudo $(ROOT_DIR)/scripts/camsniff.sh --mode $(MODE) $(RUN_FLAGS)
 
 install-deps:
-	sudo -E $(ROOT_DIR)/scripts/deps-install.sh
+	sudo -E $(ROOT_DIR)/scripts/setup/deps-install.sh
 
 build-coap:
-	sudo -E $(ROOT_DIR)/scripts/build-coap.sh
+	sudo -E $(ROOT_DIR)/scripts/setup/build-coap.sh
 
 lint: shellcheck
 	@echo "Running bash syntax checks"
@@ -52,6 +52,7 @@ lint: shellcheck
 
 shellcheck:
 	@echo "Running shellcheck"
+	sudo apt-get install -y shellcheck || true
 	@command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not available"; exit 1; }
 	shellcheck -x -P scripts -P data -P . $(SH_SOURCES)
 

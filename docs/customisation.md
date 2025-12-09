@@ -1,9 +1,9 @@
 ## Customisation hints
 
-- Extend `data/paths.csv` with new vendor fingerprints, CVE IDs, default credentials, and snapshot/stream templates.
-- Update `data/usernames.txt` and `data/passwords.txt` to broaden credential probing.
-- Swap in an alternate RTSP dictionary by editing `data/rtsp-url-brute.nse` or passing `rtsp-url-brute.urlfile=<path>` through the Nmap script arguments (see comments in the script).
-- Modes, timeouts, and credential limits are centralised in `scripts/mode-config.sh`.
+- Extend `data/catalog/paths.csv` with new vendor fingerprints, CVE IDs, default credentials, and snapshot/stream templates.
+- Update `data/dictionaries/usernames.txt` and `data/dictionaries/passwords.txt` to broaden credential probing.
+- Swap in an alternate RTSP dictionary by editing `data/protocols/rtsp-url-brute.nse` or passing `rtsp-url-brute.urlfile=<path>` through the Nmap script arguments (see comments in the script).
+- Modes, timeouts, and credential limits are centralised in `scripts/core/mode-config.sh`.
 - Protocol heuristics for ONVIF/RTMP/HLS/WebRTC/SRT are implemented in `scripts/camsniff.sh` under `probe_additional_protocols`; adjust or extend them there.
 
 ## IVRE Integration
@@ -16,7 +16,7 @@ The IVRE integration provides:
 
 - **Fully automatic setup**: MongoDB and IVRE are installed and configured automatically when using `--extra ivre`
 - **Automated schema mapping**: Discovery data is automatically converted to IVRE's Nmap-compatible format
-- **Vendor enrichment**: MAC address-based vendor identification from `data/paths.csv`
+- **Vendor enrichment**: MAC address-based vendor identification from `data/catalog/paths.csv`
 - **Credential tracking**: Successful authentication attempts are tagged and searchable
 - **Thumbnail references**: Links to captured camera snapshots are stored in host metadata
 - **CVE tracking**: Known vulnerabilities are associated with discovered cameras
@@ -46,23 +46,23 @@ The unified IVRE manager handles all operations:
 
 ```bash
 # Check IVRE status
-scripts/ivre-manager.sh check
+scripts/integrations/ivre-manager.sh check
 
 # Manual setup (if needed)
-sudo scripts/ivre-manager.sh setup
+sudo scripts/integrations/ivre-manager.sh setup
 
 # Ingest specific run
-scripts/ivre-manager.sh ingest dev/results/20251010T215139Z/discovery.json
+scripts/integrations/ivre-manager.sh ingest dev/results/20251010T215139Z/discovery.json
 
 # Bulk ingest all historical runs
-scripts/ivre-manager.sh bulk-ingest
+scripts/integrations/ivre-manager.sh bulk-ingest
 
 # Show summary statistics
-scripts/ivre-manager.sh summary
+scripts/integrations/ivre-manager.sh summary
 
 # Export results
-scripts/ivre-manager.sh export json > cameras.json
-scripts/ivre-manager.sh export csv > cameras.csv
+scripts/integrations/ivre-manager.sh export json > cameras.json
+scripts/integrations/ivre-manager.sh export csv > cameras.csv
 ```
 
 ### Querying IVRE Data
@@ -140,12 +140,12 @@ CamSniff maps discovery data into IVRE with these fields:
 
 **Check IVRE status:**
 ```bash
-scripts/ivre-manager.sh check
+scripts/integrations/ivre-manager.sh check
 ```
 
 **Re-setup IVRE:**
 ```bash
-sudo scripts/ivre-manager.sh setup
+sudo scripts/integrations/ivre-manager.sh setup
 ```
 
 **View sync logs:**

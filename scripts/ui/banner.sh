@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2153
 #
-# Copyright 2025 John Hauger Mitander
-# Licensed under the MIT License
+# https://github.com/John0n1/CamSniff
 #
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
 
 cam_ui_visible_length() {
     local text="$1"
@@ -85,12 +85,15 @@ cam_ui_matrix_rain() {
 cam_ui_render_banner() {
     local width="${1:-$(tput cols 2>/dev/null || echo 80)}"
     local color_cyan="${2:-"\033[36m"}"
+    local color_green="${3:-"\033[32m"}"
+    local color_yellow="${4:-"\033[33m"}"
     local color_blue="${5:-"\033[34m"}"
     local color_reset="${6:-"\033[0m"}"
     local mode="${7:-unknown}"
     local port_label="${8:-Ports}"
     local run_dir="${9:-"./dev/results"}"
     local extras_label="${10:-None}"
+    local color_orange="${color_yellow}"
 
     local ascii_lines=(
         "▐▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▌"
@@ -100,34 +103,34 @@ cam_ui_render_banner() {
         "▐ ██║     ██╔══██║██║╚██╔╝██║╚════██║██║╚██╗██║██║██╔══╝  ██╔══╝   ▌"
         "▐ ╚██████╗██║  ██║██║ ╚═╝ ██║███████║██║ ╚████║██║██║     ██║      ▌"
         "▐  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝      ▌"
-        "▐                          Version 2.2.1                           ▌"
+        "▐                          Version 2.2.2                           ▌"
         "▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌"
     )
 
     for line in "${ascii_lines[@]}"; do
         cam_ui_center_line "${width}" "${line}" "${color_cyan}" "${color_reset}"
     done
-    cam_ui_center_line "${width}"""
+    cam_ui_center_line "${width}" ""
     printf "\n"
-    cam_ui_center_line "${width}" "${CYAN}CamSniff - IP Camera Reconnaissance${RESET}"
-    cam_ui_center_line "${width}"""
-    cam_ui_center_line "${width}" "An automated IP-camera reconnaissance toolkit"
+    cam_ui_center_line "${width}" "${color_cyan}CamSniff - IP Camera Reconnaissance${color_reset}"
+    cam_ui_center_line "${width}" ""
+    cam_ui_center_line "${width}" "Automated IP-camera reconnaissance toolkit"
     cam_ui_center_line "${width}" "Performs multi-stage sweeps with advanced scanning"
     cam_ui_center_line "${width}" "Attempts to access and display video streams from identified devices."
     printf "\n"
-    cam_ui_center_line "${width}" "     ${RED}//////////////////////////////${RESET}"
-    cam_ui_center_line "${width}" "     ${RED}Use only on authorized networks.${RESET}"
-    cam_ui_center_line "${width}" "     ${RED}//////////////////////////////${RESET}"
+    cam_ui_center_line "${width}" "     ${color_blue}//////////////////////////////${color_reset}"
+    cam_ui_center_line "${width}" "     ${color_blue}Use only on authorized networks.${color_reset}"
+    cam_ui_center_line "${width}" "     ${color_blue}//////////////////////////////${color_reset}"
     printf "\n"
-    cam_ui_center_line "${width}" "Mode: ${GREEN}${mode}${RESET} (${port_label})"
-    cam_ui_center_line "${width}" "Run artifacts: ${GREEN}${run_dir}${RESET}"
-    cam_ui_center_line "${width}" "Extras enabled: ${GREEN}${extras_label}${RESET}"
+    cam_ui_center_line "${width}" "Mode: ${color_green}${mode}${color_reset} (${port_label})"
+    cam_ui_center_line "${width}" "Run artifacts: ${color_green}${run_dir}${color_reset}"
+    cam_ui_center_line "${width}" "Extras enabled: ${color_green}${extras_label}${color_reset}"
     printf "\n\n"
 
     cam_ui_center_line "${width}" "Happens Next:" "${color_blue}" "${color_reset}"
-    cam_ui_center_line "${width}" "${ORANGE}1.${RESET} dependencies check/install"
-    cam_ui_center_line "${width}" "${ORANGE}2.${RESET} Scans local network configuration"
-    cam_ui_center_line "${width}" "${ORANGE}3.${RESET} Main scan phase initialization (${GREEN}${mode}${RESET})"
-    cam_ui_center_line "${width}" "${ORANGE}4.${RESET} Service detection and camera identification"
+    cam_ui_center_line "${width}" "${color_orange}1.${color_reset} dependencies check/install"
+    cam_ui_center_line "${width}" "${color_orange}2.${color_reset} Scans local network configuration"
+    cam_ui_center_line "${width}" "${color_orange}3.${color_reset} Main scan phase initialization (${color_green}${mode}${color_reset})"
+    cam_ui_center_line "${width}" "${color_orange}4.${color_reset} Service detection and camera identification"
     printf "\n"
 }

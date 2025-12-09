@@ -15,7 +15,7 @@ Multi-Arch: foreign
 Depends: ${misc:Depends}, python3, python3-venv, nmap,
  masscan, tshark, avahi-daemon, avahi-utils, libpcap0.8, libchafa0, chafa,
  ffmpeg, curl, jq
-Recommends: python3-dev, aircrack-ng, airmon-ng
+Recommends: python3-dev
 Description: Mode-aware reconnaissance toolkit for IP cameras
  CamSniff is a mode-aware, data-driven reconnaissance toolkit focused on
  discovering IP cameras and related streaming or telemetry endpoints on

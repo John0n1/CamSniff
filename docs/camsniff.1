@@ -1,4 +1,4 @@
-.TH CAMSNIFF 1 "October 2025" "CamSniff 2.2.0" "User Commands"
+.TH CAMSNIFF 1 "December 2025" "CamSniff 2.2.2" "User Commands"
 .SH NAME
 camsniff \- automated IP camera reconnaissance and credential auditor
 .SH SYNOPSIS
@@ -62,17 +62,17 @@ Main orchestrator executed by the wrapper binary.
 .I /usr/lib/camsniff/scripts/credential-probe.sh
 Runs HTTP/RTSP credential checks based on discovery output.
 .TP
-.I /usr/lib/camsniff/data/paths.csv
+.I /usr/lib/camsniff/data/catalog/paths.csv
 Vendor fingerprint catalogue supplying default credential and CVE metadata.
 .TP
-.I /usr/lib/camsniff/data/http-paths.txt
+.I /usr/lib/camsniff/data/dictionaries/http-paths.txt
 Fallback HTTP snapshot templates.
 .TP
-.I /usr/lib/camsniff/data/usernames.txt,
-.I /usr/lib/camsniff/data/passwords.txt
+.I /usr/lib/camsniff/data/dictionaries/usernames.txt,
+.I /usr/lib/camsniff/data/dictionaries/passwords.txt
 Credential dictionaries used by the probe stage.
 .TP
-.I /usr/lib/camsniff/data/port-profiles.sh
+.I /usr/lib/camsniff/scripts/core/port-profiles.sh
 Shared port profile definitions for Nmap and Masscan.
 .TP
 .I ~/dev/results/

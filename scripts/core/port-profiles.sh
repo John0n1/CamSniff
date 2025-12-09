@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 #
-# Copyright 2025 John Hauger Mitander
-# Licensed under the MIT License
+# https://github.com/John0n1/CamSniff
 #
+# Copyright (c) 2025 John Hauger Mitander
+# License: MIT License https://opensource.org/license/MIT
 
 declare -A CAM_PORT_PROFILES_NMAP=(
   [minimal]="80,554"

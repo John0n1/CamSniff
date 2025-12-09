@@ -1,0 +1,359 @@
+[
+  {
+    "id": "CVE-2025-60855",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Reolink Video Doorbell Wi-Fi (DB_566128M5MP_W) performs insufficient validation of firmware update signatures, allowing remote attackers to upload malicious images and achieve root RCE.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-60855"]
+  },
+  {
+    "id": "CVE-2025-60856",
+    "severity": "High",
+    "cvss": 7.6,
+    "summary": "Reolink Video Doorbell Wi-Fi exposes an unsecured UART serial console that grants direct root shell access without authentication to attackers with physical access.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-60856"]
+  },
+  {
+    "id": "CVE-2025-31700",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Dahua ONVIF request handler stack-based buffer overflow allowing unauthenticated remote code execution (RCE) via crafted packets.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-31700"]
+  },
+  {
+    "id": "CVE-2025-39247",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Hikvision HikCentral Professional access control bypass allowing unauthenticated remote attackers to gain full administrative privileges.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-39247"]
+  },
+  {
+    "id": "CVE-2025-30023",
+    "severity": "Critical",
+    "cvss": 9.0,
+    "summary": "Axis Camera Station Pro and Device Manager critical remote code execution (RCE) vulnerability via the proprietary 'Remoting' protocol.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-30023"]
+  },
+  {
+    "id": "CVE-2025-34065",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "AVTECH IP cameras and NVRs authentication bypass in the 'streamd' web server via URL manipulation (e.g., /nobody/..).",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-34065"]
+  },
+  {
+    "id": "CVE-2025-34067",
+    "severity": "Critical",
+    "cvss": 10.0,
+    "summary": "Hikvision Integrated Security Management Platform deserialization vulnerability via Fastjson, leading to unauthenticated RCE.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-34067"]
+  },
+  {
+    "id": "CVE-2025-4975",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "TP-Link Tapo Android app contains a privilege escalation vulnerability where interacting with a 'low battery' notification on a shared device grants full power control permissions.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-4975"]
+  },
+  {
+    "id": "CVE-2025-1099",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "TP-Link Tapo C500 Wi-Fi cameras contain a hardcoded RSA private key in the firmware, enabling man-in-the-middle (MitM) attacks against device communications.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-1099"]
+  },
+  {
+    "id": "CVE-2025-9383",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "FNKvision Y215 CCTV Camera critical weakness in /etc/passwd handling allowing unauthenticated root access.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-9383"]
+  },
+  {
+    "id": "CVE-2025-1316",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Edimax IC-7100 and related IoT devices allow unauthenticated remote code execution, actively exploited by Mirai botnets.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-1316"]
+  },
+  {
+    "id": "CVE-2025-5572",
+    "severity": "Critical",
+    "cvss": 8.7,
+    "summary": "D-Link DCS-932L stack-based buffer overflow via setSystemEmail parameter allows unauthenticated RCE.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-5572"]
+  },
+  {
+    "id": "CVE-2024-8956",
+    "severity": "Critical",
+    "cvss": 9.1,
+    "summary": "PTZOptics camera authentication bypass allows unauthenticated remote attackers to overwrite configuration and gain control.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2024-8956"]
+  },
+  {
+    "id": "CVE-2024-6476",
+    "severity": "Medium",
+    "cvss": 4.2,
+    "summary": "Axis Camera Station Pro privilege escalation via file deletion redirect during service restart.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2024-6476"]
+  },
+  {
+    "id": "CVE-2023-28478",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "TP-Link Kasa EC70 Spot Pan Tilt cameras contain a stack-based buffer overflow in the authentication header, allowing unauthenticated remote code execution as root.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-28478"]
+  },
+  {
+    "id": "CVE-2023-31994",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "Hanwha Vision (Samsung) cameras (A/X/P series) are vulnerable to Denial of Service (DoS) via empty UDP packets sent to the WS-Discovery service.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-31994"]
+  },
+  {
+    "id": "CVE-2023-47353",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Imou GO (Dahua) Android app arbitrary file download vulnerability.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-47353"]
+  },
+  {
+    "id": "CVE-2023-51625",
+    "severity": "High",
+    "cvss": 8.0,
+    "summary": "D-Link DCS-8300LHV2 ONVIF command injection via malicious XML timezone parameters.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-51625"]
+  },
+  {
+    "id": "CVE-2023-26609",
+    "severity": "High",
+    "cvss": 7.2,
+    "summary": "ABUS TVIP cameras allow RCE via /cgi-bin/mft/wireless_mft.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-26609"]
+  },
+  {
+    "id": "CVE-2023-39509",
+    "severity": "High",
+    "cvss": 7.2,
+    "summary": "Bosch IP cameras command injection for authenticated administrators.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-39509"]
+  },
+  {
+    "id": "CVE-2022-30525",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Ubiquiti Edge devices allow remote code execution through crafted HTTP requests.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-30525"]
+  },
+  {
+    "id": "CVE-2022-37255",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "TP-Link Tapo C310 cameras (firmware 1.3.0) use hardcoded RTSP credentials, allowing any unauthenticated network user to view the live video feed.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-37255"]
+  },
+  {
+    "id": "CVE-2022-21199",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "Reolink RLC-410W cameras allow unauthenticated information disclosure via the 'netserver' service, leaking device configuration details.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-21199"]
+  },
+  {
+    "id": "CVE-2022-27145",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Vivotek cameras allow remote command injection through crafted CGI parameters.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-27145"]
+  },
+  {
+    "id": "CVE-2022-38700",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "OpenHarmony OS (used in various smart cameras) authentication bypass in multimedia subsystem.",
+    "references": ["https://app.opencve.io/cve/CVE-2022-38700"]
+  },
+  {
+    "id": "CVE-2021-36260",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Hikvision cameras and NVRs command injection vulnerability in the web server component.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-36260"]
+  },
+  {
+    "id": "CVE-2021-28372",
+    "severity": "Critical",
+    "cvss": 9.6,
+    "summary": "ThroughTek Kalay P2P SDK remote code execution vulnerability affects millions of IoT devices (Wyze, OEM cams).",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-28372"]
+  },
+  {
+    "id": "CVE-2021-40127",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Reolink IP cameras allow authentication bypass via predictable session tokens.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-40127"]
+  },
+  {
+    "id": "CVE-2021-33044",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Uniview NVR allows remote code execution via crafted RPC call.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-33044"]
+  },
+  {
+    "id": "CVE-2020-25506",
+    "severity": "High",
+    "cvss": 9.1,
+    "summary": "Dahua cameras allow remote command execution via crafted ONVIF requests.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-25506"]
+  },
+  {
+    "id": "CVE-2020-8190",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Ubiquiti UniFi Video cameras vulnerable to authentication bypass on the management API.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-8190"]
+  },
+  {
+    "id": "CVE-2020-13545",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Hanwha Techwin Wisenet devices allow stack-based buffer overflow via crafted HTTP request.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-13545"]
+  },
+  {
+    "id": "CVE-2020-25169",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "Reolink P2P cameras do not sufficiently protect data transfers, allowing attackers to reconstruct cleartext video/audio streams from captured P2P traffic.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-25169"]
+  },
+  {
+    "id": "CVE-2020-19054",
+    "severity": "High",
+    "cvss": 8.6,
+    "summary": "Foscam cameras vulnerable to stack overflow via RTSP DESCRIBE command.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-19054"]
+  },
+  {
+    "id": "CVE-2020-10964",
+    "severity": "High",
+    "cvss": 8.1,
+    "summary": "Uniview devices vulnerable to authentication bypass in web management interface.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-10964"]
+  },
+  {
+    "id": "CVE-2020-12271",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Geovision GV-Control Center stack-based buffer overflow allowing RCE.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-12271"]
+  },
+  {
+    "id": "CVE-2019-15223",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Axis network cameras allow remote code execution due to insufficient sanitisation of the action parameter.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-15223"]
+  },
+  {
+    "id": "CVE-2019-9483",
+    "severity": "Critical",
+    "cvss": 9.1,
+    "summary": "Amazon Ring Video Doorbell Pro mishandles encryption during setup, allowing nearby attackers to intercept Wi-Fi credentials and spoof video feeds.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-9483"]
+  },
+  {
+    "id": "CVE-2019-5035",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Google Nest Cam IQ Indoor (Weave protocol) allows brute-forcing of the pairing code, potentially giving an attacker full control over the device.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-5035"]
+  },
+  {
+    "id": "CVE-2019-3949",
+    "severity": "High",
+    "cvss": 7.6,
+    "summary": "Arlo Base Stations (VMB4000/5000) lack sufficient physical protection on the UART interface, allowing attackers with physical access to obtain a root shell.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-3949"]
+  },
+  {
+    "id": "CVE-2019-3950",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Arlo Base Stations expose a 'passthru' API endpoint that allows authenticated users to upload arbitrary files, leading to potential code execution.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-3950"]
+  },
+  {
+    "id": "CVE-2019-3948",
+    "severity": "High",
+    "cvss": 9.8,
+    "summary": "Multiple Dahua OEM products allow remote command execution due to improper authentication.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-3948"]
+  },
+  {
+    "id": "CVE-2019-12223",
+    "severity": "High",
+    "cvss": 7.8,
+    "summary": "Hanwha Techwin (Samsung) NVRs allow a system crash and reboot (DoS) by submitting a username exceeding 117 characters.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-12223"]
+  },
+  {
+    "id": "CVE-2018-6298",
+    "severity": "Critical",
+    "cvss": 10.0,
+    "summary": "Hanwha Techwin (Samsung) SmartCam devices allow remote code execution with root privileges due to improper input validation in the media server.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2018-6298"]
+  },
+  {
+    "id": "CVE-2018-6299",
+    "severity": "High",
+    "cvss": 7.5,
+    "summary": "Hanwha Techwin (Samsung) SmartCam devices allow authentication bypass, enabling attackers to register new administrative accounts without credentials.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2018-6299"]
+  },
+  {
+    "id": "CVE-2018-10660",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Axis Camera Station and device firmware vulnerable to directory traversal allowing arbitrary file read.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2018-10660"]
+  },
+  {
+    "id": "CVE-2018-9995",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "TBK/Novo/Many-OEM DVRs authentication bypass via Cookie: uid=admin.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2018-9995"]
+  },
+  {
+    "id": "CVE-2017-7921",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Hikvision devices (and LaView/Annke OEMs) expose backdoor credentials allowing unauthenticated remote access.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2017-7921"]
+  },
+  {
+    "id": "CVE-2017-8229",
+    "severity": "High",
+    "cvss": 8.8,
+    "summary": "Amcrest cameras expose telnet interface with hardcoded credentials allowing root access.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2017-8229"]
+  },
+  {
+    "id": "CVE-2017-9763",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Grandstream cameras contain hidden telnet backdoor credentials enabling full compromise.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2017-9763"]
+  },
+  {
+    "id": "CVE-2015-2884",
+    "severity": "Critical",
+    "cvss": 9.8,
+    "summary": "Vivotek (and LaView OEM) cameras contain a buffer overflow in the RTSP service, allowing remote attackers to execute arbitrary code via long strings.",
+    "references": ["https://nvd.nist.gov/vuln/detail/CVE-2015-2884"]
+  }
+]
