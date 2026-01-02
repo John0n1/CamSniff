@@ -1,3 +1,7 @@
+#!/bin/sh
+set -e
+
+cat <<'EOF'
 README.md
 VERSION
 LICENSE
@@ -5,3 +9,4 @@ data/vendors/README.md
 docs/customisation.md
 docs/dev-helpers.md
 docs/camsniff.png
+EOF

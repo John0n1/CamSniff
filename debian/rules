@@ -18,3 +18,17 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	# No automated test suite during package build
+
+override_dh_builddeb:
+	set -e; \
+	for pkg in $$(dh_listpackages); do \
+		build_dir="debian/$$pkg"; \
+		tmp_dir=$$(mktemp -d); \
+		cp -a "$$build_dir/." "$$tmp_dir/"; \
+		if [ -d "$$tmp_dir/DEBIAN" ]; then \
+			chmod 0755 "$$tmp_dir/DEBIAN"; \
+			find "$$tmp_dir/DEBIAN" -type f -exec chmod 0644 {} +; \
+		fi; \
+		dpkg-deb --root-owner-group --build "$$tmp_dir" ..; \
+		rm -rf "$$tmp_dir"; \
+	done

@@ -803,6 +803,25 @@ run_ssdp_discovery() {
     rm -f "$ssdp_tmp"
 }
 
+normalize_report_format() {
+    local raw="$1"
+    raw=$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')
+    case "$raw" in
+        md|markdown)
+            echo "markdown"
+            ;;
+        html|htm)
+            echo "html"
+            ;;
+        both|all)
+            echo "both"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -m|--mode)
@@ -1144,25 +1163,6 @@ apply_optional_tool_overrides() {
     fi
 }
 
-normalize_report_format() {
-    local raw="$1"
-    raw=$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')
-    case "$raw" in
-        md|markdown)
-            echo "markdown"
-            ;;
-        html|htm)
-            echo "html"
-            ;;
-        both|all)
-            echo "both"
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
-}
-
 generate_reports() {
     local format="$1"
     [[ -z $format ]] && return 0
@@ -1481,10 +1481,10 @@ render_smart_summary() {
     local ip
     for ip in "${SMART_TARGETS[@]}"; do
         local score=${ip_pre_score[$ip]:-0}
-        local reasons=${ip_pre_reasons[$ip]:-}
+        local reason_summary=${ip_pre_reasons[$ip]:-}
         printf "  %s%-15s%s score=%s" "$CYAN" "$ip" "$RESET" "$score"
-        if [[ -n $reasons ]]; then
-            printf " (%s)" "$reasons"
+        if [[ -n $reason_summary ]]; then
+            printf " (%s)" "$reason_summary"
         fi
         echo ""
         shown=$((shown + 1))

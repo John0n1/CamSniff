@@ -1,4 +1,4 @@
-tmp
-dev
-.venv
-venv
+#!/bin/sh
+set -e
+
+rm -rf -- tmp dev .venv venv

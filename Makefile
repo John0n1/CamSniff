@@ -4,13 +4,25 @@ MODE ?= nuke
 RUN_FLAGS ?=
 
 SH_SOURCES := $(shell find scripts data -type f -name '*.sh' -print) bin/camsniff
-DPKG_BUILD := dpkg-buildpackage -us -uc
+ifndef BUILD_SOURCE
+ifneq (,$(findstring /mnt/,$(ROOT_DIR)))
+BUILD_SOURCE := 0
+else
+BUILD_SOURCE := 1
+endif
+endif
+
+DPKG_BUILD_FLAGS := -us -uc
+ifeq ($(BUILD_SOURCE),0)
+DPKG_BUILD_FLAGS += -b
+endif
+DPKG_BUILD := dpkg-buildpackage $(DPKG_BUILD_FLAGS)
 
 .PHONY: help build clean run lint dev shellcheck install-deps distclean build-coap
 
 help:
 	@echo "Available targets:"
-	@echo "  make build        # dpkg-buildpackage -us -uc"
+	@echo "  make build        # dpkg-buildpackage -us -uc (adds -b on /mnt; set BUILD_SOURCE=1 for source)"
 	@echo "  make clean        # remove build artefacts and temporary state"
 	@echo "  make run MODE=war # invoke sudo ./scripts/camsniff.sh --mode war"
 	@echo "  make lint         # shellcheck + bash -n across project scripts"
@@ -57,4 +69,4 @@ shellcheck:
 	shellcheck -x -P scripts -P data -P . $(SH_SOURCES)
 
 dev: lint
-	$(DPKG_BUILD) --dry-run
+	$(DPKG_BUILD)

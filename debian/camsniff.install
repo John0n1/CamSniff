@@ -1,3 +1,7 @@
+#!/bin/sh
+set -e
+
+cat <<'EOF'
 scripts/camsniff.sh usr/lib/camsniff/scripts
 scripts/requirements.txt usr/lib/camsniff/scripts
 scripts/core/* usr/lib/camsniff/scripts/core
@@ -25,5 +29,5 @@ docs/icons/camsniff-128.png usr/share/icons/hicolor/128x128/apps/
 docs/icons/camsniff-64.png usr/share/icons/hicolor/64x64/apps/
 docs/icons/camsniff-48.png usr/share/icons/hicolor/48x48/apps/
 docs/icons/camsniff-32.png usr/share/icons/hicolor/32x32/apps/
-
+EOF
 

@@ -134,13 +134,13 @@ normalize_vendor_key() {
         return
     fi
     case "$raw" in
-        hikvision*|hikvisiondigitaltechnology*|hik*)
+        hikvision*)
             echo "hikvision"
             ;;
-        dahua*|dahuatechnology*)
+        dahua*)
             echo "dahua"
             ;;
-        axis*|axiscommunications*)
+        axis*)
             echo "axis"
             ;;
         hanwha*|samsung*)
