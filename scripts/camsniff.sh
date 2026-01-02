@@ -23,9 +23,11 @@ RTSP_URL_DICT="$ROOT_DIR/data/dictionaries/rtsp-urls.txt"
 PORT_PROFILE_DATA="$CORE_DIR/port-profiles.sh"
 UI_HELPER="$UI_DIR/banner.sh"
 PROFILE_RESOLVER="$HELPER_DIR/profile_resolver.py"
+CONFIDENCE_SCORER="$HELPER_DIR/confidence_scorer.py"
 HTTP_META_PARSER="$HELPER_DIR/http_metadata_parser.py"
 ONVIF_PARSER="$PROBE_DIR/onvif_device_info.py"
 SSDP_PROBE_HELPER="$PROBE_DIR/ssdp_probe.py"
+REPORT_TOOL="$ROOT_DIR/scripts/tools/report.py"
 
 MODE_DEFAULT="medium"
 MODE_REQUESTED=""
@@ -34,30 +36,83 @@ declare -a EXTRA_OPTIONS=()
 EXTRA_IVRE_ENABLED=false
 TARGET_FILE=""
 declare -a TARGET_IPS=()
+OUTPUT_ROOT="${CAM_RESULTS_ROOT:-}"
+RUN_LABEL="${CAM_RUN_LABEL:-}"
+SKIP_CREDS=false
+SKIP_INSTALL=false
+REPORT_FORMAT="${CAM_REPORT_FORMAT:-}"
+ENCRYPT_RESULTS=false
+ENCRYPT_TOOL="${CAM_ENCRYPT_TOOL:-auto}"
+ENCRYPT_RECIPIENT="${CAM_ENCRYPT_RECIPIENT:-}"
+ENCRYPT_PASSPHRASE="${CAM_ENCRYPT_PASSPHRASE:-}"
+SMART_MODE=false
+SMART_MIN_SCORE="${CAM_SMART_MIN_SCORE:-30}"
+SMART_MAX_TARGETS="${CAM_SMART_MAX_TARGETS:-64}"
+SMART_DISPLAY_LIMIT="${CAM_SMART_DISPLAY_LIMIT:-10}"
+CONFIDENCE_READY=false
+SSDP_DESCRIBE=false
+SSDP_DESCRIBE_TIMEOUT="${CAM_SSDP_DESCRIBE_TIMEOUT:-3}"
+SSDP_DESCRIBE_MAX="${CAM_SSDP_DESCRIBE_MAX:-24}"
+if [[ -n ${CAM_SKIP_CREDENTIALS:-} ]]; then
+    case "${CAM_SKIP_CREDENTIALS,,}" in
+        1|true|yes|y)
+            SKIP_CREDS=true
+            ;;
+    esac
+fi
+if [[ -n ${CAM_SKIP_INSTALL:-} ]]; then
+    case "${CAM_SKIP_INSTALL,,}" in
+        1|true|yes|y)
+            SKIP_INSTALL=true
+            ;;
+    esac
+fi
+if [[ -n ${CAM_ENCRYPT_RESULTS:-} ]]; then
+    case "${CAM_ENCRYPT_RESULTS,,}" in
+        1|true|yes|y)
+            ENCRYPT_RESULTS=true
+            ;;
+    esac
+fi
+if [[ -n ${CAM_SMART_MODE:-} ]]; then
+    case "${CAM_SMART_MODE,,}" in
+        1|true|yes|y)
+            SMART_MODE=true
+            ;;
+    esac
+fi
+if [[ -n ${CAM_SSDP_DESCRIBE:-} ]]; then
+    case "${CAM_SSDP_DESCRIBE,,}" in
+        1|true|yes|y)
+            SSDP_DESCRIBE=true
+            ;;
+    esac
+fi
 
-RESULTS_ROOT="$ROOT_DIR/dev/results"
+RESULTS_ROOT_DEFAULT="$ROOT_DIR/dev/results"
+RESULTS_ROOT="$RESULTS_ROOT_DEFAULT"
 RUN_STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
-RUN_DIR="$RESULTS_ROOT/$RUN_STAMP"
-LOG_DIR="$RUN_DIR/logs"
-THUMB_DIR="$RUN_DIR/thumbnails"
-DISCOVERY_JSON="$RUN_DIR/discovery.json"
-CREDS_JSON="$RUN_DIR/credentials.json"
-NMAP_OUTPUT_FILE="$LOG_DIR/nmap-output.txt"
-NMAP_LOG_FILE="$LOG_DIR/nmap-command.log"
-NMAP_UDP_OUTPUT_FILE="$LOG_DIR/nmap-udp-output.txt"
-NMAP_UDP_LOG_FILE="$LOG_DIR/nmap-udp-command.log"
-MASSCAN_OUTPUT_FILE="$LOG_DIR/masscan-output.json"
-MASSCAN_LOG_FILE="$LOG_DIR/masscan-command.log"
-AVAHI_OUTPUT_FILE="$LOG_DIR/avahi-services.txt"
-TSHARK_OUTPUT_FILE="$LOG_DIR/tshark-traffic.csv"
-COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
-COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
+RUN_DIR=""
+LOG_DIR=""
+THUMB_DIR=""
+DISCOVERY_JSON=""
+CREDS_JSON=""
+NMAP_OUTPUT_FILE=""
+NMAP_LOG_FILE=""
+NMAP_UDP_OUTPUT_FILE=""
+NMAP_UDP_LOG_FILE=""
+MASSCAN_OUTPUT_FILE=""
+MASSCAN_LOG_FILE=""
+AVAHI_OUTPUT_FILE=""
+TSHARK_OUTPUT_FILE=""
+COAP_OUTPUT_FILE=""
+COAP_LOG_FILE=""
 COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}"
-IVRE_LOG_FILE="$LOG_DIR/ivre-sync.log"
-HTTP_META_LOG="$LOG_DIR/http-metadata.jsonl"
-SSDP_OUTPUT_FILE="$LOG_DIR/ssdp-discovery.jsonl"
-ONVIF_OUTPUT_FILE="$LOG_DIR/onvif-discovery.jsonl"
-CATALOG_JSON="$RUN_DIR/paths.json"
+IVRE_LOG_FILE=""
+HTTP_META_LOG=""
+SSDP_OUTPUT_FILE=""
+ONVIF_OUTPUT_FILE=""
+CATALOG_JSON=""
 GEOIP_DIR="$ROOT_DIR/share/geoip"
 GEOIP_CITY_DB="$GEOIP_DIR/dbip-city-lite.mmdb"
 GEOIP_ASN_DB="$GEOIP_DIR/dbip-asn-lite.mmdb"
@@ -86,6 +141,9 @@ declare -A ip_http_metadata
 declare -A ip_onvif_info
 declare -A ip_ssdp_info
 declare -A protocol_seen
+declare -A ip_pre_score
+declare -A ip_pre_reasons
+declare -a SMART_TARGETS
 
 nmap_output=""
 nmap_log=""
@@ -95,6 +153,7 @@ avahi_output=""
 tshark_output=""
 hosts_json_tmp=""
 discovery_enriched_tmp=""
+discovery_confidence_tmp=""
 coap_output_tmp=""
 coap_build_log=""
 
@@ -111,6 +170,19 @@ Options:
                          JSON format: {"targets": ["192.168.1.0/24", "10.0.0.1"]}
                          (Requires 'jq' for JSON parsing; if jq is missing, file is treated as plain text)
                          Text format: one IP address or CIDR range per line
+      --output-root <dir> Store run artifacts under this directory (default: dev/results)
+      --run-name <label>  Append a label to the run directory name
+      --interface <iface> Set capture interface for tshark (default: auto-detect)
+      --skip-credentials  Skip the credential probing phase
+      --skip-install      Skip automatic dependency installation
+      --report <format>   Generate a report (markdown or html) in the run directory
+      --encrypt-results   Encrypt run artifacts (auto-select age/gpg)
+      --encrypt-tool <t>  Force encryption tool (age or gpg)
+      --encrypt-recipient <id> Recipient/key id for encryption tool
+      --smart             Enable smart target shaping and confidence display
+      --smart-min <score> Minimum smart score for deeper probes (default: 30)
+      --smart-max <count> Max targets for deeper probes (default: 64)
+      --ssdp-describe    Fetch SSDP device descriptions for richer fingerprints
 
 Optional integrations:
     --extra <name>         Enable additional integrations (currently supported: ivre)
@@ -119,9 +191,111 @@ If no mode is provided, the balanced profile (medium) is used.
 EOF
 }
 
+sanitize_run_label() {
+    local raw="$1"
+    raw=$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')
+    raw=${raw// /-}
+    raw=$(printf '%s' "$raw" | sed 's/[^a-z0-9._-]/-/g; s/--*/-/g; s/^-//; s/-$//')
+    printf '%s' "$raw"
+}
+
+configure_run_paths() {
+    local base="${OUTPUT_ROOT:-$RESULTS_ROOT_DEFAULT}"
+    if [[ $base == "~"* ]]; then
+        base="${base/#\~/$HOME}"
+    fi
+    RESULTS_ROOT="$base"
+
+    local label=""
+    if [[ -n $RUN_LABEL ]]; then
+        label=$(sanitize_run_label "$RUN_LABEL")
+    fi
+
+    if [[ -n $label ]]; then
+        RUN_DIR="$RESULTS_ROOT/${RUN_STAMP}-${label}"
+    else
+        RUN_DIR="$RESULTS_ROOT/$RUN_STAMP"
+    fi
+
+    LOG_DIR="$RUN_DIR/logs"
+    THUMB_DIR="$RUN_DIR/thumbnails"
+    DISCOVERY_JSON="$RUN_DIR/discovery.json"
+    CREDS_JSON="$RUN_DIR/credentials.json"
+    NMAP_OUTPUT_FILE="$LOG_DIR/nmap-output.txt"
+    NMAP_LOG_FILE="$LOG_DIR/nmap-command.log"
+    NMAP_UDP_OUTPUT_FILE="$LOG_DIR/nmap-udp-output.txt"
+    NMAP_UDP_LOG_FILE="$LOG_DIR/nmap-udp-command.log"
+    MASSCAN_OUTPUT_FILE="$LOG_DIR/masscan-output.json"
+    MASSCAN_LOG_FILE="$LOG_DIR/masscan-command.log"
+    AVAHI_OUTPUT_FILE="$LOG_DIR/avahi-services.txt"
+    TSHARK_OUTPUT_FILE="$LOG_DIR/tshark-traffic.csv"
+    COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
+    COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
+    IVRE_LOG_FILE="$LOG_DIR/ivre-sync.log"
+    HTTP_META_LOG="$LOG_DIR/http-metadata.jsonl"
+    SSDP_OUTPUT_FILE="$LOG_DIR/ssdp-discovery.jsonl"
+    ONVIF_OUTPUT_FILE="$LOG_DIR/onvif-discovery.jsonl"
+    CATALOG_JSON="$RUN_DIR/paths.json"
+}
+
+normalize_target_line() {
+    local line="$1"
+    line=${line%%#*}
+    line=$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    printf '%s' "$line"
+}
+
+is_integer() {
+    [[ ${1:-} =~ ^[0-9]+$ ]]
+}
+
+is_valid_ipv4() {
+    local ip="$1"
+    local o1 o2 o3 o4 extra
+    IFS='.' read -r o1 o2 o3 o4 extra <<< "$ip"
+    [[ -n $extra || -z $o1 || -z $o2 || -z $o3 || -z $o4 ]] && return 1
+    for octet in "$o1" "$o2" "$o3" "$o4"; do
+        [[ $octet =~ ^[0-9]{1,3}$ ]] || return 1
+        (( octet >= 0 && octet <= 255 )) || return 1
+    done
+    return 0
+}
+
+is_valid_ipv4_cidr() {
+    local value="$1"
+    local ip="$value"
+    local mask=""
+    if [[ $value == */* ]]; then
+        ip="${value%%/*}"
+        mask="${value#*/}"
+    fi
+    is_valid_ipv4 "$ip" || return 1
+    if [[ -n $mask ]]; then
+        [[ $mask =~ ^[0-9]{1,2}$ ]] || return 1
+        (( mask >= 0 && mask <= 32 )) || return 1
+    fi
+    return 0
+}
+
 parse_target_file() {
     local file="$1"
     local -a parsed_targets=()
+    local -A seen=()
+
+    add_target() {
+        local target="$1"
+        target=$(normalize_target_line "$target")
+        [[ -z $target ]] && return
+        if ! is_valid_ipv4_cidr "$target"; then
+            echo "Warning: Skipping malformed target '$target'" >&2
+            return
+        fi
+        if [[ -n ${seen[$target]+set} ]]; then
+            return
+        fi
+        seen["$target"]=1
+        parsed_targets+=("$target")
+    }
     
     if [[ ! -f "$file" ]]; then
         echo "Error: Target file not found: $file" >&2
@@ -149,36 +323,19 @@ parse_target_file() {
             fi
             local targets_json
             targets_json=$(jq -r '.targets[]' "$file" 2>/dev/null)
-            # Regex for IPv4 address with optional CIDR (e.g., 192.168.1.1 or 10.0.0.0/24)
-            local ipv4_cidr_regex='^([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]|[12][0-9]|3[0-2]))?$'
             while IFS= read -r target; do
-                [[ -z $target ]] && continue
-                if [[ $target =~ $ipv4_cidr_regex ]]; then
-                    parsed_targets+=("$target")
-                else
-                    echo "Warning: Skipping malformed target '$target'" >&2
-                fi
+                add_target "$target"
             done <<< "$targets_json"
         else
             # Not valid JSON, treat as text file
             while IFS= read -r line || [[ -n $line ]]; do
-                # Skip empty lines and comments
-                [[ -z $line || $line =~ ^[[:space:]]*# ]] && continue
-                # Trim whitespace
-                line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                [[ -z $line ]] && continue
-                parsed_targets+=("$line")
+                add_target "$line"
             done < "$file"
         fi
     else
         # No jq available, treat as text file
         while IFS= read -r line || [[ -n $line ]]; do
-            # Skip empty lines and comments
-            [[ -z $line || $line =~ ^[[:space:]]*# ]] && continue
-            # Trim whitespace
-            line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            [[ -z $line ]] && continue
-            parsed_targets+=("$line")
+            add_target "$line"
         done < "$file"
     fi
     
@@ -539,9 +696,7 @@ probe_additional_protocols() {
     if [[ ${CAM_MODE_FOLLOWUP_SERVICE_SCAN_ENABLE,,} != "true" ]]; then
         return
     fi
-    for ip in "${!all_ips[@]}"; do
-        ip_list+=("$ip")
-    done
+    mapfile -t ip_list < <(get_probe_targets)
     (( ${#ip_list[@]} == 0 )) && return
 
     : "${NMAP_UDP_OUTPUT_FILE:=$LOG_DIR/nmap-udp-output.txt}"
@@ -571,8 +726,10 @@ collect_http_metadata() {
         return
     fi
     : > "$HTTP_META_LOG"
+    local -a targets=()
+    mapfile -t targets < <(get_probe_targets)
     local ip
-    for ip in "${!all_ips[@]}"; do
+    for ip in "${targets[@]}"; do
         local ports_string
         ports_string=$(printf "%s" "${ip_ports[$ip]}" | tr ' ' '\n' | sed '/^$/d' | sort -u)
         collect_http_metadata_for_ip "$ip" "$ports_string"
@@ -591,8 +748,10 @@ run_onvif_metadata_probe() {
         return
     fi
     : > "$ONVIF_OUTPUT_FILE"
+    local -a targets=()
+    mapfile -t targets < <(get_probe_targets)
     local ip
-    for ip in "${!all_ips[@]}"; do
+    for ip in "${targets[@]}"; do
         local ports_string
         ports_string=$(printf "%s" "${ip_ports[$ip]}" | tr ' ' '\n' | sed '/^$/d' | sort -u)
         probe_onvif_device_info "$ip" "$ports_string"
@@ -615,7 +774,11 @@ run_ssdp_discovery() {
     fi
     local ssdp_tmp
     ssdp_tmp=$(mktemp /tmp/camsniff-ssdp.XXXXXX)
-    if "$PYTHON_BIN" "$SSDP_PROBE_HELPER" --timeout 4 --mx 2 --st "ssdp:all" --output "$ssdp_tmp" >/dev/null 2>&1; then
+    local -a ssdp_args=(--timeout 4 --mx 2 --st "ssdp:all" --output "$ssdp_tmp")
+    if [[ $SSDP_DESCRIBE == true ]]; then
+        ssdp_args+=(--describe --describe-timeout "$SSDP_DESCRIBE_TIMEOUT" --max-describe "$SSDP_DESCRIBE_MAX")
+    fi
+    if "$PYTHON_BIN" "$SSDP_PROBE_HELPER" "${ssdp_args[@]}" >/dev/null 2>&1; then
         : > "$SSDP_OUTPUT_FILE"
         while IFS= read -r line; do
             [[ -z $line ]] && continue
@@ -674,6 +837,100 @@ while [[ $# -gt 0 ]]; do
             fi
             shift 2
             ;;
+        --output-root|--results-root)
+            OUTPUT_ROOT="${2:-}"
+            if [[ -z $OUTPUT_ROOT ]]; then
+                echo "--output-root requires a directory path" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --run-name|--run-label)
+            RUN_LABEL="${2:-}"
+            if [[ -z $RUN_LABEL ]]; then
+                echo "--run-name requires a label value" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --interface|--tshark-interface)
+            TSHARK_INTERFACE="${2:-}"
+            if [[ -z $TSHARK_INTERFACE ]]; then
+                echo "--interface requires a capture interface name" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --skip-credentials|--skip-creds|--no-credentials|--no-creds)
+            SKIP_CREDS=true
+            shift
+            ;;
+        --skip-install|--no-install|--no-deps)
+            SKIP_INSTALL=true
+            shift
+            ;;
+        --smart)
+            SMART_MODE=true
+            shift
+            ;;
+        --smart-min)
+            SMART_MIN_SCORE="${2:-}"
+            if [[ -z $SMART_MIN_SCORE ]]; then
+                echo "--smart-min requires a numeric score" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --smart-max)
+            SMART_MAX_TARGETS="${2:-}"
+            if [[ -z $SMART_MAX_TARGETS ]]; then
+                echo "--smart-max requires a numeric count" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --ssdp-describe)
+            SSDP_DESCRIBE=true
+            shift
+            ;;
+        --report)
+            REPORT_FORMAT="${2:-}"
+            if [[ -z $REPORT_FORMAT ]]; then
+                echo "--report requires a format (markdown or html)" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --encrypt-results)
+            ENCRYPT_RESULTS=true
+            if [[ -n ${2:-} && ${2:0:1} != "-" ]]; then
+                ENCRYPT_TOOL="${2:-}"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        --encrypt-results=*)
+            ENCRYPT_RESULTS=true
+            ENCRYPT_TOOL="${1#*=}"
+            shift
+            ;;
+        --encrypt-tool)
+            ENCRYPT_TOOL="${2:-}"
+            if [[ -z $ENCRYPT_TOOL ]]; then
+                echo "--encrypt-tool requires a value (age or gpg)" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --encrypt-recipient)
+            ENCRYPT_RECIPIENT="${2:-}"
+            if [[ -z $ENCRYPT_RECIPIENT ]]; then
+                echo "--encrypt-recipient requires a recipient value" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
         --extra)
             extra_value="${2:-}"
             if [[ -z $extra_value ]]; then
@@ -714,6 +971,37 @@ if (( ${#EXTRA_OPTIONS[@]} )); then
                 ;;
         esac
     done
+fi
+
+if [[ -n $RUN_LABEL ]]; then
+    RUN_LABEL=$(sanitize_run_label "$RUN_LABEL")
+fi
+configure_run_paths
+
+if [[ -n $REPORT_FORMAT ]]; then
+    REPORT_FORMAT=$(normalize_report_format "$REPORT_FORMAT")
+    if [[ -z $REPORT_FORMAT ]]; then
+        echo "Unknown report format. Use markdown or html." >&2
+        exit 1
+    fi
+fi
+
+if ! is_integer "$SMART_MIN_SCORE"; then
+    echo "Warning: Invalid smart-min score; defaulting to 30." >&2
+    SMART_MIN_SCORE=30
+fi
+if (( SMART_MIN_SCORE > 100 )); then
+    SMART_MIN_SCORE=100
+fi
+if ! is_integer "$SMART_MAX_TARGETS"; then
+    echo "Warning: Invalid smart-max count; defaulting to 64." >&2
+    SMART_MAX_TARGETS=64
+fi
+if ! is_integer "$SSDP_DESCRIBE_MAX"; then
+    SSDP_DESCRIBE_MAX=24
+fi
+if [[ ! $SSDP_DESCRIBE_TIMEOUT =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    SSDP_DESCRIBE_TIMEOUT=3
 fi
 
 if [[ ! -f "$MODE_CONFIG" ]]; then
@@ -824,6 +1112,444 @@ cam_run_packinst() {
         echo -e "${RED}${message} failed (exit ${status}).${RESET}"
     fi
     return $status
+}
+
+verify_required_tools() {
+    local -a required=(nmap curl jq tshark avahi-browse python3)
+    if [[ $SKIP_CREDS == false ]]; then
+        required+=(ffmpeg)
+    fi
+    local -a missing=()
+    for cmd in "${required[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing+=("$cmd")
+        fi
+    done
+    if (( ${#missing[@]} )); then
+        echo -e "${RED}Missing required tools: ${missing[*]}${RESET}" >&2
+        if [[ $SKIP_INSTALL == true ]]; then
+            echo -e "${YELLOW}Install dependencies or rerun without --skip-install.${RESET}" >&2
+        else
+            echo -e "${YELLOW}Dependency install may have failed. Review the install log.${RESET}" >&2
+        fi
+        return 1
+    fi
+    return 0
+}
+
+apply_optional_tool_overrides() {
+    if [[ ${CAM_MODE_MASSCAN_ENABLE,,} == "true" ]] && ! command -v masscan >/dev/null 2>&1; then
+        echo -e "${YELLOW}Masscan is unavailable; disabling masscan for this run.${RESET}"
+        CAM_MODE_MASSCAN_ENABLE=false
+    fi
+}
+
+normalize_report_format() {
+    local raw="$1"
+    raw=$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')
+    case "$raw" in
+        md|markdown)
+            echo "markdown"
+            ;;
+        html|htm)
+            echo "html"
+            ;;
+        both|all)
+            echo "both"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
+generate_reports() {
+    local format="$1"
+    [[ -z $format ]] && return 0
+    if [[ ! -f "$REPORT_TOOL" ]]; then
+        echo -e "${YELLOW}Report generator missing: $REPORT_TOOL${RESET}"
+        return 1
+    fi
+    if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+        echo -e "${YELLOW}Report generation skipped (python3 unavailable).${RESET}"
+        return 1
+    fi
+
+    local creds_arg=()
+    if [[ -f "$CREDS_JSON" ]]; then
+        creds_arg=(--credentials "$CREDS_JSON")
+    fi
+
+    local run_label="$RUN_STAMP"
+    if [[ -n $RUN_LABEL ]]; then
+        run_label="${RUN_STAMP}-${RUN_LABEL}"
+    fi
+
+    if [[ $format == "both" ]]; then
+        local md_out="$RUN_DIR/report.md"
+        local html_out="$RUN_DIR/report.html"
+        if "$PYTHON_BIN" "$REPORT_TOOL" --format "markdown" --discovery "$DISCOVERY_JSON" "${creds_arg[@]}" \
+            --output "$md_out" --run-dir "$RUN_DIR" --run-label "$run_label" >/dev/null 2>&1; then
+            echo -e "${CYAN}Report generated:${RESET} ${GREEN}$md_out${RESET}"
+        else
+            echo -e "${YELLOW}Failed to generate markdown report.${RESET}"
+        fi
+        if "$PYTHON_BIN" "$REPORT_TOOL" --format "html" --discovery "$DISCOVERY_JSON" "${creds_arg[@]}" \
+            --output "$html_out" --run-dir "$RUN_DIR" --run-label "$run_label" >/dev/null 2>&1; then
+            echo -e "${CYAN}Report generated:${RESET} ${GREEN}$html_out${RESET}"
+        else
+            echo -e "${YELLOW}Failed to generate HTML report.${RESET}"
+        fi
+        return 0
+    fi
+
+    local ext="md"
+    [[ $format == "html" ]] && ext="html"
+    local output="$RUN_DIR/report.$ext"
+    if "$PYTHON_BIN" "$REPORT_TOOL" --format "$format" --discovery "$DISCOVERY_JSON" "${creds_arg[@]}" \
+        --output "$output" --run-dir "$RUN_DIR" --run-label "$run_label" >/dev/null 2>&1; then
+        echo -e "${CYAN}Report generated:${RESET} ${GREEN}$output${RESET}"
+    else
+        echo -e "${YELLOW}Report generation failed.${RESET}"
+        return 1
+    fi
+    return 0
+}
+
+resolve_encrypt_tool() {
+    local tool="$1"
+    case "${tool,,}" in
+        age|gpg)
+            echo "${tool,,}"
+            return 0
+            ;;
+        auto|"")
+            if command -v age >/dev/null 2>&1; then
+                echo "age"
+                return 0
+            fi
+            if command -v gpg >/dev/null 2>&1; then
+                echo "gpg"
+                return 0
+            fi
+            ;;
+    esac
+    echo ""
+    return 1
+}
+
+encrypt_results() {
+    [[ $ENCRYPT_RESULTS == true ]] || return 0
+    local tool
+    tool=$(resolve_encrypt_tool "$ENCRYPT_TOOL")
+    if [[ -z $tool ]]; then
+        echo -e "${YELLOW}Encryption requested but no age/gpg tool found.${RESET}"
+        return 1
+    fi
+    if ! command -v tar >/dev/null 2>&1; then
+        echo -e "${YELLOW}Encryption requested but tar is missing.${RESET}"
+        return 1
+    fi
+
+    local archive="$RUN_DIR.tar.gz"
+    if ! tar -czf "$archive" -C "$RUN_DIR" .; then
+        echo -e "${YELLOW}Failed to create archive for encryption.${RESET}"
+        return 1
+    fi
+
+    local output=""
+    if [[ $tool == "age" ]]; then
+        if [[ -z $ENCRYPT_RECIPIENT ]]; then
+            echo -e "${YELLOW}Age encryption requires --encrypt-recipient.${RESET}"
+            rm -f "$archive"
+            return 1
+        fi
+        output="${archive}.age"
+        if age -r "$ENCRYPT_RECIPIENT" -o "$output" "$archive"; then
+            echo -e "${CYAN}Encrypted archive:${RESET} ${GREEN}$output${RESET}"
+        else
+            echo -e "${YELLOW}Age encryption failed.${RESET}"
+            rm -f "$archive"
+            return 1
+        fi
+    else
+        output="${archive}.gpg"
+        if [[ -n $ENCRYPT_RECIPIENT ]]; then
+            if gpg --yes --encrypt --recipient "$ENCRYPT_RECIPIENT" --output "$output" "$archive"; then
+                echo -e "${CYAN}Encrypted archive:${RESET} ${GREEN}$output${RESET}"
+            else
+                echo -e "${YELLOW}GPG encryption failed.${RESET}"
+                rm -f "$archive"
+                return 1
+            fi
+        elif [[ -n $ENCRYPT_PASSPHRASE ]]; then
+            if gpg --batch --yes --symmetric --passphrase "$ENCRYPT_PASSPHRASE" --output "$output" "$archive"; then
+                echo -e "${CYAN}Encrypted archive:${RESET} ${GREEN}$output${RESET}"
+            else
+                echo -e "${YELLOW}GPG encryption failed.${RESET}"
+                rm -f "$archive"
+                return 1
+            fi
+        else
+            if gpg --symmetric --output "$output" "$archive"; then
+                echo -e "${CYAN}Encrypted archive:${RESET} ${GREEN}$output${RESET}"
+            else
+                echo -e "${YELLOW}GPG encryption failed.${RESET}"
+                rm -f "$archive"
+                return 1
+            fi
+        fi
+    fi
+
+    rm -f "$archive"
+    return 0
+}
+
+compute_prelim_scores() {
+    for ip in "${!all_ips[@]}"; do
+        local score=0
+        local -a reasons=()
+        local signal_count=0
+        local has_port_signal=false
+        local has_source_signal=false
+        local has_path_signal=false
+        local has_rtsp_signal=false
+
+        local ports_string
+        ports_string=$(printf "%s" "${ip_ports[$ip]}" | tr ' ' '\n' | sed '/^$/d' | sort -u)
+
+        if [[ -n ${ip_sources[$ip]:-} ]]; then
+            if [[ ${ip_sources[$ip]} == *"SSDP"* ]]; then
+                score=$((score + 25))
+                reasons+=("ssdp response")
+                has_source_signal=true
+            fi
+            if [[ ${ip_sources[$ip]} == *"TShark"* ]]; then
+                score=$((score + 20))
+                reasons+=("traffic hit")
+                has_source_signal=true
+            fi
+            if [[ ${ip_sources[$ip]} == *"Avahi"* ]]; then
+                score=$((score + 15))
+                reasons+=("avahi service")
+                has_source_signal=true
+            fi
+            if [[ ${ip_sources[$ip]} == *"Nmap"* ]]; then
+                score=$((score + 8))
+            fi
+            if [[ ${ip_sources[$ip]} == *"Masscan"* ]]; then
+                score=$((score + 5))
+            fi
+            if [[ ${ip_sources[$ip]} == *"CoAP"* ]]; then
+                score=$((score + 8))
+                reasons+=("coap response")
+                has_source_signal=true
+            fi
+        fi
+
+        if port_in_list "$ports_string" "554" || port_in_list "$ports_string" "8554" || port_in_list "$ports_string" "10554" || port_in_list "$ports_string" "5544"; then
+            score=$((score + 35))
+            reasons+=("rtsp port open")
+            has_port_signal=true
+        fi
+        if port_in_list "$ports_string" "1935" || port_in_list "$ports_string" "1936"; then
+            score=$((score + 12))
+            reasons+=("rtmp port open")
+            has_port_signal=true
+        fi
+        if port_in_list "$ports_string" "37777" || port_in_list "$ports_string" "37778" || port_in_list "$ports_string" "37779"; then
+            score=$((score + 20))
+            reasons+=("dahua port")
+            has_port_signal=true
+        fi
+        if port_in_list "$ports_string" "8000" || port_in_list "$ports_string" "8001"; then
+            score=$((score + 18))
+            reasons+=("hikvision port")
+            has_port_signal=true
+        fi
+        if port_in_list "$ports_string" "8899" || port_in_list "$ports_string" "9000" || port_in_list "$ports_string" "7001"; then
+            score=$((score + 12))
+            reasons+=("camera api port")
+            has_port_signal=true
+        fi
+        if port_in_list "$ports_string" "80" || port_in_list "$ports_string" "81" || port_in_list "$ports_string" "88" || port_in_list "$ports_string" "443" || port_in_list "$ports_string" "8080" || port_in_list "$ports_string" "8081" || port_in_list "$ports_string" "8443"; then
+            score=$((score + 8))
+            reasons+=("http port open")
+            has_port_signal=true
+        fi
+
+        if [[ -n ${ip_rtsp_discovered[$ip]:-} ]]; then
+            score=$((score + 30))
+            reasons+=("rtsp url discovered")
+            has_rtsp_signal=true
+        fi
+        if [[ -n ${ip_rtsp_other[$ip]:-} ]]; then
+            score=$((score + 10))
+            reasons+=("rtsp response")
+            has_rtsp_signal=true
+        fi
+
+        if [[ -n ${ip_observed_paths[$ip]:-} ]]; then
+            if printf '%s' "${ip_observed_paths[$ip]}" | grep -Eqi "rtsp|onvif|snapshot|mjpg|mjpeg|stream|live"; then
+                score=$((score + 18))
+                reasons+=("observed stream uri")
+                has_path_signal=true
+            fi
+        fi
+
+        if [[ -n ${ip_to_mac[$ip]:-} ]]; then
+            score=$((score + 5))
+        fi
+
+        if [[ $has_port_signal == true ]]; then
+            signal_count=$((signal_count + 1))
+        fi
+        if [[ $has_source_signal == true ]]; then
+            signal_count=$((signal_count + 1))
+        fi
+        if [[ $has_path_signal == true ]]; then
+            signal_count=$((signal_count + 1))
+        fi
+        if [[ $has_rtsp_signal == true ]]; then
+            signal_count=$((signal_count + 1))
+        fi
+        if (( signal_count >= 3 )); then
+            score=$((score + 10))
+            reasons+=("multi-signal")
+        fi
+
+        if (( score > 100 )); then
+            score=100
+        fi
+
+        ip_pre_score["$ip"]=$score
+        if (( ${#reasons[@]} > 0 )); then
+            ip_pre_reasons["$ip"]=$(printf '%s\n' "${reasons[@]}" | head -3 | paste -sd '; ')
+        else
+            ip_pre_reasons["$ip"]=""
+        fi
+    done
+}
+
+select_smart_targets() {
+    SMART_TARGETS=()
+    local -a scored=()
+    local ip
+    for ip in "${!all_ips[@]}"; do
+        local score=${ip_pre_score[$ip]:-0}
+        scored+=("${score}\t${ip}")
+    done
+    mapfile -t sorted_scores < <(printf "%s\n" "${scored[@]}" | sort -nr -k1,1)
+
+    local max_count="$SMART_MAX_TARGETS"
+    local count=0
+    local line
+    for line in "${sorted_scores[@]}"; do
+        [[ -z $line ]] && continue
+        local score=${line%%$'\t'*}
+        local ip_val=${line#*$'\t'}
+        if ! is_integer "$score"; then
+            continue
+        fi
+        if (( score < SMART_MIN_SCORE )); then
+            continue
+        fi
+        SMART_TARGETS+=("$ip_val")
+        count=$((count + 1))
+        if (( max_count > 0 && count >= max_count )); then
+            break
+        fi
+    done
+
+    if (( ${#SMART_TARGETS[@]} == 0 )); then
+        echo -e "${YELLOW}Smart targeting found no hosts above threshold; falling back to all targets.${RESET}"
+        mapfile -t SMART_TARGETS < <(printf "%s\n" "${!all_ips[@]}" | sort -V)
+    fi
+}
+
+render_smart_summary() {
+    echo ""
+    echo -e "${GREEN}========== Smart Targeting ==========${RESET}"
+    echo -e "${CYAN}Total candidates:${RESET} ${GREEN}${#all_ips[@]}${RESET}"
+    echo -e "${CYAN}Selected targets:${RESET} ${GREEN}${#SMART_TARGETS[@]}${RESET}"
+    echo -e "${CYAN}Smart minimum score:${RESET} ${GREEN}${SMART_MIN_SCORE}${RESET}"
+    if (( SMART_MAX_TARGETS > 0 )); then
+        echo -e "${CYAN}Smart max targets:${RESET} ${GREEN}${SMART_MAX_TARGETS}${RESET}"
+    fi
+    echo -e "${CYAN}Top candidates:${RESET}"
+    local shown=0
+    local ip
+    for ip in "${SMART_TARGETS[@]}"; do
+        local score=${ip_pre_score[$ip]:-0}
+        local reasons=${ip_pre_reasons[$ip]:-}
+        printf "  %s%-15s%s score=%s" "$CYAN" "$ip" "$RESET" "$score"
+        if [[ -n $reasons ]]; then
+            printf " (%s)" "$reasons"
+        fi
+        echo ""
+        shown=$((shown + 1))
+        if (( shown >= SMART_DISPLAY_LIMIT )); then
+            break
+        fi
+    done
+    echo -e "${GREEN}====================================${RESET}"
+}
+
+get_probe_targets() {
+    if [[ $SMART_MODE == true && ${#SMART_TARGETS[@]} -gt 0 ]]; then
+        printf "%s\n" "${SMART_TARGETS[@]}"
+        return 0
+    fi
+    printf "%s\n" "${!all_ips[@]}" | sort -V
+}
+
+render_confidence_ranking() {
+    [[ $CONFIDENCE_READY == true ]] || return
+    [[ -f "$DISCOVERY_JSON" ]] || return
+    if ! command -v jq >/dev/null 2>&1; then
+        return
+    fi
+    local limit="$SMART_DISPLAY_LIMIT"
+    if ! is_integer "$limit" || (( limit <= 0 )); then
+        limit=10
+    fi
+    echo ""
+    echo -e "${GREEN}========== Confidence Ranking ==========${RESET}"
+    jq -r --argjson limit "$limit" '
+        [ .hosts[] | {
+            ip: .ip,
+            score: (.confidence.score // 0),
+            level: (.confidence.level // "unknown"),
+            classification: (.confidence.classification // ""),
+            reasons: (.confidence.reasons // [])
+        } ]
+        | sort_by(.score) | reverse
+        | .[:$limit]
+        | .[]
+        | [
+            (.score | tostring),
+            .level,
+            .classification,
+            .ip,
+            (.reasons[0] // ""),
+            (.reasons[1] // "")
+        ]
+        | @tsv
+    ' "$DISCOVERY_JSON" | while IFS=$'\t' read -r score level classification ip reason1 reason2; do
+        [[ -z $ip ]] && continue
+        printf "  %s%-15s%s score=%s level=%s" "$CYAN" "$ip" "$RESET" "$score" "$level"
+        if [[ -n $classification ]]; then
+            printf " class=%s" "$classification"
+        fi
+        if [[ -n $reason1 ]]; then
+            printf " | %s" "$reason1"
+            if [[ -n $reason2 ]]; then
+                printf "; %s" "$reason2"
+            fi
+        fi
+        echo ""
+    done
+    echo -e "${GREEN}=======================================${RESET}"
 }
 
 # shellcheck disable=SC2317
@@ -972,8 +1698,18 @@ TERM_WIDTH=$(tput cols 2>/dev/null || echo 80)
 cam_ui_matrix_rain "$TERM_WIDTH" 12 24 0.045 "$GREEN" "$RESET"
 clear
 extras_label="None"
+extras_label=""
 if [[ $EXTRA_IVRE_ENABLED == true ]]; then
     extras_label="Ivre"
+fi
+if [[ $SMART_MODE == true ]]; then
+    if [[ -n $extras_label ]]; then
+        extras_label+=", "
+    fi
+    extras_label+="Smart"
+fi
+if [[ -z $extras_label ]]; then
+    extras_label="None"
 fi
 cam_ui_render_banner "$TERM_WIDTH" "$CYAN" "$GREEN" "$YELLOW" "$BLUE" "$RESET" "$CAM_MODE_NORMALIZED" "$PORT_SUMMARY_LABEL" "$RUN_DIR" "$extras_label"
 
@@ -1127,43 +1863,37 @@ fi
 case ${answer:0:1} in
     y|Y|"" )
         echo -e "${GREEN}Starting setup process...${RESET}"
-        
-        if [[ -f "$DEPS_INSTALL" ]]; then
-            install_log_tmp=$(mktemp)
-            echo -e "${CYAN}Installing dependencies (verbose)...${RESET}"
-            if env CAM_INSTALL_LOG_EXPORT="$install_log_tmp" CAM_REQUIRE_IVRE="$EXTRA_IVRE_ENABLED" "$DEPS_INSTALL"; then
-                if [[ -s $install_log_tmp ]]; then
-                    install_log_path=$(<"$install_log_tmp")
-                    [[ -n $install_log_path ]] && echo -e "${CYAN}Install log saved to:${RESET} ${GREEN}$install_log_path${RESET}"
-                fi
-            else
-                install_log_path=""
-                if [[ -s $install_log_tmp ]]; then
-                    install_log_path=$(<"$install_log_tmp")
-                fi
-                [[ -n $install_log_path ]] && echo -e "${YELLOW}Dependency install log:${RESET} ${install_log_path}"
-                echo -e "${RED}Dependency installation failed; aborting.${RESET}"
-                rm -f "$install_log_tmp"
-                exit 1
-            fi
-            rm -f "$install_log_tmp"
+        if [[ $SKIP_INSTALL == true ]]; then
+            echo -e "${YELLOW}Skipping dependency installation (--skip-install).${RESET}"
         else
-            echo -e "${YELLOW}Warning: deps-install.sh not found. Continuing without installing dependencies.${RESET}"
+            if [[ -f "$DEPS_INSTALL" ]]; then
+                install_log_tmp=$(mktemp)
+                echo -e "${CYAN}Installing dependencies (verbose)...${RESET}"
+                if env CAM_INSTALL_LOG_EXPORT="$install_log_tmp" CAM_REQUIRE_IVRE="$EXTRA_IVRE_ENABLED" "$DEPS_INSTALL"; then
+                    if [[ -s $install_log_tmp ]]; then
+                        install_log_path=$(<"$install_log_tmp")
+                        [[ -n $install_log_path ]] && echo -e "${CYAN}Install log saved to:${RESET} ${GREEN}$install_log_path${RESET}"
+                    fi
+                else
+                    install_log_path=""
+                    if [[ -s $install_log_tmp ]]; then
+                        install_log_path=$(<"$install_log_tmp")
+                    fi
+                    [[ -n $install_log_path ]] && echo -e "${YELLOW}Dependency install log:${RESET} ${install_log_path}"
+                    echo -e "${RED}Dependency installation failed; aborting.${RESET}"
+                    rm -f "$install_log_tmp"
+                    exit 1
+                fi
+                rm -f "$install_log_tmp"
+            else
+                echo -e "${YELLOW}Warning: deps-install.sh not found. Continuing without installing dependencies.${RESET}"
+            fi
         fi
 
-        required_tools=(nmap jq python3 curl ffmpeg tshark avahi-browse)
-        if [[ ${CAM_MODE_MASSCAN_ENABLE,,} == "true" ]]; then
-            required_tools+=(masscan)
+        if ! verify_required_tools; then
+            exit 1
         fi
-        missing_tools=()
-        for tool in "${required_tools[@]}"; do
-            if ! command -v "$tool" >/dev/null 2>&1; then
-                missing_tools+=("$tool")
-            fi
-        done
-        if (( ${#missing_tools[@]} > 0 )); then
-            echo -e "${YELLOW}Warning: Missing helper tools: ${missing_tools[*]}. Some stages may be skipped.${RESET}"
-        fi
+        apply_optional_tool_overrides
 
         if [[ -x "$ROOT_DIR/venv/bin/python3" ]]; then
             PYTHON_BIN="$ROOT_DIR/venv/bin/python3"
@@ -1600,6 +2330,12 @@ case ${answer:0:1} in
         echo -e "${GREEN}=============================================${RESET}"
         cp -f "$tshark_output" "$TSHARK_OUTPUT_FILE" 2>/dev/null || true
 
+        if [[ $SMART_MODE == true && ${#all_ips[@]} -gt 0 ]]; then
+            compute_prelim_scores
+            select_smart_targets
+            render_smart_summary
+        fi
+
         if (( ${#all_ips[@]} > 0 )); then
             echo ""
             echo -e "${BLUE}Collecting HTTP metadata and ONVIF fingerprints...${RESET}"
@@ -1768,9 +2504,22 @@ case ${answer:0:1} in
             fi
         fi
 
+        if [[ -f "$CONFIDENCE_SCORER" && -s "$DISCOVERY_JSON" ]]; then
+            discovery_confidence_tmp=$(mktemp)
+            if "$PYTHON_BIN" "$CONFIDENCE_SCORER" --input "$DISCOVERY_JSON" --output "$discovery_confidence_tmp"; then
+                mv "$discovery_confidence_tmp" "$DISCOVERY_JSON"
+                CONFIDENCE_READY=true
+            else
+                echo -e "${YELLOW}Warning: Unable to compute confidence scores.${RESET}"
+                rm -f "$discovery_confidence_tmp"
+            fi
+        fi
+
         if [[ -f "$DISCOVERY_JSON" ]]; then
             echo -e "${CYAN}Discovery dataset saved to:${RESET} ${GREEN}$DISCOVERY_JSON${RESET}"
         fi
+
+        render_confidence_ranking
 
         if [[ $EXTRA_IVRE_ENABLED == true && -f "$DISCOVERY_JSON" ]]; then
             echo ""
@@ -1783,10 +2532,17 @@ case ${answer:0:1} in
             fi
         fi
 
-        if [[ -f "$CREDENTIAL_PROBE" && -f "$DISCOVERY_JSON" ]]; then
+        if [[ $SKIP_CREDS == true ]]; then
+            echo ""
+            echo -e "${YELLOW}Credential probing disabled (--skip-credentials).${RESET}"
+        elif [[ -f "$CREDENTIAL_PROBE" && -f "$DISCOVERY_JSON" ]]; then
             echo ""
             echo -e "${BLUE}Launching automated credential probe...${RESET}"
-            if bash "$CREDENTIAL_PROBE" --input "$DISCOVERY_JSON" --mode "$CAM_MODE_NORMALIZED" --output "$CREDS_JSON" --thumbnails "$THUMB_DIR" --log-dir "$LOG_DIR"; then
+            cred_args=(--input "$DISCOVERY_JSON" --mode "$CAM_MODE_NORMALIZED" --output "$CREDS_JSON" --thumbnails "$THUMB_DIR" --log-dir "$LOG_DIR")
+            if [[ $SMART_MODE == true && $CONFIDENCE_READY == true ]]; then
+                cred_args+=(--min-confidence "$SMART_MIN_SCORE")
+            fi
+            if bash "$CREDENTIAL_PROBE" "${cred_args[@]}"; then
                 success_count=$(jq 'map(select(.method? != null)) | length' "$CREDS_JSON" 2>/dev/null || echo 0)
                 failure_count=$(jq 'map(select((.success? == false))) | length' "$CREDS_JSON" 2>/dev/null || echo 0)
                 echo -e "${GREEN}Credential probe complete.${RESET}"
@@ -1801,6 +2557,18 @@ case ${answer:0:1} in
         else
             echo ""
             echo -e "${YELLOW}Credential probe helper unavailable or discovery data missing; skipping automated probing.${RESET}"
+        fi
+
+        if [[ -n $REPORT_FORMAT ]]; then
+            echo ""
+            echo -e "${BLUE}Generating report artifacts...${RESET}"
+            generate_reports "$REPORT_FORMAT" || true
+        fi
+
+        if [[ $ENCRYPT_RESULTS == true ]]; then
+            echo ""
+            echo -e "${BLUE}Encrypting run artifacts...${RESET}"
+            encrypt_results || echo -e "${YELLOW}Encryption failed; results remain unencrypted on disk.${RESET}"
         fi
         
         echo ""
@@ -1838,6 +2606,7 @@ case ${answer:0:1} in
         [[ -n ${tshark_output:-} ]] && rm -f "$tshark_output"
         [[ -n ${hosts_json_tmp:-} ]] && rm -f "$hosts_json_tmp"
         [[ -n ${discovery_enriched_tmp:-} ]] && rm -f "$discovery_enriched_tmp"
+        [[ -n ${discovery_confidence_tmp:-} ]] && rm -f "$discovery_confidence_tmp"
     [[ -n ${coap_output_tmp:-} ]] && rm -f "$coap_output_tmp"
         ;;
     * )

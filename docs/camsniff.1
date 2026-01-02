@@ -10,6 +10,48 @@ camsniff \- automated IP camera reconnaissance and credential auditor
 .B --yes
 ]
 [
+.BR --targets " " file
+]
+[
+.BR --output-root " " dir
+]
+[
+.BR --run-name " " label
+]
+[
+.BR --interface " " iface
+]
+[
+.BR --report " " format
+]
+[
+.B --encrypt-results
+]
+[
+.BR --encrypt-tool " " tool
+]
+[
+.BR --encrypt-recipient " " id
+]
+[
+.B --smart
+]
+[
+.BR --smart-min " " score
+]
+[
+.BR --smart-max " " count
+]
+[
+.B --ssdp-describe
+]
+[
+.B --skip-credentials
+]
+[
+.B --skip-install
+]
+[
 .B --version
 |
 .B --help
@@ -42,11 +84,53 @@ Selects the discovery profile.  Valid values are
 and
 .IR nuke .
 Each profile tunes the enabled scanners, port ranges, packet rates, credential
-budget, and capture durations.  When omitted the most aggressive
-configuration (\fInuke\fR) is used.
+budget, and capture durations.  When omitted the balanced
+configuration (\fImedium\fR) is used.
 .TP
 .B -y, --yes
 Skips the interactive confirmation banner and begins the scan immediately.
+.TP
+.B -t, --targets
+Loads target IP addresses or CIDR ranges from a JSON/text file.
+.TP
+.B --output-root
+Overrides the base directory used for run artefacts.
+.TP
+.B --run-name
+Appends a label to the run directory name.
+.TP
+.B --interface
+Overrides the capture interface used by tshark.
+.TP
+.B --skip-credentials
+Disables the automated credential probing phase.
+.TP
+.B --skip-install
+Skips automatic dependency installation.
+.TP
+.B --report
+Generate a report in markdown or HTML format.
+.TP
+.B --encrypt-results
+Encrypt the run artefacts (auto-selects age/gpg).
+.TP
+.B --encrypt-tool
+Force the encryption tool to age or gpg.
+.TP
+.B --encrypt-recipient
+Recipient or key id for encryption.
+.TP
+.B --smart
+Enable smart target shaping and confidence ranking.
+.TP
+.B --smart-min
+Minimum smart score required for deeper probes.
+.TP
+.B --smart-max
+Maximum number of smart targets for deeper probes.
+.TP
+.B --ssdp-describe
+Fetch UPnP/SSDP device descriptions for richer fingerprints.
 .TP
 .B -v, --version
 Print the packaged version string and exit.

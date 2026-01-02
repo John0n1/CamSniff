@@ -1,0 +1,3 @@
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/rtsp_tunnel|554|1|0|tcp|rtsp-tunnel
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/live.sdp|554|1|0|tcp|live-sdp
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/video.sdp|554|1|0|tcp|video-sdp

@@ -12,6 +12,8 @@ import argparse
 import json
 import socket
 import time
+import urllib.request
+import xml.etree.ElementTree as ET
 
 MCAST_GRP = "239.255.255.250"
 MCAST_PORT = 1900
@@ -36,6 +38,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         help="Optional file path to write newline-delimited JSON",
+    )
+    parser.add_argument(
+        "--describe",
+        action="store_true",
+        help="Fetch and parse device descriptions from SSDP location URLs",
+    )
+    parser.add_argument(
+        "--describe-timeout",
+        type=float,
+        default=3.0,
+        help="Timeout in seconds for SSDP description fetch",
+    )
+    parser.add_argument(
+        "--max-describe",
+        type=int,
+        default=24,
+        help="Maximum number of SSDP description fetches",
     )
     return parser.parse_args()
 
@@ -102,6 +121,65 @@ def collect_responses(
     return responses
 
 
+def _strip_ns(tag: str) -> str:
+    if "}" in tag:
+        return tag.split("}", 1)[1]
+    return tag
+
+
+def fetch_description(url: str, timeout: float) -> dict[str, str]:
+    if not url:
+        return {}
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            payload = resp.read()
+    except Exception:
+        return {}
+    if not payload:
+        return {}
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError:
+        return {}
+    fields = {
+        "friendlyName": "friendly_name",
+        "manufacturer": "manufacturer",
+        "modelName": "model",
+        "modelNumber": "model_number",
+        "deviceType": "device_type",
+        "serialNumber": "serial",
+    }
+    result: dict[str, str] = {}
+    for elem in root.iter():
+        tag = _strip_ns(elem.tag)
+        if tag in fields and elem.text:
+            result[fields[tag]] = elem.text.strip()
+    return result
+
+
+def enrich_with_descriptions(
+    responses: list[dict[str, str]],
+    timeout: float,
+    max_fetches: int,
+) -> list[dict[str, str]]:
+    seen_locations: set[str] = set()
+    count = 0
+    for entry in responses:
+        location = entry.get("location", "")
+        if not location:
+            continue
+        if location in seen_locations:
+            continue
+        if count >= max_fetches:
+            break
+        seen_locations.add(location)
+        details = fetch_description(location, timeout)
+        if details:
+            entry.update(details)
+        count += 1
+    return responses
+
+
 def emit(responses: list[dict[str, str]], output: str | None) -> None:
     if output:
         with open(output, "w", encoding="utf-8") as handle:
@@ -116,6 +194,10 @@ def main() -> int:
     args = parse_args()
     message = build_message(args.st, args.mx)
     responses = collect_responses(args.timeout, message)
+    if args.describe:
+        responses = enrich_with_descriptions(
+            responses, args.describe_timeout, args.max_describe
+        )
     emit(responses, args.output)
     return 0
 

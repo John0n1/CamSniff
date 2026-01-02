@@ -1,0 +1,3 @@
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/ISAPI/Streaming/channels/101/picture|80|101|0|isapi-picture-main
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/ISAPI/Streaming/channels/102/picture|80|102|1|isapi-picture-sub
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/Streaming/channels/1/picture|80|1|0|legacy-picture

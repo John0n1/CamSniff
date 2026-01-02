@@ -1,0 +1,2 @@
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/cam/realmonitor?channel={{channel}}&subtype={{stream}}|554|1|0|tcp|realmonitor-main
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/cam/realmonitor?channel={{channel}}&subtype=1|554|1|1|tcp|realmonitor-sub

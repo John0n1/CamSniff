@@ -1,0 +1,3 @@
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/live.sdp|554|1|0|tcp|live-sdp
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/live1.sdp|554|1|0|tcp|live1-sdp
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/live2.sdp|554|1|1|tcp|live2-sdp

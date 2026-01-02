@@ -1,0 +1,3 @@
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/axis-media/media.amp|554|1|0|tcp|axis-media
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/axis-media/media.amp?videocodec=h264|554|1|0|tcp|axis-h264
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/axis-media/media.amp?videocodec=h265|554|1|0|tcp|axis-h265

@@ -1,0 +1,3 @@
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/stw-cgi/image.cgi|80|1|0|stw-image
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/cgi-bin/snapshot.cgi|80|1|0|snapshot-cgi
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/image/jpeg.cgi|80|1|0|jpeg-cgi

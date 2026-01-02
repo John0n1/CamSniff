@@ -1,0 +1,3 @@
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/MediaInput/h264|554|1|0|tcp|media-h264
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/MediaInput/h264/stream_1|554|1|0|tcp|media-h264-1
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/MediaInput/mpeg4|554|1|0|tcp|media-mpeg4

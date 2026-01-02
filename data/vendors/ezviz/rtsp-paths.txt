@@ -1,0 +1,3 @@
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/Streaming/Channels/101|554|101|0|tcp|stream-main
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/Streaming/Channels/102|554|102|1|tcp|stream-sub
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/h264/ch1/main/av_stream|554|1|0|tcp|h264-main

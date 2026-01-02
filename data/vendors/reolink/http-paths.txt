@@ -1,0 +1,2 @@
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/cgi-bin/api.cgi?cmd=Snap&channel={{channel}}|80|0|0|reolink-snap
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/cgi-bin/api.cgi?cmd=Snap&channel=0|80|0|0|reolink-snap0

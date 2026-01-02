@@ -1,0 +1,3 @@
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/snap.jpg|80|1|0|snap
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/snapshot.jpg|80|1|0|snapshot
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/image.jpg|80|1|0|image

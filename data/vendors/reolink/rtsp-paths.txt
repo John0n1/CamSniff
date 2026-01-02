@@ -1,0 +1,2 @@
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/h264Preview_01_main|554|1|0|tcp|preview-main
+rtsp://{{username}}:{{password}}@{{ip_address}}:{{port}}/h264Preview_01_sub|554|1|1|tcp|preview-sub

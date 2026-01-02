@@ -1,0 +1,3 @@
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/SnapshotJPEG|80|1|0|snapshotjpeg
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/SnapshotJPEG?Resolution=640x480|80|1|0|snapshotjpeg-640
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/snapshot.jpg|80|1|0|snapshot

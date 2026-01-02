@@ -1,0 +1,3 @@
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/axis-cgi/jpg/image.cgi|80|1|0|axis-image
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/axis-cgi/mjpg/video.cgi|80|1|0|axis-mjpeg
+http://{{username}}:{{password}}@{{ip_address}}:{{port}}/axis-cgi/jpg/image.cgi?resolution=640x480|80|1|0|axis-image-640

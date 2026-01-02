@@ -3,6 +3,7 @@
 - Extend `data/catalog/paths.csv` with new vendor fingerprints, CVE IDs, default credentials, and snapshot/stream templates.
 - Update `data/dictionaries/usernames.txt` and `data/dictionaries/passwords.txt` to broaden credential probing.
 - Swap in an alternate RTSP dictionary by editing `data/protocols/rtsp-url-brute.nse` or passing `rtsp-url-brute.urlfile=<path>` through the Nmap script arguments (see comments in the script).
+- Add vendor-specific dictionaries in `data/vendors/<vendor>/http-paths.txt` and `data/vendors/<vendor>/rtsp-paths.txt` using the `template|port|channel|stream|label` / `template|port|channel|stream|transport|label` formats.
 - Modes, timeouts, and credential limits are centralised in `scripts/core/mode-config.sh`.
 - Protocol heuristics for ONVIF/RTMP/HLS/WebRTC/SRT are implemented in `scripts/camsniff.sh` under `probe_additional_protocols`; adjust or extend them there.
 

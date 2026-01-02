@@ -170,6 +170,34 @@ sudo camsniff --mode aggressive --extra ivre
 # skip confirmation (non-interactive)
 sudo camsniff --yes
 
+# pin output location and tag the run
+sudo camsniff --output-root /mnt/scan-results --run-name office
+
+# force a specific capture interface for tshark
+sudo camsniff --interface eth0
+
+# skip automated credential probing
+sudo camsniff --skip-credentials
+
+# skip dependency installation (assumes tools are already present)
+sudo camsniff --skip-install
+
+# generate a markdown or HTML report
+sudo camsniff --report markdown
+sudo camsniff --report html
+
+# smart target shaping and confidence ranking
+sudo camsniff --smart --smart-min 35 --smart-max 60
+
+# enrich SSDP results with device descriptions
+sudo camsniff --ssdp-describe
+
+# encrypt results (auto-selects age/gpg)
+sudo camsniff --encrypt-results --encrypt-recipient "age1example..."
+
+# force gpg encryption with a key id
+sudo camsniff --encrypt-results gpg --encrypt-recipient "KEYID"
+
 # scan specific IP ranges from a JSON file
 sudo camsniff --mode medium --targets /path/to/targets.json
 
@@ -185,9 +213,17 @@ sudo camsniff --version
 
 # Output format & artifacts
 
-All run outputs live in `dev/results/<UTC_TIMESTAMP>/`:
+All run outputs live in `dev/results/<UTC_TIMESTAMP>/` by default:
 
-* `discovery.json` — canonical host dataset with enrichment metadata
+You can override the base directory with `--output-root` and append a label with
+`--run-name`. Example: `/mnt/scan-results/20250101T000000Z-office/`.
+
+Reports are written as `report.md` or `report.html` inside each run directory.
+When `--encrypt-results` is enabled an encrypted `.tar.gz.age` or `.tar.gz.gpg`
+archive is created alongside the run directory (plaintext remains on disk).
+For GPG symmetric encryption without prompts, set `CAM_ENCRYPT_PASSPHRASE`.
+
+* `discovery.json` — canonical host dataset with enrichment metadata + confidence scoring
 * `credentials.json` — credential attempts & successes per host
 * `thumbnails/` — JPEG snapshots of successful grabs (organized per run)
 * `logs/` — raw phase logs (`nmap-output.txt`, `masscan-output.json`, `avahi-services.txt`, `tshark-traffic.csv`, `coap-probe.log`, `http-metadata.jsonl`, `ssdp-discovery.jsonl`, `onvif-discovery.jsonl`)
@@ -209,6 +245,12 @@ All run outputs live in `dev/results/<UTC_TIMESTAMP>/`:
     "rtsp_candidates":[...],
     "http_snapshot_candidates":[...],
     "cve_ids":["CVE-2024-XXXX"]
+  },
+  "confidence": {
+    "score": 78,
+    "level": "high",
+    "classification": "camera",
+    "reasons": ["rtsp url discovered", "onvif detected"]
   }
 }
 ```
@@ -221,6 +263,8 @@ All run outputs live in `dev/results/<UTC_TIMESTAMP>/`:
 * **Heuristics**: port fingerprints, OUI regex, observed HTTP/RTSP URIs, ONVIF/SSDP/HTTP banners.
 * **Vendor templates**: `data/catalog/paths.csv` contains OUI & port heuristics → RTSP/HTTP templates + CVEs.
 * **Enrichment**: small Python post-processor ranks candidates and annotates `discovery.json`.
+* **Smart targeting**: `--smart` prioritizes deeper probes using early signals and prints a confidence ranking.
+* **SSDP describe**: `--ssdp-describe` fetches device descriptions to boost fingerprints.
 
 ---
 
@@ -297,9 +341,19 @@ All dictionaries live in `data/` and are editable:
 * `dictionaries/rtsp-urls.txt` — extend RTSP brute dictionary for NSE
 * `dictionaries/http-paths.txt` — fallback HTTP snapshot endpoints (templated)
 * `dictionaries/usernames.txt` / `dictionaries/passwords.txt` — curated credential lists (comments ignored)
+* `vendors/<vendor>/http-paths.txt` — vendor-specific HTTP snapshot templates
+* `vendors/<vendor>/rtsp-paths.txt` — vendor-specific RTSP templates
 * `core/port-profiles.sh` — logical named port sets used per scanning mode
 
 After edits, next run will use updated files. Keep additions concise, verifiable, and documented (one vendor per row ideally).
+
+Vendor dictionary format:
+
+- HTTP: `template|port|channel|stream|label`
+- RTSP: `template|port|channel|stream|transport|label`
+
+Templates may include `{{ip_address}}`, `{{username}}`, `{{password}}`, `{{port}}`,
+`{{channel}}`, and `{{stream}}` placeholders.
 
 ---
 
