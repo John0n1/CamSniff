@@ -2,7 +2,7 @@
 #
 # https://github.com/John0n1/CamSniff
 #
-# Copyright (c) 2025 John Hauger Mitander
+# Copyright (c) 2026 John Hauger Mitander
 # License: MIT License https://opensource.org/license/MIT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

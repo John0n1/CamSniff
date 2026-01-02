@@ -1,3 +1,16 @@
+camsniff (2.2.3) unstable; urgency=medium
+  * Fix IVRE integration to correctly handle MongoDB connection issues
+    and ensure smooth ingestion of scan data.
+  * Update dependency installation script to include missing packages
+    required for IVRE functionality.
+  * Enhance detection capabilities by adding new probes for emerging
+    IoT device protocols.
+  * Made a vendor database update to include the latest OUI entries
+    for improved device identification.
+  * Revised small sections throughout the documentation for clarity
+    and accuracy regarding new features.
+ -- John Hauger Mitander <john@on1.no>  Tue, 02 Jan 2026 01:00:00 +0000
+
 camsniff (2.2.2) unstable; urgency=medium
   * Restructure scripts/ into core/setup/probes/helpers/integrations/tools/ui and
     data/ into catalog/dictionaries/examples/protocols for clearer ownership.

@@ -11,7 +11,12 @@ data/catalog/* usr/lib/camsniff/data/catalog
 data/dictionaries/* usr/lib/camsniff/data/dictionaries
 data/examples/* usr/lib/camsniff/data/examples
 data/protocols/* usr/lib/camsniff/data/protocols
+data/vendors/* usr/lib/camsniff/data/vendors
 VERSION usr/lib/camsniff
+LICENSE usr/lib/camsniff
+README.md usr/lib/camsniff
+Makefile usr/lib/camsniff
+.gitignore usr/lib/camsniff
 docs/camsniff.png usr/share/doc/camsniff/screenshots
 bin/camsniff usr/bin
 debian/camsniff.desktop usr/share/applications/

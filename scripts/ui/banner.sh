@@ -2,7 +2,7 @@
 #
 # https://github.com/John0n1/CamSniff
 #
-# Copyright (c) 2025 John Hauger Mitander
+# Copyright (c) 2026 John Hauger Mitander
 # License: MIT License https://opensource.org/license/MIT
 
 cam_ui_visible_length() {
@@ -103,7 +103,7 @@ cam_ui_render_banner() {
         "▐ ██║     ██╔══██║██║╚██╔╝██║╚════██║██║╚██╗██║██║██╔══╝  ██╔══╝   ▌"
         "▐ ╚██████╗██║  ██║██║ ╚═╝ ██║███████║██║ ╚████║██║██║     ██║      ▌"
         "▐  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝      ▌"
-        "▐                          Version 2.2.2                           ▌"
+        "▐                          Version 2.2.3                           ▌"
         "▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌"
     )
 
