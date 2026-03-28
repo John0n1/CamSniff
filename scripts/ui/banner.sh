@@ -51,9 +51,9 @@ cam_ui_matrix_rain() {
     local height="${2:-12}"
     local frames="${3:-20}"
     local delay="${4:-0.04}"
-    local reset="${6:-"\033[31m"}"
+    local color="${5:-"\033[31m"}"
+    local reset="${6:-"\033[0m"}"
     local hide_cursor=false
-    local color="\033[31m"
 
     if command -v tput >/dev/null 2>&1 && tput civis >/dev/null 2>&1; then
         hide_cursor=true

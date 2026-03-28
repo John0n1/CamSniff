@@ -26,6 +26,10 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--run)
 			RUN_ID="${2:-}"
+			if [[ -z $RUN_ID ]]; then
+				echo "--run requires a timestamp value" >&2
+				exit 1
+			fi
 			shift 2
 			;;
 		-h|--help)
@@ -93,7 +97,7 @@ if command -v jq >/dev/null 2>&1; then
 		printf "\n[credentials.json] missing\n"
 	fi
 else
-	echo "jq not available; listing artifacts instead"
+	echo "jq not available; install jq for detailed statistics. Listing artifacts instead:" >&2
 	ls -1 "$RUN_DIR"
 fi
 
