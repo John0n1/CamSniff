@@ -46,13 +46,13 @@ ENCRYPT_TOOL="${CAM_ENCRYPT_TOOL:-auto}"
 ENCRYPT_RECIPIENT="${CAM_ENCRYPT_RECIPIENT:-}"
 ENCRYPT_PASSPHRASE="${CAM_ENCRYPT_PASSPHRASE:-}"
 SMART_MODE=false
-SMART_MIN_SCORE="${CAM_SMART_MIN_SCORE:-30}"
-SMART_MAX_TARGETS="${CAM_SMART_MAX_TARGETS:-64}"
-SMART_DISPLAY_LIMIT="${CAM_SMART_DISPLAY_LIMIT:-10}"
+SMART_MIN_SCORE="${CAM_SMART_MIN_SCORE:-30}"       # Minimum confidence score (0-100) for smart probe filtering
+SMART_MAX_TARGETS="${CAM_SMART_MAX_TARGETS:-64}"    # Maximum number of targets for deeper probes
+SMART_DISPLAY_LIMIT="${CAM_SMART_DISPLAY_LIMIT:-10}" # Max hosts shown in the smart targeting summary
 CONFIDENCE_READY=false
 SSDP_DESCRIBE=false
-SSDP_DESCRIBE_TIMEOUT="${CAM_SSDP_DESCRIBE_TIMEOUT:-3}"
-SSDP_DESCRIBE_MAX="${CAM_SSDP_DESCRIBE_MAX:-24}"
+SSDP_DESCRIBE_TIMEOUT="${CAM_SSDP_DESCRIBE_TIMEOUT:-3}" # Seconds to wait for SSDP device descriptions
+SSDP_DESCRIBE_MAX="${CAM_SSDP_DESCRIBE_MAX:-24}"         # Max SSDP descriptions to fetch per run
 if [[ -n ${CAM_SKIP_CREDENTIALS:-} ]]; then
     case "${CAM_SKIP_CREDENTIALS,,}" in
         1|true|yes|y)
@@ -107,7 +107,7 @@ AVAHI_OUTPUT_FILE=""
 TSHARK_OUTPUT_FILE=""
 COAP_OUTPUT_FILE=""
 COAP_LOG_FILE=""
-COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}"
+COAP_PROBE_TIMEOUT="${COAP_PROBE_TIMEOUT:-5}" # Seconds before CoAP probe gives up per host
 IVRE_LOG_FILE=""
 HTTP_META_LOG=""
 SSDP_OUTPUT_FILE=""
@@ -1015,6 +1015,9 @@ fi
 if ! is_integer "$SMART_MAX_TARGETS"; then
     echo "Warning: Invalid smart-max count; defaulting to 64." >&2
     SMART_MAX_TARGETS=64
+elif (( SMART_MAX_TARGETS == 0 )); then
+    echo "Warning: --smart-max cannot be 0; defaulting to 64." >&2
+    SMART_MAX_TARGETS=64
 fi
 if ! is_integer "$SSDP_DESCRIBE_MAX"; then
     SSDP_DESCRIBE_MAX=24
@@ -1053,6 +1056,12 @@ fi
 
 # shellcheck source=core/port-profiles.sh
 source "$PORT_PROFILE_DATA"
+
+TEMPLATE_HELPER="$CORE_DIR/template.sh"
+if [[ -f "$TEMPLATE_HELPER" ]]; then
+    # shellcheck source=core/template.sh
+    source "$TEMPLATE_HELPER"
+fi
 
 if [[ ! -f "$UI_HELPER" ]]; then
     echo "Missing UI helper: $UI_HELPER" >&2
@@ -1752,20 +1761,24 @@ http_body_snippet() {
 build_rtsp_url() {
     local template="$1"
     local ip="$2"
-    local username="$3"
-    local password="$4"
-    local port="$5"
-    local stream="$6"
-    local channel="$7"
+    local username="${3:-<username>}"
+    local password="${4:-<password>}"
+    local port="${5:-554}"
+    local stream="${6:-0}"
+    local channel="${7:-1}"
 
-    local url="$template"
-    url="${url//\{\{ip_address\}\}/$ip}"
-    url="${url//\{\{username\}\}/${username:-<username>}}"
-    url="${url//\{\{password\}\}/${password:-<password>}}"
-    url="${url//\{\{port\}\}/${port:-554}}"
-    url="${url//\{\{stream\}\}/${stream:-0}}"
-    url="${url//\{\{channel\}\}/${channel:-1}}"
-    echo "$url"
+    if declare -f render_url_template >/dev/null 2>&1; then
+        render_url_template "$template" "$ip" "$username" "$password" "$port" "$channel" "$stream"
+    else
+        local url="$template"
+        url="${url//\{\{ip_address\}\}/$ip}"
+        url="${url//\{\{username\}\}/$username}"
+        url="${url//\{\{password\}\}/$password}"
+        url="${url//\{\{port\}\}/$port}"
+        url="${url//\{\{stream\}\}/$stream}"
+        url="${url//\{\{channel\}\}/$channel}"
+        echo "$url"
+    fi
 }
 
 match_device_profile() {
@@ -2543,8 +2556,8 @@ case ${answer:0:1} in
                 cred_args+=(--min-confidence "$SMART_MIN_SCORE")
             fi
             if bash "$CREDENTIAL_PROBE" "${cred_args[@]}"; then
-                success_count=$(jq 'map(select(.method? != null)) | length' "$CREDS_JSON" 2>/dev/null || echo 0)
-                failure_count=$(jq 'map(select((.success? == false))) | length' "$CREDS_JSON" 2>/dev/null || echo 0)
+                success_count=$(jq 'map(select(.success? != false and .method? != null)) | length' "$CREDS_JSON" 2>/dev/null || echo 0)
+                failure_count=$(jq 'map(select(.success? == false)) | length' "$CREDS_JSON" 2>/dev/null || echo 0)
                 echo -e "${GREEN}Credential probe complete.${RESET}"
                 echo -e "${CYAN}Successful captures: ${GREEN}$success_count${RESET}"
                 echo -e "${CYAN}Failed attempts:     ${YELLOW}$failure_count${RESET}"

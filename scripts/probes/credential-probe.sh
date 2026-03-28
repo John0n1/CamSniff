@@ -10,6 +10,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+TEMPLATE_HELPER="$ROOT_DIR/scripts/core/template.sh"
+if [[ -f "$TEMPLATE_HELPER" ]]; then
+    # shellcheck source=core/template.sh
+    source "$TEMPLATE_HELPER"
+fi
+
 INPUT_JSON=""
 USERNAMES_FILE="$ROOT_DIR/data/dictionaries/usernames.txt"
 PASSWORDS_FILE="$ROOT_DIR/data/dictionaries/passwords.txt"
@@ -20,8 +26,8 @@ THUMB_DIR="$ROOT_DIR/dev/results/thumbnails"
 LOG_DIR="$ROOT_DIR/dev/results/logs"
 MIN_CONFIDENCE=0
 VENDOR_DATA_DIR="$ROOT_DIR/data/vendors"
-VENDOR_HTTP_LIMIT=10
-VENDOR_RTSP_LIMIT=8
+VENDOR_HTTP_LIMIT=10  # Max vendor-specific HTTP paths to try per host
+VENDOR_RTSP_LIMIT=8   # Max vendor-specific RTSP paths to try per host
 declare -A vendor_http_cache
 declare -A vendor_rtsp_cache
 
@@ -122,7 +128,7 @@ MAX_CREDENTIALS=${CAM_MODE_MAX_CREDENTIALS:-32}
 CURL_TIMEOUT=${CAM_MODE_CURL_TIMEOUT:-8}
 FFMPEG_TIMEOUT=${CAM_MODE_FFMPEG_TIMEOUT:-10}
 HTTP_RETRIES=${CAM_MODE_HTTP_RETRIES:-2}
-FALLBACK_HTTP_CRED_LIMIT=6
+FALLBACK_HTTP_CRED_LIMIT=6 # Only try generic HTTP paths for the first N credential pairs
 
 normalize_vendor_key() {
     local raw="$1"
@@ -342,21 +348,25 @@ build_vendor_rtsp_candidates() {
 }
 
 render_template() {
-    local template="$1"
-    local ip="$2"
-    local username="$3"
-    local password="$4"
-    local port="$5"
-    local channel="$6"
-    local stream="$7"
-    local result="$template"
-    result="${result//\{\{ip_address\}\}/$ip}"
-    result="${result//\{\{username\}\}/${username}}"
-    result="${result//\{\{password\}\}/${password}}"
-    result="${result//\{\{port\}\}/${port}}"
-    result="${result//\{\{channel\}\}/${channel}}"
-    result="${result//\{\{stream\}\}/${stream}}"
-    echo "$result"
+    if declare -f render_url_template >/dev/null 2>&1; then
+        render_url_template "$@"
+    else
+        local template="$1"
+        local ip="$2"
+        local username="$3"
+        local password="$4"
+        local port="$5"
+        local channel="$6"
+        local stream="$7"
+        local result="$template"
+        result="${result//\{\{ip_address\}\}/$ip}"
+        result="${result//\{\{username\}\}/${username}}"
+        result="${result//\{\{password\}\}/${password}}"
+        result="${result//\{\{port\}\}/${port}}"
+        result="${result//\{\{channel\}\}/${channel}}"
+        result="${result//\{\{stream\}\}/${stream}}"
+        echo "$result"
+    fi
 }
 
 apply_credentials_to_url() {
@@ -382,10 +392,9 @@ apply_credentials_to_url() {
 
 trim_auth_in_url() {
     local url="$1"
-    if [[ $url =~ ^rtsp://:@ ]]; then
-        echo "rtsp://${url#rtsp://:@}"
-    elif [[ $url =~ ^http://:@ ]]; then
-        echo "http://${url#http://:@}"
+    if [[ $url == *"://:@"* ]]; then
+        local scheme="${url%%://*}"
+        echo "${scheme}://${url#*://:@}"
     else
         echo "$url"
     fi
