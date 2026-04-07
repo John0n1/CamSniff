@@ -1998,7 +1998,9 @@ case ${answer:0:1} in
             read -r -a __extra <<< "$CAM_MODE_NMAP_EXTRA"
             nmap_cmd+=("${__extra[@]}")
         fi
-        nmap_cmd+=(--max-retries "$NMAP_MAX_RETRIES")
+        if (( NMAP_MAX_RETRIES > 0 )); then
+            nmap_cmd+=(--max-retries "$NMAP_MAX_RETRIES")
+        fi
         if (( NMAP_MIN_RATE > 0 )); then
             nmap_cmd+=(--min-rate "$NMAP_MIN_RATE")
         fi

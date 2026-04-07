@@ -92,7 +92,7 @@ and enables ONVIF, SSDP, HTTP metadata, and follow-up UDP scans.
 |---------|-------|
 | Masscan | enabled, 1,000 pps, wait 3 s |
 | Nmap timing | -T4 |
-| Nmap extra | `--script=banner,http-title` |
+| Nmap extra | `--script banner,http-title` |
 | Nmap max-retries | 2 |
 | Version intensity | 5 |
 | Port profile | `standard` |

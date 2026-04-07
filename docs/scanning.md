@@ -46,7 +46,7 @@ nmap -Pn -n [timing] [extras] --max-retries N [--min-rate N] [-O --osscan-guess 
 |------------|--------|-------------|----------|-------------------|----------------------------|
 | `stealth+` | -T1    | 1           | –        | 1 (minimal)       | `--scan-delay 200ms`       |
 | `stealth`  | -T2    | 1           | –        | 2 (light)         | –                          |
-| `medium`   | -T4    | 2           | –        | 5 (standard)      | `--script=banner,http-title` |
+| `medium`   | -T4    | 2           | –        | 5 (standard)      | `--script banner,http-title` |
 | `aggressive` | -T4  | 3           | –        | 7 (intense)       | `--script default`         |
 | `war`      | -T5    | 3           | 100 pps  | 8 (high)          | `--script default`         |
 | `nuke`     | -T5    | 4           | 200 pps  | 9 (all probes)    | `--script vuln,default`    |

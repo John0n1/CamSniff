@@ -102,7 +102,7 @@ case "$norm_mode" in
         MASSCAN_RATE=1000
         MASSCAN_WAIT=3
         NMAP_SPEED="-T4"
-        NMAP_EXTRA="--script=banner,http-title"
+        NMAP_EXTRA="--script banner,http-title"
         NMAP_OSSCAN=true
         NMAP_VERSION_DETECT=true
         NMAP_VERSION_INTENSITY=5
