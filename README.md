@@ -117,15 +117,16 @@ Key design points:
 # Scanning modes (summary)
 
 Each mode adjusts port profiles, timing, Masscan usage, NSE breadth, and maximum credential attempts.
+All modes add `-Pn -n` to Nmap for reliable camera discovery (skip ping, skip DNS).
 
-|         Mode | Masscan |      Nmap speed      | Creds (max) | TShark (s) | Use case                |
-| -----------: | :-----: | :------------------: | :---------: | :--------: | ----------------------- |
-|   `stealth+` |    no   |          -T1         |      8      |     15     | Minimal noise, slowest  |
-|    `stealth` |    no   |          -T2         |      12     |     20     | Quiet local scans       |
-|     `medium` |   yes   |          -T4         |      32     |     35     | Default balanced        |
-| `aggressive` |   yes   |        -T4 -A        |      64     |     45     | More scripts/versioning |
-|        `war` |   yes   |        -T5 -A        |      96     |     55     | Broad vendor coverage   |
-|       `nuke` |   yes   | -T5 -A --script vuln |     128     |     75     | Full sweep (1–65535)    |
+|         Mode | Masscan |         Nmap flags          | Creds (max) | TShark (s) | Use case                |
+| -----------: | :-----: | :-------------------------: | :---------: | :--------: | ----------------------- |
+|   `stealth+` |    no   | -T1 --max-retries 1         |      16     |     15     | Minimal noise, slowest  |
+|    `stealth` |    no   | -T2 --max-retries 1         |      32     |     20     | Quiet local scans       |
+|     `medium` |   yes   | -T4 --max-retries 2         |      64     |     35     | Default balanced        |
+| `aggressive` |   yes   | -T4 --max-retries 3 --script default |      96     |     45     | Scripts & versioning    |
+|        `war` |   yes   | -T5 --max-retries 3 --min-rate 100 --script default |     128     |     55     | Broad vendor coverage   |
+|       `nuke` |   yes   | -T5 --max-retries 4 --min-rate 200 --script vuln,default |     256     |     75     | Full sweep (1–65535)    |
 
 Default: `--mode medium`. Example: `sudo camsniff --mode stealth`.
 

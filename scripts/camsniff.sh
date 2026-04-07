@@ -1047,6 +1047,10 @@ HTTP_RETRIES=${CAM_MODE_HTTP_RETRIES:-2}
 FFMPEG_TIMEOUT=${CAM_MODE_FFMPEG_TIMEOUT:-10}
 NMAP_OSSCAN_ENABLE=${CAM_MODE_NMAP_OSSCAN_ENABLE:-false}
 NMAP_VERSION_ENABLE=${CAM_MODE_NMAP_VERSION_ENABLE:-true}
+NMAP_VERSION_INTENSITY=${CAM_MODE_NMAP_VERSION_INTENSITY:-5}
+NMAP_MAX_RETRIES=${CAM_MODE_NMAP_MAX_RETRIES:-2}
+NMAP_MIN_RATE=${CAM_MODE_NMAP_MIN_RATE:-0}
+MASSCAN_WAIT=${CAM_MODE_MASSCAN_WAIT:-3}
 export FFMPEG_TIMEOUT CURL_TIMEOUT HTTP_RETRIES
 
 if [[ ! -f "$PORT_PROFILE_DATA" ]]; then
@@ -1984,7 +1988,7 @@ case ${answer:0:1} in
         nmap_output=$(mktemp)
         nmap_log=$(mktemp)
 
-        nmap_cmd=(nmap)
+        nmap_cmd=(nmap -Pn -n)
         nmap_rtsp_enabled=false
         if [[ -n ${CAM_MODE_NMAP_SPEED:-} ]]; then
             read -r -a __speed <<< "$CAM_MODE_NMAP_SPEED"
@@ -1994,11 +1998,17 @@ case ${answer:0:1} in
             read -r -a __extra <<< "$CAM_MODE_NMAP_EXTRA"
             nmap_cmd+=("${__extra[@]}")
         fi
+        if (( NMAP_MAX_RETRIES > 0 )); then
+            nmap_cmd+=(--max-retries "$NMAP_MAX_RETRIES")
+        fi
+        if (( NMAP_MIN_RATE > 0 )); then
+            nmap_cmd+=(--min-rate "$NMAP_MIN_RATE")
+        fi
         if [[ ${NMAP_OSSCAN_ENABLE,,} == "true" ]]; then
             nmap_cmd+=(-O --osscan-guess --fuzzy)
         fi
         if [[ ${NMAP_VERSION_ENABLE,,} == "true" ]]; then
-            nmap_cmd+=(-sV --version-all)
+            nmap_cmd+=(-sV --version-intensity "$NMAP_VERSION_INTENSITY")
         fi
         nmap_cmd+=(-p "$NMAP_PORT_LIST" --open "${scan_targets[@]}" -oN "$nmap_output")
         if [[ -f "$NMAP_RTSP_SCRIPT" ]]; then
@@ -2125,7 +2135,7 @@ case ${answer:0:1} in
             echo -e "${BLUE}Starting more comprehensive scan with masscan...${RESET}"
             masscan_output=$(mktemp)
             masscan_log=$(mktemp)
-            masscan_cmd=(masscan -p "$MASSCAN_PORT_SPEC" --rate "$CAM_MODE_MASSCAN_RATE" "${scan_targets[@]}" -oJ "$masscan_output")
+            masscan_cmd=(masscan -p "$MASSCAN_PORT_SPEC" --rate "$CAM_MODE_MASSCAN_RATE" --wait "$MASSCAN_WAIT" "${scan_targets[@]}" -oJ "$masscan_output")
             "${masscan_cmd[@]}" > "$masscan_log" 2>&1 &
             pid=$!
 
