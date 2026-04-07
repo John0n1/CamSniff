@@ -53,15 +53,19 @@ case "$norm_mode" in
     stealth)
         MASSCAN_ENABLE=false
         MASSCAN_RATE=0
+        MASSCAN_WAIT=0
         NMAP_SPEED="-T2"
         NMAP_EXTRA=""
         NMAP_OSSCAN=true
         NMAP_VERSION_DETECT=true
+        NMAP_VERSION_INTENSITY=2
+        NMAP_MAX_RETRIES=1
+        NMAP_MIN_RATE=0
         PORT_PROFILE="core"
         TSHARK_DURATION=20
         CURL_TIMEOUT=5
         FFMPEG_TIMEOUT=6
-        MAX_CREDENTIALS=128
+        MAX_CREDENTIALS=32
         HTTP_RETRIES=2
         BRUTE_WINDOW=60
         ONVIF_PROBE_ENABLE=false
@@ -72,15 +76,19 @@ case "$norm_mode" in
     stealth+|stealth-plus)
         MASSCAN_ENABLE=false
         MASSCAN_RATE=0
+        MASSCAN_WAIT=0
         NMAP_SPEED="-T1"
         NMAP_EXTRA="--scan-delay 200ms"
         NMAP_OSSCAN=true
         NMAP_VERSION_DETECT=true
+        NMAP_VERSION_INTENSITY=1
+        NMAP_MAX_RETRIES=1
+        NMAP_MIN_RATE=0
         PORT_PROFILE="minimal"
         TSHARK_DURATION=15
         CURL_TIMEOUT=6
         FFMPEG_TIMEOUT=8
-        MAX_CREDENTIALS=128
+        MAX_CREDENTIALS=16
         HTTP_RETRIES=4
         BRUTE_WINDOW=90
         norm_mode="stealth+"
@@ -92,15 +100,19 @@ case "$norm_mode" in
     medium|default)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=1000
+        MASSCAN_WAIT=3
         NMAP_SPEED="-T4"
-        NMAP_EXTRA=""
+        NMAP_EXTRA="--script=banner,http-title"
         NMAP_OSSCAN=true
         NMAP_VERSION_DETECT=true
+        NMAP_VERSION_INTENSITY=5
+        NMAP_MAX_RETRIES=2
+        NMAP_MIN_RATE=0
         PORT_PROFILE="standard"
         TSHARK_DURATION=35
         CURL_TIMEOUT=8
         FFMPEG_TIMEOUT=10
-        MAX_CREDENTIALS=128
+        MAX_CREDENTIALS=64
         HTTP_RETRIES=6
         BRUTE_WINDOW=120
         norm_mode="medium"
@@ -112,15 +124,19 @@ case "$norm_mode" in
     aggressive)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=5000
-        NMAP_SPEED="-T5"
-        NMAP_EXTRA="-A"
+        MASSCAN_WAIT=5
+        NMAP_SPEED="-T4"
+        NMAP_EXTRA="--script default"
         NMAP_OSSCAN=true
         NMAP_VERSION_DETECT=true
+        NMAP_VERSION_INTENSITY=7
+        NMAP_MAX_RETRIES=3
+        NMAP_MIN_RATE=0
         PORT_PROFILE="extended"
         TSHARK_DURATION=45
         CURL_TIMEOUT=10
         FFMPEG_TIMEOUT=12
-        MAX_CREDENTIALS=128
+        MAX_CREDENTIALS=96
         HTTP_RETRIES=8
         BRUTE_WINDOW=150
         ONVIF_PROBE_ENABLE=true
@@ -131,10 +147,14 @@ case "$norm_mode" in
     war|aggressive+)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=12000
+        MASSCAN_WAIT=7
         NMAP_SPEED="-T5"
-        NMAP_EXTRA="-A"
+        NMAP_EXTRA="--script default"
         NMAP_OSSCAN=true
         NMAP_VERSION_DETECT=true
+        NMAP_VERSION_INTENSITY=8
+        NMAP_MAX_RETRIES=3
+        NMAP_MIN_RATE=100
         PORT_PROFILE="war"
         TSHARK_DURATION=55
         CURL_TIMEOUT=12
@@ -150,15 +170,19 @@ case "$norm_mode" in
     nuke|full|total)
         MASSCAN_ENABLE=true
         MASSCAN_RATE=20000
+        MASSCAN_WAIT=10
         NMAP_SPEED="-T5"
-        NMAP_EXTRA="-A --script vuln"
+        NMAP_EXTRA="--script vuln,default"
         NMAP_OSSCAN=true
         NMAP_VERSION_DETECT=true
+        NMAP_VERSION_INTENSITY=9
+        NMAP_MAX_RETRIES=4
+        NMAP_MIN_RATE=200
         PORT_PROFILE="total"
         TSHARK_DURATION=75
         CURL_TIMEOUT=15
         FFMPEG_TIMEOUT=20
-        MAX_CREDENTIALS=128
+        MAX_CREDENTIALS=256
         HTTP_RETRIES=16
         BRUTE_WINDOW=240
         norm_mode="nuke"
@@ -180,10 +204,14 @@ case "$FORMAT" in
         CAM_MODE_NORMALIZED="$norm_mode"
         CAM_MODE_MASSCAN_ENABLE="$MASSCAN_ENABLE"
         CAM_MODE_MASSCAN_RATE="$MASSCAN_RATE"
+        CAM_MODE_MASSCAN_WAIT="$MASSCAN_WAIT"
         CAM_MODE_NMAP_SPEED="$NMAP_SPEED"
         CAM_MODE_NMAP_EXTRA="$NMAP_EXTRA"
         CAM_MODE_NMAP_OSSCAN_ENABLE="$NMAP_OSSCAN"
         CAM_MODE_NMAP_VERSION_ENABLE="$NMAP_VERSION_DETECT"
+        CAM_MODE_NMAP_VERSION_INTENSITY="$NMAP_VERSION_INTENSITY"
+        CAM_MODE_NMAP_MAX_RETRIES="$NMAP_MAX_RETRIES"
+        CAM_MODE_NMAP_MIN_RATE="$NMAP_MIN_RATE"
         CAM_MODE_PORT_PROFILE="$PORT_PROFILE"
         CAM_MODE_TSHARK_DURATION="$TSHARK_DURATION"
         CAM_MODE_CURL_TIMEOUT="$CURL_TIMEOUT"
@@ -201,8 +229,14 @@ case "$FORMAT" in
             CAM_MODE_NORMALIZED \
             CAM_MODE_MASSCAN_ENABLE \
             CAM_MODE_MASSCAN_RATE \
+            CAM_MODE_MASSCAN_WAIT \
             CAM_MODE_NMAP_SPEED \
             CAM_MODE_NMAP_EXTRA \
+            CAM_MODE_NMAP_OSSCAN_ENABLE \
+            CAM_MODE_NMAP_VERSION_ENABLE \
+            CAM_MODE_NMAP_VERSION_INTENSITY \
+            CAM_MODE_NMAP_MAX_RETRIES \
+            CAM_MODE_NMAP_MIN_RATE \
             CAM_MODE_PORT_PROFILE \
             CAM_MODE_TSHARK_DURATION \
             CAM_MODE_CURL_TIMEOUT \
@@ -221,10 +255,14 @@ export CAM_MODE_RAW="$CAM_MODE_RAW"
 export CAM_MODE_NORMALIZED="$CAM_MODE_NORMALIZED"
 export CAM_MODE_MASSCAN_ENABLE="$CAM_MODE_MASSCAN_ENABLE"
 export CAM_MODE_MASSCAN_RATE="$CAM_MODE_MASSCAN_RATE"
+export CAM_MODE_MASSCAN_WAIT="$CAM_MODE_MASSCAN_WAIT"
 export CAM_MODE_NMAP_SPEED="$CAM_MODE_NMAP_SPEED"
 export CAM_MODE_NMAP_EXTRA="$CAM_MODE_NMAP_EXTRA"
 export CAM_MODE_NMAP_OSSCAN_ENABLE="$CAM_MODE_NMAP_OSSCAN_ENABLE"
 export CAM_MODE_NMAP_VERSION_ENABLE="$CAM_MODE_NMAP_VERSION_ENABLE"
+export CAM_MODE_NMAP_VERSION_INTENSITY="$CAM_MODE_NMAP_VERSION_INTENSITY"
+export CAM_MODE_NMAP_MAX_RETRIES="$CAM_MODE_NMAP_MAX_RETRIES"
+export CAM_MODE_NMAP_MIN_RATE="$CAM_MODE_NMAP_MIN_RATE"
 export CAM_MODE_PORT_PROFILE="$CAM_MODE_PORT_PROFILE"
 export CAM_MODE_TSHARK_DURATION="$CAM_MODE_TSHARK_DURATION"
 export CAM_MODE_CURL_TIMEOUT="$CAM_MODE_CURL_TIMEOUT"
@@ -245,10 +283,14 @@ EOF
             --arg normalized "$norm_mode" \
             --arg masscan_enable "$MASSCAN_ENABLE" \
             --argjson masscan_rate "$MASSCAN_RATE" \
+            --argjson masscan_wait "$MASSCAN_WAIT" \
             --arg nmap_speed "$NMAP_SPEED" \
             --arg nmap_extra "$NMAP_EXTRA" \
             --arg nmap_osscan "$NMAP_OSSCAN" \
             --arg nmap_version "$NMAP_VERSION_DETECT" \
+            --argjson nmap_version_intensity "$NMAP_VERSION_INTENSITY" \
+            --argjson nmap_max_retries "$NMAP_MAX_RETRIES" \
+            --argjson nmap_min_rate "$NMAP_MIN_RATE" \
             --arg port_profile "$PORT_PROFILE" \
             --argjson tshark_duration "$TSHARK_DURATION" \
             --argjson curl_timeout "$CURL_TIMEOUT" \
@@ -265,10 +307,14 @@ EOF
                 normalized: $normalized,
                 masscan_enable: ($masscan_enable == "true"),
                 masscan_rate: $masscan_rate,
+                masscan_wait: $masscan_wait,
                 nmap_speed: $nmap_speed,
                 nmap_extra: $nmap_extra,
                 nmap_osscan: ($nmap_osscan == "true"),
                 nmap_version: ($nmap_version == "true"),
+                nmap_version_intensity: $nmap_version_intensity,
+                nmap_max_retries: $nmap_max_retries,
+                nmap_min_rate: $nmap_min_rate,
                 port_profile: $port_profile,
                 tshark_duration: $tshark_duration,
                 curl_timeout: $curl_timeout,
