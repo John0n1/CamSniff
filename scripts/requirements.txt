@@ -1,6 +1,6 @@
 bottle==0.13.4
 cffi==2.0.0
-cryptography==46.0.5
+cryptography==46.0.7
 dnspython==2.8.0
 ivre==0.9.20
 pycparser==2.23
