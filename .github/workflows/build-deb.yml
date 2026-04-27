@@ -1,0 +1,65 @@
+name: Build .deb package
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            debhelper debhelper-compat dpkg-dev
+
+      - name: Build .deb package
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: Locate build artifacts
+        id: artifacts
+        run: |
+          set -euo pipefail
+          mapfile -t DEBS < <(find "$GITHUB_WORKSPACE/.." -maxdepth 1 -type f -name '*.deb' | sort)
+
+          if [ "${#DEBS[@]}" -eq 0 ]; then
+            echo "Error: no .deb package was produced by dpkg-buildpackage." >&2
+            exit 1
+          fi
+
+          if [ "${#DEBS[@]}" -gt 1 ]; then
+            echo "Error: multiple .deb packages were produced; expected exactly one." >&2
+            printf 'Matches:\n' >&2
+            printf '  %s\n' "${DEBS[@]}" >&2
+            exit 1
+          fi
+
+          DEB="${DEBS[0]}"
+          echo "deb_path=$DEB" >> "$GITHUB_OUTPUT"
+          echo "deb_name=$(basename "$DEB")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload .deb as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifacts.outputs.deb_name }}
+          path: ${{ steps.artifacts.outputs.deb_path }}
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.artifacts.outputs.deb_path }}
+          generate_release_notes: true
