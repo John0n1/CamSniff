@@ -31,8 +31,23 @@ jobs:
       - name: Locate build artifacts
         id: artifacts
         run: |
-          DEB=$(find "$GITHUB_WORKSPACE/.." -maxdepth 1 -name '*.deb' | head -1)
-          echo "deb_path=$DEB"      >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          mapfile -t DEBS < <(find "$GITHUB_WORKSPACE/.." -maxdepth 1 -type f -name '*.deb' | sort)
+
+          if [ "${#DEBS[@]}" -eq 0 ]; then
+            echo "Error: no .deb package was produced by dpkg-buildpackage." >&2
+            exit 1
+          fi
+
+          if [ "${#DEBS[@]}" -gt 1 ]; then
+            echo "Error: multiple .deb packages were produced; expected exactly one." >&2
+            printf 'Matches:\n' >&2
+            printf '  %s\n' "${DEBS[@]}" >&2
+            exit 1
+          fi
+
+          DEB="${DEBS[0]}"
+          echo "deb_path=$DEB" >> "$GITHUB_OUTPUT"
           echo "deb_name=$(basename "$DEB")" >> "$GITHUB_OUTPUT"
 
       - name: Upload .deb as workflow artifact
