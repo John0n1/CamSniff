@@ -24,7 +24,7 @@ firewalled cameras are still scanned and lookups don't slow down discovery.
 
 ## stealth+
 
-**Alias**: `stealth-plus`
+**Alias**: `stealth_plus`
 
 The slowest and least detectable mode. Adds a 200 ms scan delay between probes
 and limits credential attempts to 16. Intended for high-security environments

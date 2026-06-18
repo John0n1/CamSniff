@@ -39,7 +39,7 @@ declare -A CAM_PORT_PROFILE_LABELS=(
 # Suggested RTSP brute-force thread counts per mode.
 declare -A CAM_RTSP_THREAD_PROFILE=(
   [stealth]=4
-  [stealth - plus]=6
+  [stealth_plus]=6
   [medium]=10
   [aggressive]=16
   [war]=24

@@ -73,7 +73,7 @@ case "$norm_mode" in
     HTTP_METADATA_ENABLE=false
     FOLLOWUP_SERVICE_SCAN_ENABLE=false
     ;;
-  stealth+ | stealth-plus)
+  stealth+ | stealth_plus)
     MASSCAN_ENABLE=false
     MASSCAN_RATE=0
     MASSCAN_WAIT=0
@@ -91,7 +91,7 @@ case "$norm_mode" in
     MAX_CREDENTIALS=16
     HTTP_RETRIES=4
     BRUTE_WINDOW=90
-    norm_mode="stealth-plus"
+    norm_mode="stealth_plus"
     ONVIF_PROBE_ENABLE=false
     SSDP_ENABLE=false
     HTTP_METADATA_ENABLE=false
