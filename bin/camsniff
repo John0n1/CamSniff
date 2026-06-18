@@ -14,9 +14,9 @@ SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
 # When running from a source tree, prefer local scripts. Fallback to system install.
 if [[ -f "$SCRIPT_DIR/../scripts/camsniff.sh" ]]; then
-	ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+  ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 else
-	ROOT_DIR="/usr/lib/camsniff"
+  ROOT_DIR="/usr/lib/camsniff"
 fi
 
 exec "$ROOT_DIR/scripts/camsniff.sh" "$@"

@@ -11,13 +11,13 @@ Format
 
 HTTP entries:
 
-```
+```text
 template|port|channel|stream|label
 ```
 
 RTSP entries:
 
-```
+```text
 template|port|channel|stream|transport|label
 ```
 

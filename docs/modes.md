@@ -24,15 +24,15 @@ firewalled cameras are still scanned and lookups don't slow down discovery.
 
 ## stealth+
 
-**Alias**: `stealth-plus`
+**Alias**: `stealth_plus`
 
 The slowest and least detectable mode. Adds a 200 ms scan delay between probes
 and limits credential attempts to 16. Intended for high-security environments
 where any anomalous traffic is a concern.
 
-```
+```bash
 --mode stealth+
-```
+```bash
 
 | Setting | Value |
 |---------|-------|
@@ -57,9 +57,9 @@ Quiet but functional. Scans the core camera port set (HTTP + RTSP + HTTPS) at
 Nmap T2 timing without Masscan acceleration. Suitable for production network
 segments where noise must be kept low.
 
-```
+```bash
 --mode stealth
-```
+```bash
 
 | Setting | Value |
 |---------|-------|
@@ -84,9 +84,9 @@ The recommended starting point. Combines Nmap T4 with Masscan at 1,000 pps,
 adds lightweight NSE scripts (`banner`, `http-title`) for device fingerprinting,
 and enables ONVIF, SSDP, HTTP metadata, and follow-up UDP scans.
 
-```
+```bash
 --mode medium    # or omit --mode entirely
-```
+```bash
 
 | Setting | Value |
 |---------|-------|
@@ -111,9 +111,9 @@ Increases version detection intensity and enables the full Nmap default script
 set for richer banner, auth, and service fingerprinting. Masscan runs at 5,000
 pps. Well-suited for scheduled audits of known camera segments.
 
-```
+```bash
 --mode aggressive
-```
+```bash
 
 | Setting | Value |
 |---------|-------|
@@ -139,9 +139,9 @@ wait to catch late responders. Nmap enforces a 100 pps minimum rate alongside
 T5 timing. The port profile covers all major vendor-specific ports including
 Hikvision (8899), Dahua (34567), Axis (4520), and Reolink (8787).
 
-```
+```bash
 --mode war
-```
+```bash
 
 | Setting | Value |
 |---------|-------|
@@ -169,9 +169,9 @@ Full spectrum scan: ports 1–65535, Masscan at 20,000 pps, Nmap vulnerability
 scripts, version intensity 9 (all probes), and 256 credential attempts per host.
 Use only on networks you are explicitly authorised to test.
 
-```
+```bash
 --mode nuke
-```
+```bash
 
 | Setting | Value |
 |---------|-------|
@@ -193,10 +193,10 @@ Use only on networks you are explicitly authorised to test.
 
 ## Choosing a mode
 
-```
+```bash
 Low noise / high stealth ───────────────────────────────────► High coverage
 stealth+   stealth   medium (default)   aggressive   war   nuke
-```
+```bash
 
 - Start with **medium** on an unknown network.
 - Use **stealth/stealth+** when scanning monitored production environments.
@@ -223,6 +223,6 @@ sudo camsniff --mode war
 # Disable OS detection for faster scanning
 export CAM_MODE_NMAP_OSSCAN_ENABLE=false
 sudo camsniff --mode aggressive
-```
+```bash
 
 See [scanning.md](scanning.md) for a full list of tunable variables.

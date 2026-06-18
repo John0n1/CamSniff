@@ -6,6 +6,7 @@
 # License: MIT License https://opensource.org/license/MIT
 
 """Resolve camera/profile hints based on discovery artefacts."""
+
 from __future__ import annotations
 
 import argparse
@@ -25,9 +26,7 @@ class HostContext:
     mac: str = ""
     ports: Sequence[int] = field(default_factory=list)
     observed_paths: Sequence[str] = field(default_factory=list)
-    http_metadata: Sequence[Dict[str, str]] = field(
-        default_factory=list
-    )
+    http_metadata: Sequence[Dict[str, str]] = field(default_factory=list)
 
     @property
     def http_banners(self) -> List[str]:
@@ -65,9 +64,7 @@ class ProfileResolver:
     def __init__(self, catalog: Sequence[CatalogRow]):
         self.catalog = catalog
 
-    def resolve(
-        self, host: HostContext
-    ) -> Optional[Tuple[CatalogRow, str]]:
+    def resolve(self, host: HostContext) -> Optional[Tuple[CatalogRow, str]]:
         matches = self.resolve_many(host, limit=1)
         if not matches:
             return None
@@ -90,9 +87,7 @@ class ProfileResolver:
             trimmed.append((row, matched_by, score))
         return trimmed
 
-    def _score_row(
-        self, row: CatalogRow, host: HostContext
-    ) -> Tuple[int, str]:
+    def _score_row(self, row: CatalogRow, host: HostContext) -> Tuple[int, str]:
         score = 0
         matched_by = ""
 
@@ -188,15 +183,9 @@ def _load_catalog(path: Path) -> List[CatalogRow]:
                     type=(raw.get("type") or "").strip(),
                     oui_regex=(raw.get("oui_regex") or "").strip(),
                     rtsp_url=(raw.get("rtsp_url") or "").strip(),
-                    http_snapshot_url=(
-                        raw.get("http_snapshot_url") or ""
-                    ).strip(),
-                    onvif_profile_path=(
-                        raw.get("onvif_profile_path") or ""
-                    ).strip(),
-                    video_encoding=(
-                        raw.get("video_encoding") or ""
-                    ).strip(),
+                    http_snapshot_url=(raw.get("http_snapshot_url") or "").strip(),
+                    onvif_profile_path=(raw.get("onvif_profile_path") or "").strip(),
+                    video_encoding=(raw.get("video_encoding") or "").strip(),
                     port=port,
                     streams=_parse_list(raw.get("streams") or ""),
                     channels=_parse_list(raw.get("channels") or ""),
@@ -206,9 +195,7 @@ def _load_catalog(path: Path) -> List[CatalogRow]:
                         raw.get("is_digest_auth_supported") or ""
                     ).strip(),
                     cve_ids=_parse_list(raw.get("cve_ids") or ""),
-                    user_manual_url=(
-                        raw.get("user_manual_url") or ""
-                    ).strip(),
+                    user_manual_url=(raw.get("user_manual_url") or "").strip(),
                 )
             )
     return rows
@@ -310,20 +297,16 @@ def _build_profile_payload(
         "rtsp_candidates": build_rtsp_candidates(),
         "http_snapshot_candidates": build_http_candidates(),
         "onvif_profiles": (
-            row.onvif_profile_path.split(";")
-            if row.onvif_profile_path
-            else []
+            row.onvif_profile_path.split(";") if row.onvif_profile_path else []
         ),
         "cve_ids": row.cve_ids,
         "reference": row.user_manual_url,
     }
 
 
-def _render_text_profile(ip: str, profile: Dict[str, object]) -> str:
+def _render_text_profile(ip: str, profile: Dict[str, Any]) -> str:
     lines: List[str] = []
-    lines.append(
-        f"  Profile match: {profile.get('vendor')} {profile.get('model')}"
-    )
+    lines.append(f"  Profile match: {profile.get('vendor')} {profile.get('model')}")
     match_flag = profile.get("matched_by")
     if match_flag:
         lines.append(f"    Matched via: {match_flag}")
@@ -341,9 +324,7 @@ def _render_text_profile(ip: str, profile: Dict[str, object]) -> str:
         url = url.replace("{{username}}", "<username>")
         url = url.replace("{{password}}", "<password>")
         lines.append(f"    Suggested RTSP: {url}")
-    if profile.get("default_username") or profile.get(
-        "default_password"
-    ):
+    if profile.get("default_username") or profile.get("default_password"):
         username = profile.get("default_username") or "<custom>"
         password = profile.get("default_password") or "<password>"
         lines.append(f"    Default creds: {username}/{password}")
@@ -429,17 +410,9 @@ def command_enrich(args: argparse.Namespace) -> int:
         context = HostContext(
             ip=host.get("ip") or "",
             mac=mac,
-            ports=[
-                value for value in ports if isinstance(value, int)
-            ],
-            observed_paths=[
-                value for value in observed if isinstance(value, str)
-            ],
-            http_metadata=[
-                value
-                for value in http_meta
-                if isinstance(value, dict)
-            ],
+            ports=[value for value in ports if isinstance(value, int)],
+            observed_paths=[value for value in observed if isinstance(value, str)],
+            http_metadata=[value for value in http_meta if isinstance(value, dict)],
         )
         matches = resolver.resolve_many(context, limit=args.limit)
         if not matches:
@@ -456,11 +429,10 @@ def command_enrich(args: argparse.Namespace) -> int:
 
     return 0
 
+
 def command_catalog(args: argparse.Namespace) -> int:
     catalog = _load_catalog(Path(args.paths))
-    generated = datetime.now(timezone.utc).isoformat().replace(
-        "+00:00", "Z"
-    )
+    generated = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     entries: List[Dict[str, Any]] = []
     for row in catalog:
         entries.append(
@@ -502,23 +474,15 @@ def command_catalog(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Resolve CamSniff profile matches"
-    )
+    parser = argparse.ArgumentParser(description="Resolve CamSniff profile matches")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    match_parser = subparsers.add_parser(
-        "match", help="Resolve a single host profile"
-    )
+    match_parser = subparsers.add_parser("match", help="Resolve a single host profile")
     match_parser.add_argument(
         "--paths", required=True, help="Path to paths.csv catalog"
     )
-    match_parser.add_argument(
-        "--ip", required=True, help="Host IP address"
-    )
-    match_parser.add_argument(
-        "--mac", default="", help="Host MAC address"
-    )
+    match_parser.add_argument("--ip", required=True, help="Host IP address")
+    match_parser.add_argument("--mac", default="", help="Host MAC address")
     match_parser.add_argument(
         "--ports", default="", help="Whitespace-separated port list"
     )
@@ -530,9 +494,7 @@ def build_parser() -> argparse.ArgumentParser:
     match_parser.add_argument(
         "--http-json", default="", help="HTTP metadata JSON array"
     )
-    match_parser.add_argument(
-        "--format", choices=("text", "json"), default="text"
-    )
+    match_parser.add_argument("--format", choices=("text", "json"), default="text")
     match_parser.add_argument(
         "--limit",
         type=int,

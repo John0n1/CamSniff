@@ -6,6 +6,7 @@
 # License: MIT License https://opensource.org/license/MIT
 
 """Generate markdown or HTML reports from CamSniff output."""
+
 from __future__ import annotations
 
 import argparse
@@ -105,21 +106,13 @@ def build_host_rows(
         confidence_score = str(confidence.get("score") or "")
         confidence_level = str(confidence.get("level") or "")
         confidence_class = str(confidence.get("classification") or "")
-        ports = [
-            str(port)
-            for port in host.get("ports") or []
-            if port is not None
-        ]
+        ports = [str(port) for port in host.get("ports") or [] if port is not None]
         protocols = [
             str(entry.get("protocol") or "")
             for entry in host.get("additional_protocols") or []
             if isinstance(entry, dict)
         ]
-        sources = [
-            str(source)
-            for source in host.get("sources") or []
-            if source
-        ]
+        sources = [str(source) for source in host.get("sources") or [] if source]
         rows.append(
             {
                 "ip": ip,
@@ -139,10 +132,10 @@ def build_host_rows(
 
 
 def build_summary(hosts: List[Dict[str, Any]]) -> Dict[str, Any]:
-    vendor_counter = Counter()
-    port_counter = Counter()
-    protocol_counter = Counter()
-    source_counter = Counter()
+    vendor_counter: Counter[str] = Counter()
+    port_counter: Counter[str] = Counter()
+    protocol_counter: Counter[str] = Counter()
+    source_counter: Counter[str] = Counter()
 
     for host in hosts:
         profile = host.get("profile_match") or {}
@@ -229,12 +222,8 @@ def render_markdown(
         lines.append("")
         lines.append("## Top Confidence")
         lines.append("")
-        lines.append(
-            "| IP | Score | Level | Class | Reasons |"
-        )
-        lines.append(
-            "| --- | --- | --- | --- | --- |"
-        )
+        lines.append("| IP | Score | Level | Class | Reasons |")
+        lines.append("| --- | --- | --- | --- | --- |")
         for row in confidence_rows:
             lines.append(
                 f"| {row['ip']} | {row['score']} | {row['level']} | "
@@ -248,9 +237,7 @@ def render_markdown(
         lines.append(
             "| IP | Vendor | Model | Confidence | Class | Ports | Protocols | Credentials |"
         )
-        lines.append(
-            "| --- | --- | --- | --- | --- | --- | --- | --- |"
-        )
+        lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
         for row in host_rows:
             lines.append(
                 f"| {row['ip']} | {row['vendor']} | {row['model']} | "
@@ -269,9 +256,7 @@ def render_markdown(
             user = entry.get("credentials", {}).get("username") or ""
             password = entry.get("credentials", {}).get("password") or ""
             url = entry.get("url") or ""
-            lines.append(
-                f"- {ip} ({method}): `{user}` / `{password}` -> {url}"
-            )
+            lines.append(f"- {ip} ({method}): `{user}` / `{password}` -> {url}")
 
     return "\n".join(lines) + "\n"
 
@@ -310,21 +295,13 @@ def render_html(
 </head>
 <body>
 """
-    meta_lines = [
-        f"<div class='meta'>Generated: {esc(now)}</div>"
-    ]
+    meta_lines = [f"<div class='meta'>Generated: {esc(now)}</div>"]
     if run_label:
-        meta_lines.append(
-            f"<div class='meta'>Run: {esc(run_label)}</div>"
-        )
+        meta_lines.append(f"<div class='meta'>Run: {esc(run_label)}</div>")
     if run_dir:
-        meta_lines.append(
-            f"<div class='meta'>Run directory: {esc(run_dir)}</div>"
-        )
+        meta_lines.append(f"<div class='meta'>Run directory: {esc(run_dir)}</div>")
     if metadata.get("mode"):
-        meta_lines.append(
-            f"<div class='meta'>Mode: {esc(metadata['mode'])}</div>"
-        )
+        meta_lines.append(f"<div class='meta'>Mode: {esc(metadata['mode'])}</div>")
     if metadata.get("network"):
         meta_lines.append(
             f"<div class='meta'>Network: {esc(metadata['network'])}</div>"
@@ -338,17 +315,15 @@ def render_html(
     summary_html = f"""
 <div class="section">
   <h2>Summary</h2>
-  <div class="meta">Hosts: {summary['host_count']}</div>
-  <div class="meta">Vendors: {len(summary['vendors'])}</div>
-  <div class="meta">Protocols: {len(summary['protocols'])}</div>
+  <div class="meta">Hosts: {summary["host_count"]}</div>
+  <div class="meta">Vendors: {len(summary["vendors"])}</div>
+  <div class="meta">Protocols: {len(summary["protocols"])}</div>
   <div class="meta">Credential successes: {len(successes)}</div>
   <div class="meta">Credential failures: {len(failures)}</div>
 </div>
 """
 
-    def table_from_counter(
-        title: str, counter: Counter
-    ) -> str:
+    def table_from_counter(title: str, counter: Counter) -> str:
         if not counter:
             return ""
         rows = "\n".join(
@@ -444,7 +419,7 @@ def render_html(
 <div class="section">
   <h2>Credential Successes</h2>
   <ul>
-    {''.join(entries)}
+    {"".join(entries)}
   </ul>
 </div>
 """
@@ -482,11 +457,7 @@ def main() -> int:
             creds_data = creds
 
     successes, failures = summarize_credentials(creds_data)
-    success_ips = {
-        str(entry.get("ip") or "")
-        for entry in successes
-        if entry.get("ip")
-    }
+    success_ips = {str(entry.get("ip") or "") for entry in successes if entry.get("ip")}
 
     metadata = get_metadata(discovery)
     summary = build_summary(hosts)
@@ -505,9 +476,7 @@ def main() -> int:
             score_int = 0
         reasons = conf.get("reasons") or []
         if isinstance(reasons, list):
-            reasons_text = ", ".join(
-                str(item) for item in reasons if item
-            )
+            reasons_text = ", ".join(str(item) for item in reasons if item)
         else:
             reasons_text = str(reasons)
         confidence_rows.append(
@@ -519,9 +488,7 @@ def main() -> int:
                 "reasons": reasons_text,
             }
         )
-    confidence_rows.sort(
-        key=lambda row: int(row.get("score") or 0), reverse=True
-    )
+    confidence_rows.sort(key=lambda row: int(row.get("score") or 0), reverse=True)
     confidence_rows = confidence_rows[:10]
 
     if args.format == "markdown":

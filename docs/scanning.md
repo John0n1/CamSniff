@@ -26,9 +26,9 @@ Results from all layers are merged into a unified host record in `discovery.json
 
 ### Base flags (all modes)
 
-```
+```bash
 nmap -Pn -n [timing] [extras] --max-retries N [--min-rate N] [-O --osscan-guess --fuzzy] [-sV --version-intensity N] -p <ports> --open <targets>
-```
+```bash
 
 | Flag | Purpose |
 |------|---------|
@@ -73,9 +73,9 @@ per mode via `CAM_RTSP_THREAD_PROFILE` in `scripts/core/port-profiles.sh`.
 Masscan performs a fast TCP SYN sweep in parallel with or immediately after Nmap.
 It is disabled for stealth modes.
 
-```
+```bash
 masscan -p <ports> --rate <pps> --wait <seconds> <targets> -oJ <output>
-```
+```bash
 
 | Parameter | Purpose |
 |-----------|---------|
@@ -136,9 +136,9 @@ profile name to concrete Nmap and Masscan port specifications.
 
 A targeted UDP scan runs after TCP discovery to identify protocol indicators.
 
-```
+```bash
 nmap -sU -Pn -n -T4 --max-retries 2 --host-timeout 30s -p 3702,3478,5349,9710,9999 <hosts>
-```
+```bash
 
 | Port | Protocol | Signal |
 |------|----------|--------|

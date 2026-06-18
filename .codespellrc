@@ -1,0 +1,3 @@
+[codespell]
+skip = .git,dev,venv,.venv
+ignore-words-list = sav
