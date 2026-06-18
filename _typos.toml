@@ -1,0 +1,7 @@
+[default.extend-words]
+# Nmap flag -Pn (skip ping) is intentional, not a typo for "On"
+Pn = "Pn"
+# "streamd" is the real name of the AVTECH web server process (CVE reference)
+streamd = "streamd"
+# MAC address fragment "BC:BA:C2" — "BA" is not a typo
+BA = "BA"

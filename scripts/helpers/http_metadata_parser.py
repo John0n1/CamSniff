@@ -6,6 +6,7 @@
 # License: MIT License https://opensource.org/license/MIT
 
 """Extract structured HTTP metadata from captured headers/body."""
+
 from __future__ import annotations
 
 import argparse
@@ -15,24 +16,12 @@ from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Extract HTTP metadata for CamSniff"
-    )
-    parser.add_argument(
-        "--headers", required=True, help="Path to raw HTTP headers"
-    )
-    parser.add_argument(
-        "--body", required=True, help="Path to HTTP response body"
-    )
-    parser.add_argument(
-        "--ip", required=True, help="Target IP address"
-    )
-    parser.add_argument(
-        "--port", type=int, required=True, help="Target TCP port"
-    )
-    parser.add_argument(
-        "--scheme", required=True, help="URL scheme (http/https)"
-    )
+    parser = argparse.ArgumentParser(description="Extract HTTP metadata for CamSniff")
+    parser.add_argument("--headers", required=True, help="Path to raw HTTP headers")
+    parser.add_argument("--body", required=True, help="Path to HTTP response body")
+    parser.add_argument("--ip", required=True, help="Target IP address")
+    parser.add_argument("--port", type=int, required=True, help="Target TCP port")
+    parser.add_argument("--scheme", required=True, help="URL scheme (http/https)")
     return parser.parse_args()
 
 
@@ -67,16 +56,12 @@ def extract_metadata(headers: str, body: str) -> dict:
             www_auth = line.split(":", 1)[1].strip()
 
     title = ""
-    match = re.search(
-        r"<title[^>]*>(.*?)</title>", body, re.IGNORECASE | re.DOTALL
-    )
+    match = re.search(r"<title[^>]*>(.*?)</title>", body, re.IGNORECASE | re.DOTALL)
     if match:
         title = re.sub(r"\s+", " ", match.group(1)).strip()
 
     realm = ""
-    realm_match = re.search(
-        r"realm=\"([^\"]+)\"", www_auth, re.IGNORECASE
-    )
+    realm_match = re.search(r"realm=\"([^\"]+)\"", www_auth, re.IGNORECASE)
     if realm_match:
         realm = realm_match.group(1)
 

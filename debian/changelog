@@ -1,3 +1,26 @@
+camsniff (2.2.5) unstable; urgency=medium
+  * Fix shfmt/bashate conflict: rename stealth+ to stealth-plus as internal key
+    to allow shfmt to parse associative arrays correctly.
+  * Fix security: replace xml.etree.ElementTree with defusedxml in ssdp_probe.py
+    to prevent XML injection; add URL scheme validation before urlopen.
+  * Fix type errors: add Counter[str] annotations in report.py; fix bare
+    except/pass in ivre-sync.py; fix Dict[str,Any] in profile_resolver.py and
+    ivre-sync.py; add missing return statement in load_vendor_database.
+  * Fix bashate E042: separate local -i declarations from assignments in banner.sh.
+  * Fix arithmetic counter idiom: replace ((count++)) with POSIX-safe
+    count=$(( count + 1 )) in camsniff.sh and ivre-manager.sh.
+  * Add markdownlint, yamllint, typos, codespell configuration files; fix
+    structural markdown issues (blank lines around headings/lists/fences, code
+    fence language specs, broken TOC anchors).
+  * Fix CSV data integrity: pad 63 rows in data/catalog/paths.csv that were
+    missing http_snapshot_url, onvif_profile_path, and cve_ids columns.
+  * Downgrade csvkit to 1.4.0 to restore csvclean -n validation flag.
+  * Extract Python CSV export logic from ivre-manager.sh inline -c block to
+    scripts/integrations/ivre_csv_export.py for bashate compliance.
+  * Add defusedxml==0.7.1 to requirements.txt.
+  * Bump version to 2.2.5.
+ -- John Hauger Mitander <john@on1.no>  Thu, 18 Jun 2026 02:00:00 +0000
+
 camsniff (2.2.3) unstable; urgency=medium
   * Fix IVRE integration to correctly handle MongoDB connection issues
     and ensure smooth ingestion of scan data.

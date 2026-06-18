@@ -6,6 +6,7 @@
 # License: MIT License https://opensource.org/license/MIT
 
 """Compute confidence scores for CamSniff discovery results."""
+
 from __future__ import annotations
 
 import argparse
@@ -139,9 +140,7 @@ SSDP_LOCATION_HINTS = [
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Score CamSniff discovery hosts"
-    )
+    parser = argparse.ArgumentParser(description="Score CamSniff discovery hosts")
     parser.add_argument(
         "--input",
         required=True,
@@ -266,9 +265,7 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
         add(10, "rtsp response observed", "rtsp")
 
     observed_paths = host.get("observed_paths") or []
-    observed_blob = " ".join(
-        sanitize_text(item) for item in observed_paths if item
-    )
+    observed_blob = " ".join(sanitize_text(item) for item in observed_paths if item)
     if observed_blob and contains_keyword(observed_blob, OBSERVED_PATH_HINTS):
         add(18, "observed stream path", "path")
     if observed_paths:

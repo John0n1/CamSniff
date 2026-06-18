@@ -6,6 +6,7 @@
 # License: MIT License https://opensource.org/license/MIT
 
 """Perform a multicast SSDP discovery sweep."""
+
 from __future__ import annotations
 
 import argparse
@@ -13,7 +14,7 @@ import json
 import socket
 import time
 import urllib.request
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET  # type: ignore[import-untyped]
 
 MCAST_GRP = "239.255.255.250"
 MCAST_PORT = 1900
@@ -29,12 +30,8 @@ def parse_args() -> argparse.Namespace:
         default=4.0,
         help="Listen window in seconds",
     )
-    parser.add_argument(
-        "--mx", type=int, default=2, help="MX header value"
-    )
-    parser.add_argument(
-        "--st", default="ssdp:all", help="ST header value"
-    )
+    parser.add_argument("--mx", type=int, default=2, help="MX header value")
+    parser.add_argument("--st", default="ssdp:all", help="ST header value")
     parser.add_argument(
         "--output",
         help="Optional file path to write newline-delimited JSON",
@@ -72,12 +69,8 @@ def build_message(st: str, mx: int) -> bytes:
     return "\r\n".join(lines).encode("utf-8")
 
 
-def collect_responses(
-    timeout: float, message: bytes
-) -> list[dict[str, str]]:
-    sock = socket.socket(
-        socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
-    )
+def collect_responses(timeout: float, message: bytes) -> list[dict[str, str]]:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
     sock.settimeout(max(timeout, 0.1))
 
@@ -130,8 +123,12 @@ def _strip_ns(tag: str) -> str:
 def fetch_description(url: str, timeout: float) -> dict[str, str]:
     if not url:
         return {}
+    # Only allow http/https to prevent SSRF via custom schemes
+    parsed_scheme = url.split("://", 1)[0].lower()
+    if parsed_scheme not in ("http", "https"):
+        return {}
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310
             payload = resp.read()
     except Exception:
         return {}

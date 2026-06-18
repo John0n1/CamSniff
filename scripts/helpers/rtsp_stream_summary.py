@@ -6,6 +6,7 @@
 # License: MIT License https://opensource.org/license/MIT
 
 """Summarise ffprobe output for CamSniff."""
+
 from __future__ import annotations
 
 import argparse
@@ -14,15 +15,9 @@ from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Summarise ffprobe JSON output"
-    )
-    parser.add_argument(
-        "--input", required=True, help="Path to ffprobe JSON output"
-    )
-    parser.add_argument(
-        "--url", required=True, help="RTSP URL that was probed"
-    )
+    parser = argparse.ArgumentParser(description="Summarise ffprobe JSON output")
+    parser.add_argument("--input", required=True, help="Path to ffprobe JSON output")
+    parser.add_argument("--url", required=True, help="RTSP URL that was probed")
     return parser.parse_args()
 
 

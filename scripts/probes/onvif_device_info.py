@@ -7,6 +7,7 @@
 # shellcheck disable=SC2317
 
 """Parse ONVIF GetDeviceInformation SOAP responses."""
+
 from __future__ import annotations
 
 import argparse
@@ -16,18 +17,10 @@ from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Extract ONVIF device information"
-    )
-    parser.add_argument(
-        "--input", required=True, help="Path to SOAP response payload"
-    )
-    parser.add_argument(
-        "--ip", required=True, help="Target IP address"
-    )
-    parser.add_argument(
-        "--port", type=int, required=True, help="Target port"
-    )
+    parser = argparse.ArgumentParser(description="Extract ONVIF device information")
+    parser.add_argument("--input", required=True, help="Path to SOAP response payload")
+    parser.add_argument("--ip", required=True, help="Target IP address")
+    parser.add_argument("--port", type=int, required=True, help="Target port")
     parser.add_argument("--scheme", required=True, help="HTTP scheme")
     return parser.parse_args()
 

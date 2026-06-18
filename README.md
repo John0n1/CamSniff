@@ -10,7 +10,7 @@
 [![Python](https://img.shields.io/badge/language-python-black?logo=python\&style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-**Current version:** `2.2.4` · 
+**Current version:** `2.2.5` ·
 
 <img src="docs/camsniff.png" alt="CamSniff logo" width="320" />
 
@@ -23,9 +23,9 @@
 1. [Overview](#overview)
 2. [Why CamSniff?](#why-camsniff)
 3. [Feature matrix](#feature-matrix)
-4. [Architecture & flow](#architecture--flow)
+4. [Architecture & flow](#architecture--flow-concise)
 5. [Project layout](#project-layout)
-6. [Scanning modes](#scanning-modes)
+6. [Scanning modes](#scanning-modes-summary)
 7. [Install & quick start](#install--quick-start)
 8. [Command line examples](#command-line-examples)
 9. [Output format & artifacts](#output-format--artifacts)
@@ -36,7 +36,7 @@
 14. [Dependencies](#dependencies)
 15. [Troubleshooting & tips](#troubleshooting--tips)
 16. [Hardening, ethics & responsible use](#hardening-ethics--responsible-use)
-17. [Contributing & roadmap](#contributing--roadmap)
+17. [Contributing](#contributing)
 18. [License](#license)
 
 ---
@@ -302,7 +302,7 @@ The JSON file must contain a `targets` array with IP addresses and/or CIDR range
 
 ## Text format
 
-```
+```text
 # Comment lines starting with # are ignored
 192.168.1.0/24
 10.0.0.1
@@ -327,6 +327,7 @@ sudo camsniff --mode medium --targets data/examples/example-targets.json
 ```
 
 Example target files are provided in the `data/` directory:
+
 - `data/examples/example-targets.json` — JSON format example
 - `data/examples/example-targets.txt` — Text format example
 

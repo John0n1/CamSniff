@@ -32,6 +32,7 @@ sudo scripts/camsniff.sh --mode medium --extra ivre --yes
 ```
 
 CamSniff will automatically:
+
 1. Check if IVRE is installed
 2. Install MongoDB if needed
 3. Create Python virtual environment
@@ -114,18 +115,21 @@ Access at `http://localhost:8080` to view interactive maps, statistics, and deta
 CamSniff maps discovery data into IVRE with these fields:
 
 **Host-level scripts:**
+
 - `camsniff-summary`: Mode, network, sources, vendor, credentials, protocols
 - `camsniff-vendor`: Company, model, CVEs, credentials (if found)
 - `camsniff-protocols`: List of detected protocols (ONVIF, CoAP, etc.)
 - `camsniff-rtsp-responses`: RTSP probe results
 
 **Categories (tags):**
+
 - `camsniff`: All CamSniff hosts
 - `camsniff-mode:<name>`: Hosts discovered in specific mode
 - `vendor:<company>`: Hosts from specific vendor
 - `credentials-found`: Hosts with successful authentication
 
 **Credential structure:**
+
 ```json
 {
   "username": "admin",
@@ -140,21 +144,25 @@ CamSniff maps discovery data into IVRE with these fields:
 ### Troubleshooting
 
 **Check IVRE status:**
+
 ```bash
 scripts/integrations/ivre-manager.sh check
 ```
 
 **Re-setup IVRE:**
+
 ```bash
 sudo scripts/integrations/ivre-manager.sh setup
 ```
 
 **View sync logs:**
+
 ```bash
 tail -f dev/results/*/logs/ivre-sync.log
 ```
 
 **Clear all CamSniff data:**
+
 ```bash
 source venv/bin/activate
 ivre scancli --category camsniff --delete
