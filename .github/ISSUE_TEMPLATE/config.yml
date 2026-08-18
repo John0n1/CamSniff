@@ -1,0 +1,6 @@
+---
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: https://github.com/John0n1/CamSniff/security/advisories/new
+    about: Report vulnerabilities privately; never post exploit details or sensitive evidence in an issue.

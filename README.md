@@ -244,7 +244,9 @@ credential/media probing behavior.
 
 Keep changes focused, add regression coverage for altered behavior, and run the
 development checks above. Do not add broad credential lists or unverified
-vendor/CVE claims.
+vendor/CVE claims. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development,
+testing, data-evidence, and pull-request guidelines. Report vulnerabilities
+privately according to [SECURITY.md](SECURITY.md).
 
 ## License
 

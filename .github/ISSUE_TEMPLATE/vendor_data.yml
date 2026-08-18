@@ -1,0 +1,82 @@
+---
+name: Vendor or device data
+description: Propose evidence-backed vendor paths, profiles, models, or CVE mappings.
+title: "[Vendor data]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not submit real credentials, private device identifiers, unrestricted
+        captures, or data obtained from systems you were not authorized to test.
+        A generic port or path alone is not sufficient evidence of a vendor.
+
+  - type: input
+    id: vendor
+    attributes:
+      label: Vendor
+      placeholder: "Example Vendor"
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model and firmware
+      description: Use a product family when the behavior applies across several models.
+      placeholder: "Model ABC, firmware 1.2.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: data_type
+    attributes:
+      label: Data type
+      options:
+        - RTSP endpoint template
+        - HTTP snapshot template
+        - OUI or profile metadata
+        - ONVIF behavior
+        - CVE mapping
+        - Correction to existing data
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_data
+    attributes:
+      label: Proposed data
+      description: Use CamSniff placeholders and redact any device-specific values.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and source
+      description: Link primary vendor documentation or describe reproducible validation on authorized hardware.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Applicability and limitations
+      description: Which models, firmware versions, transports, channels, or authentication modes are covered?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: The evidence comes from public primary documentation or hardware I was authorized to test.
+          required: true
+        - label: I removed credentials and identifying device or target information.
+          required: true
+        - label: I checked for duplicate or conflicting entries in the current data files.
+          required: true

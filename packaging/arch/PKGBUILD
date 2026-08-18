@@ -54,7 +54,8 @@ package() {
     "${pkgdir}/usr/share/man/man1/camsniff.1"
   install -Dm644 LICENSE \
     "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
-  install -Dm644 README.md CHANGELOG.md docs/customisation.md docs/dev-helpers.md \
+  install -Dm644 README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md \
+    docs/customisation.md docs/dev-helpers.md \
     docs/modes.md docs/scanning.md \
     -t "${pkgdir}/usr/share/doc/${pkgname}/"
   install -Dm644 docs/camsniff.png \

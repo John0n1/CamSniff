@@ -1,0 +1,101 @@
+---
+name: Bug report
+description: Report reproducible incorrect behavior in CamSniff.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve CamSniff. Redact credentials, tokens, public
+        addresses, packet captures, images, and identifying device data. Report
+        security vulnerabilities through private vulnerability reporting.
+
+  - type: input
+    id: version
+    attributes:
+      label: CamSniff version
+      description: Run `camsniff --version` or provide the commit SHA.
+      placeholder: "2.2.6"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Debian or Ubuntu package
+        - Arch Linux package
+        - Source checkout
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Distribution, release, architecture, shell, and relevant tool versions.
+      placeholder: "Arch Linux x86_64; Bash 5.x; Nmap 7.x"
+    validations:
+      required: true
+
+  - type: input
+    id: invocation
+    attributes:
+      label: Redacted invocation
+      description: Include the mode and flags, but replace targets and paths with safe placeholders.
+      placeholder: "sudo camsniff --mode stealth --targets <redacted> --skip-credentials"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the exit status when available.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use loopback, synthetic fixtures, or an isolated authorized lab.
+      placeholder: |
+        1. Create a target file containing ...
+        2. Run ...
+        3. Inspect ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs or output
+      description: Paste only the smallest relevant, sanitized excerpt. Do not upload complete result directories.
+      render: shell
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I tested only systems I own or am explicitly authorized to assess.
+          required: true
+        - label: I removed credentials, tokens, captures, images, and identifying target data.
+          required: true
+        - label: I searched existing issues and tested the latest release or current main branch.
+          required: true
+        - label: This report does not describe a security vulnerability.
+          required: true

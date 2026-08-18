@@ -4,6 +4,8 @@ set -e
 cat <<'EOF'
 README.md
 CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
 VERSION
 LICENSE
 data/vendors/README.md

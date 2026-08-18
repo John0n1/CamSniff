@@ -1,0 +1,72 @@
+---
+name: Feature request
+description: Propose a focused capability or workflow improvement.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the user problem before describing an implementation. Proposed
+        scanning features must preserve explicit authorization and target scope.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What limitation or use case should CamSniff address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the desired behavior and user-facing interface.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What existing modes, tools, or workarounds have you evaluated?
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety, scope, and compatibility
+      description: Explain target containment, data sensitivity, schema, CLI, packaging, and dependency effects.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Suggested validation
+      description: How could this be tested safely and reproducibly?
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and documentation for this capability.
+          required: true
+        - label: This proposal is intended only for authorized reconnaissance.
+          required: true
+        - label: I have not included credentials or sensitive target information.
+          required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be interested in implementing this after design agreement?
+      options:
+        - "Yes"
+        - Maybe, with guidance
+        - "No"
+    validations:
+      required: true
