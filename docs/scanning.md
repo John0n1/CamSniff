@@ -18,7 +18,12 @@ CamSniff uses a layered scanning strategy driven by the selected `--mode`:
 5. **SSDP** — active UPnP/SSDP broadcast sweep for camera announcements.
 6. **TShark** — short traffic capture to observe live RTSP and HTTP streams.
 
-Results from all layers are merged into a unified host record in `discovery.json`.
+Results from all layers are merged into a unified host record in
+`discovery.json`. Passive observations are accepted only when the observed IPv4
+address is inside the original target list. HTTP/RTSP request captures promote
+the request destination, while WS-Discovery responses promote the UDP/3702
+source; client endpoints are not treated as cameras merely because they appear
+in a packet capture.
 
 ---
 
@@ -28,7 +33,7 @@ Results from all layers are merged into a unified host record in `discovery.json
 
 ```bash
 nmap -Pn -n [timing] [extras] --max-retries N [--min-rate N] [-O --osscan-guess --fuzzy] [-sV --version-intensity N] -p <ports> --open <targets>
-```bash
+```
 
 | Flag | Purpose |
 |------|---------|
@@ -75,7 +80,7 @@ It is disabled for stealth modes.
 
 ```bash
 masscan -p <ports> --rate <pps> --wait <seconds> <targets> -oJ <output>
-```bash
+```
 
 | Parameter | Purpose |
 |-----------|---------|
@@ -138,21 +143,26 @@ A targeted UDP scan runs after TCP discovery to identify protocol indicators.
 
 ```bash
 nmap -sU -Pn -n -T4 --max-retries 2 --host-timeout 30s -p 3702,3478,5349,9710,9999 <hosts>
-```bash
+```
 
 | Port | Protocol | Signal |
 |------|----------|--------|
 | 3702 | WS-Discovery | ONVIF device announces presence here |
-| 3478 | STUN     | WebRTC/ICE negotiation; camera streams via WebRTC |
-| 5349 | TURN/TLS | Encrypted TURN relay for WebRTC |
-| 9710 | SRT      | SRT media transport |
-| 9999 | SRT alt  | Additional SRT indicator |
+| 3478 | STUN     | Possible WebRTC/ICE negotiation signal |
+| 5349 | TURN/TLS | Possible encrypted TURN relay signal |
+| 9710 | SRT      | Possible SRT media transport signal |
+| 9999 | SRT alt  | Additional SRT candidate signal |
+
+TCP and UDP observations are stored as separate typed service entries. An
+`open_filtered` UDP result is supporting evidence, not definitive protocol or
+camera identification.
 
 ---
 
-## Advanced Tuning
+## Internal mode variables
 
-The following environment variables override mode defaults:
+The mode resolver exports the following values for the orchestrator. They are
+an internal interface, not supported end-user environment overrides:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -169,9 +179,10 @@ The following environment variables override mode defaults:
 | `CAM_MODE_PORT_PROFILE` | (mode-driven) | Port profile key |
 | `NMAP_RTSP_THREADS` | (mode-driven) | RTSP brute NSE thread count |
 
-These are normally set by `scripts/core/mode-config.sh` and exported for
-`scripts/camsniff.sh`. Override them in your environment before invoking the
-script for one-off adjustments without editing configuration files.
+These are set by `scripts/core/mode-config.sh` and consumed by
+`scripts/camsniff.sh`. Change mode behavior in that source file and run the test
+suite rather than relying on pre-set environment values, which the resolver may
+replace.
 
 ---
 
@@ -179,12 +190,11 @@ script for one-off adjustments without editing configuration files.
 
 - **Local LAN scans**: The default `-T4` medium mode balances speed and reliability
   well. Prefer `-T4` over `-T5` unless the LAN segment is known-stable.
-- **High-density subnets** (e.g. /16 or larger): Enable war or nuke mode with
-  Masscan's high rate to cover the address space quickly, then rely on Nmap to
-  enrich discovered hosts.
+- **High-density authorized scopes**: Use explicit target files and increase
+  intensity only after validating the default mode's output and impact.
 - **Stealth scans**: `-T1` with `--scan-delay 200ms` and no Masscan minimises
   packets-per-second. Pair with `--skip-credentials` to avoid any banner pulls.
-- **Flaky cameras**: Increase `--max-retries` via `CAM_MODE_NMAP_MAX_RETRIES` if
-  cameras intermittently refuse connections before responding.
-- **Version detection overhead**: Lower `CAM_MODE_NMAP_VERSION_INTENSITY` (e.g. to
-  3) when scanning large subnets and you only need port-level discovery.
+- **Flaky cameras**: Select a quieter mode with longer timing, or make and test a
+  reviewed retry change in `mode-config.sh`.
+- **Version detection overhead**: Prefer a lower-intensity built-in mode when
+  port-level discovery is sufficient.

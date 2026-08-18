@@ -345,7 +345,12 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
     elif score >= 20:
         level = "medium"
 
-    classification = "camera"
+    if score < 20:
+        classification = "unknown"
+    elif score < 40:
+        classification = "possible-camera"
+    else:
+        classification = "camera"
     model_hint = sanitize_text(profile.get("model"))
     vendor_hint = vendor
     onvif_hint = ""

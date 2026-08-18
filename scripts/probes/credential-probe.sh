@@ -6,6 +6,7 @@
 # License: MIT License https://opensource.org/license/MIT
 
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -137,7 +138,21 @@ MAX_CREDENTIALS=${CAM_MODE_MAX_CREDENTIALS:-32}
 CURL_TIMEOUT=${CAM_MODE_CURL_TIMEOUT:-8}
 FFMPEG_TIMEOUT=${CAM_MODE_FFMPEG_TIMEOUT:-10}
 HTTP_RETRIES=${CAM_MODE_HTTP_RETRIES:-2}
+BRUTE_WINDOW=${CAM_SNIFF_BRUTE_WINDOW:-${CAM_MODE_BRUTE_WINDOW:-120}}
 FALLBACK_HTTP_CRED_LIMIT=6 # Only try generic HTTP paths for the first N credential pairs
+
+if [[ ! $BRUTE_WINDOW =~ ^[0-9]+$ ]]; then
+  echo "Credential probe window must be a non-negative integer" >&2
+  exit 1
+fi
+
+host_budget_available() {
+  if ((SECONDS >= host_deadline)); then
+    budget_exhausted=true
+    return 1
+  fi
+  return 0
+}
 
 normalize_vendor_key() {
   local raw="$1"
@@ -400,8 +415,11 @@ apply_credentials_to_url() {
     return
   fi
 
-  local auth="$username"
-  [[ -n $password ]] && auth+=":$password"
+  local encoded_username encoded_password auth
+  encoded_username=$(jq -rn --arg value "$username" '$value | @uri')
+  encoded_password=$(jq -rn --arg value "$password" '$value | @uri')
+  auth="$encoded_username"
+  [[ -n $password ]] && auth+=":$encoded_password"
   echo "${scheme}://${auth}@${rest}"
 }
 
@@ -475,15 +493,26 @@ attempt_http_snapshot() {
     auth_opts+=("--user" "$username:$password")
   fi
 
+  local remaining=$((host_deadline - SECONDS))
+  ((remaining > 0)) || return 1
+
   local http_code
-  http_code=$(curl -m "$CURL_TIMEOUT" --connect-timeout "$CURL_TIMEOUT" --retry "$HTTP_RETRIES" --retry-delay 1 \
+  http_code=$(timeout --foreground "${remaining}s" curl -k -m "$CURL_TIMEOUT" --connect-timeout "$CURL_TIMEOUT" --retry "$HTTP_RETRIES" --retry-delay 1 \
     --retry-connrefused --silent --show-error --output "$out_file" --write-out '%{http_code}' \
     "${auth_opts[@]}" "$url" 2> "$log_file") || return 1
 
-  [[ $http_code == "200" ]] || return 1
+  if [[ $http_code != "200" ]]; then
+    rm -f "$out_file"
+    return 1
+  fi
   local size
   size=$(stat -c%s "$out_file" 2> /dev/null || echo 0)
-  [[ $size -gt 512 ]] || return 1
+  if [[ $size -le 512 ]] || ! ffprobe -v error -select_streams v:0 \
+    -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 \
+    "$out_file" 2> /dev/null | grep -qx 'video'; then
+    rm -f "$out_file"
+    return 1
+  fi
   return 0
 }
 
@@ -492,12 +521,31 @@ attempt_rtsp_snapshot() {
   local ip="$2"
   local out_file="$3"
   local log_file="$4"
+  local transport="${5:-tcp}"
 
-  ffmpeg -loglevel error -nostdin -rtsp_transport tcp -stimeout "$((FFMPEG_TIMEOUT * 1000000))" \
-    -y -i "$url" -frames:v 1 "$out_file" > "$log_file" 2>&1 || return 1
+  case "$transport" in
+    tcp | udp | udp_multicast | http | https)
+      ;;
+    *)
+      transport="tcp"
+      ;;
+  esac
+
+  local remaining=$((host_deadline - SECONDS))
+  ((remaining > 0)) || return 1
+
+  if ! timeout --foreground "${remaining}s" ffmpeg -loglevel error -nostdin -rtsp_transport "$transport" -timeout "$((FFMPEG_TIMEOUT * 1000000))" \
+    -y -i "$url" -frames:v 1 "$out_file" > "$log_file" 2>&1; then
+    rm -f "$out_file"
+    return 1
+  fi
   local size
   size=$(stat -c%s "$out_file" 2> /dev/null || echo 0)
-  [[ $size -gt 1024 ]]
+  if [[ $size -le 1024 ]]; then
+    rm -f "$out_file"
+    return 1
+  fi
+  return 0
 }
 
 make_ascii_preview() {
@@ -515,6 +563,8 @@ trap 'rm -f "$HOSTS_TMP" "$RESULTS_TMP"' EXIT
 jq -c '.hosts[]' "$INPUT_JSON" > "$HOSTS_TMP"
 
 while IFS= read -r host_json; do
+  host_deadline=$((SECONDS + BRUTE_WINDOW))
+  budget_exhausted=false
   ip=$(jq -r '.ip' <<< "$host_json")
   confidence_score=$(jq -r '.confidence.score // 0' <<< "$host_json")
   if [[ -z $confidence_score || ! $confidence_score =~ ^[0-9]+$ ]]; then
@@ -577,22 +627,26 @@ while IFS= read -r host_json; do
   attempt=0
 
   for credential in "${credentials[@]}"; do
+    host_budget_available || break
     IFS='|' read -r cred_user cred_pass <<< "$credential"
     attempt=$((attempt + 1))
 
     for http_candidate in "${http_candidates[@]}"; do
+      host_budget_available || break
       channel=$(jq -r '.channel // "1"' <<< "$http_candidate")
       stream=$(jq -r '.stream // "0"' <<< "$http_candidate")
       template=$(jq -r '.template' <<< "$http_candidate")
       port=$(jq -r '.port // 80' <<< "$http_candidate")
       origin=$(jq -r '.origin // "profile"' <<< "$http_candidate")
       label=$(jq -r '.label // ""' <<< "$http_candidate")
-      key="http|$template|$port|$channel|$stream"
+      key="http|$template|$port|$channel|$stream|$cred_user|$cred_pass"
       if [[ -n ${attempted_http[$key]+set} ]]; then
         continue
       fi
       attempted_http[$key]=1
-      url=$(render_template "$template" "$ip" "$cred_user" "$cred_pass" "$port" "$channel" "$stream")
+      # HTTP Basic/Digest credentials are supplied via curl --user. Keeping them
+      # out of the URL avoids malformed userinfo and credential-bearing reports.
+      url=$(render_template "$template" "$ip" "" "" "$port" "$channel" "$stream")
       url=$(trim_auth_in_url "$url")
       suffix="http"
       if [[ -n $label ]]; then
@@ -657,25 +711,27 @@ while IFS= read -r host_json; do
                         timestamp: $timestamp,
                         protocols: $protocols
                     }')
+        success_payload=$(jq '.success = true' <<< "$success_payload")
         success=true
         break 2
       fi
     done
 
-    if ((attempt <= FALLBACK_HTTP_CRED_LIMIT)); then
+    if [[ $budget_exhausted == false ]] && ((attempt <= FALLBACK_HTTP_CRED_LIMIT)); then
       for fallback in "${HTTP_FALLBACKS[@]}"; do
+        host_budget_available || break
         IFS='|' read -r fallback_template fallback_port fallback_channel fallback_stream fallback_label <<< "$fallback"
         [[ -z $fallback_template ]] && continue
         fallback_port=${fallback_port:-80}
         fallback_channel=${fallback_channel:-1}
         fallback_stream=${fallback_stream:-0}
-        key="http|$fallback_template|$fallback_port|$fallback_channel|$fallback_stream"
+        key="http|$fallback_template|$fallback_port|$fallback_channel|$fallback_stream|$cred_user|$cred_pass"
         if [[ -n ${attempted_http[$key]+set} ]]; then
           continue
         fi
         attempted_http[$key]=1
         origin="fallback${fallback_label:+:$fallback_label}"
-        url=$(render_template "$fallback_template" "$ip" "$cred_user" "$cred_pass" "$fallback_port" "$fallback_channel" "$fallback_stream")
+        url=$(render_template "$fallback_template" "$ip" "" "" "$fallback_port" "$fallback_channel" "$fallback_stream")
         url=$(trim_auth_in_url "$url")
         suffix=${fallback_label//[^a-zA-Z0-9]/_}
         suffix=${suffix:-generic}
@@ -736,6 +792,7 @@ while IFS= read -r host_json; do
                             timestamp: $timestamp,
                             protocols: $protocols
                         }')
+          success_payload=$(jq '.success = true' <<< "$success_payload")
           success=true
           break 2
         fi
@@ -743,21 +800,24 @@ while IFS= read -r host_json; do
     fi
 
     for rtsp_candidate in "${rtsp_candidates[@]}"; do
+      host_budget_available || break
       channel=$(jq -r '.channel // "1"' <<< "$rtsp_candidate")
       stream=$(jq -r '.stream // "0"' <<< "$rtsp_candidate")
       template=$(jq -r '.template' <<< "$rtsp_candidate")
       port=$(jq -r '.port // 554' <<< "$rtsp_candidate")
       transport=$(jq -r '.transport // "tcp"' <<< "$rtsp_candidate")
-      key="rtsp|$template|$port|$channel|$stream"
+      key="rtsp|$template|$port|$channel|$stream|$cred_user|$cred_pass"
       if [[ -n ${attempted_rtsp[$key]+set} ]]; then
         continue
       fi
       attempted_rtsp[$key]=1
-      url=$(render_template "$template" "$ip" "$cred_user" "$cred_pass" "$port" "$channel" "$stream")
+      encoded_user=$(jq -rn --arg value "$cred_user" '$value | @uri')
+      encoded_pass=$(jq -rn --arg value "$cred_pass" '$value | @uri')
+      url=$(render_template "$template" "$ip" "$encoded_user" "$encoded_pass" "$port" "$channel" "$stream")
       url=$(trim_auth_in_url "$url")
       snapshot_file="$THUMB_DIR/${ip//[^a-zA-Z0-9._-]/_}_rtsp.jpg"
       log_file="$LOG_DIR/${ip//[^a-zA-Z0-9._-]/_}_rtsp.log"
-      if attempt_rtsp_snapshot "$url" "$ip" "$snapshot_file" "$log_file"; then
+      if attempt_rtsp_snapshot "$url" "$ip" "$snapshot_file" "$log_file" "$transport"; then
         ascii_file="$THUMB_DIR/${ip//[^a-zA-Z0-9._-]/_}_rtsp.txt"
         make_ascii_preview "$snapshot_file" "$ascii_file"
         timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -815,14 +875,16 @@ while IFS= read -r host_json; do
                         timestamp: $timestamp,
                         protocols: $protocols
                     }')
+        success_payload=$(jq '.success = true' <<< "$success_payload")
         success=true
         break 2
       fi
     done
 
     for discovered_url in "${brute_rtsp_hits[@]}"; do
+      host_budget_available || break
       [[ -z $discovered_url ]] && continue
-      key="rtsp|discovered|$discovered_url"
+      key="rtsp|discovered|$discovered_url|$cred_user|$cred_pass"
       if [[ -n ${attempted_rtsp[$key]+set} ]]; then
         continue
       fi
@@ -893,6 +955,7 @@ while IFS= read -r host_json; do
                         timestamp: $timestamp,
                         protocols: $protocols
                     }')
+        success_payload=$(jq '.success = true' <<< "$success_payload")
         success=true
         break 2
       fi
@@ -912,6 +975,7 @@ while IFS= read -r host_json; do
       --arg matched_by "$matched_by" \
       --arg attempts "$attempt" \
       --arg timestamp "$timestamp" \
+      --argjson budget_exhausted "$budget_exhausted" \
       --argjson protocols "$protocols_json" \
       --argjson sources "$sources_json" \
       --argjson ports "$ports_json" \
@@ -926,6 +990,7 @@ while IFS= read -r host_json; do
                 matched_by: $matched_by,
                 attempts: ($attempts|tonumber),
                 attempt_index: ($attempts|tonumber),
+                budget_exhausted: $budget_exhausted,
                 timestamp: $timestamp,
                 protocols: $protocols,
                 sources: $sources,

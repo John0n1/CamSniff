@@ -10,9 +10,12 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import socket
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 import defusedxml.ElementTree as ET  # type: ignore[import-untyped]
 
@@ -52,6 +55,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=24,
         help="Maximum number of SSDP description fetches",
+    )
+    parser.add_argument(
+        "--allowed-target",
+        action="append",
+        default=[],
+        help="IPv4 address/CIDR allowed for description fetches (repeatable)",
     )
     return parser.parse_args()
 
@@ -120,19 +129,63 @@ def _strip_ns(tag: str) -> str:
     return tag
 
 
-def fetch_description(url: str, timeout: float) -> dict[str, str]:
+def _allowed_networks(values: list[str]) -> list[ipaddress.IPv4Network]:
+    networks: list[ipaddress.IPv4Network] = []
+    for value in values:
+        try:
+            networks.append(ipaddress.ip_network(value, strict=False))
+        except ValueError:
+            continue
+    return networks
+
+
+def _url_is_in_scope(url: str, networks: list[ipaddress.IPv4Network]) -> bool:
+    if not networks:
+        return False
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+        return False
+    try:
+        addresses = {ipaddress.ip_address(parsed.hostname)}
+    except ValueError:
+        try:
+            addresses = {
+                ipaddress.ip_address(item[4][0])
+                for item in socket.getaddrinfo(parsed.hostname, parsed.port or 80)
+            }
+        except (OSError, ValueError):
+            return False
+    return bool(addresses) and all(
+        isinstance(address, ipaddress.IPv4Address)
+        and any(address in network for network in networks)
+        for address in addresses
+    )
+
+
+class _ScopedRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def __init__(self, networks: list[ipaddress.IPv4Network]):
+        self.networks = networks
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        if not _url_is_in_scope(newurl, self.networks):
+            raise urllib.error.HTTPError(newurl, code, "redirect left scan scope", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def fetch_description(
+    url: str, timeout: float, networks: list[ipaddress.IPv4Network]
+) -> dict[str, str]:
     if not url:
         return {}
-    # Only allow http/https to prevent SSRF via custom schemes
-    parsed_scheme = url.split("://", 1)[0].lower()
-    if parsed_scheme not in ("http", "https"):
+    if not _url_is_in_scope(url, networks):
         return {}
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310
-            payload = resp.read()
+        opener = urllib.request.build_opener(_ScopedRedirectHandler(networks))
+        with opener.open(url, timeout=timeout) as resp:  # nosec B310
+            payload = resp.read(1024 * 1024 + 1)
     except Exception:
         return {}
-    if not payload:
+    if not payload or len(payload) > 1024 * 1024:
         return {}
     try:
         root = ET.fromstring(payload)
@@ -158,6 +211,7 @@ def enrich_with_descriptions(
     responses: list[dict[str, str]],
     timeout: float,
     max_fetches: int,
+    networks: list[ipaddress.IPv4Network],
 ) -> list[dict[str, str]]:
     seen_locations: set[str] = set()
     count = 0
@@ -170,7 +224,7 @@ def enrich_with_descriptions(
         if count >= max_fetches:
             break
         seen_locations.add(location)
-        details = fetch_description(location, timeout)
+        details = fetch_description(location, timeout, networks)
         if details:
             entry.update(details)
         count += 1
@@ -192,8 +246,9 @@ def main() -> int:
     message = build_message(args.st, args.mx)
     responses = collect_responses(args.timeout, message)
     if args.describe:
+        networks = _allowed_networks(args.allowed_target)
         responses = enrich_with_descriptions(
-            responses, args.describe_timeout, args.max_describe
+            responses, args.describe_timeout, args.max_describe, networks
         )
     emit(responses, args.output)
     return 0

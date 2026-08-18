@@ -1,4 +1,4 @@
-.TH CAMSNIFF 1 "December 2025" "CamSniff 2.2.3" "User Commands"
+.TH CAMSNIFF 1 "August 2026" "CamSniff 2.2.6" "User Commands"
 .SH NAME
 camsniff \- automated IP camera reconnaissance and credential auditor
 .SH SYNOPSIS
@@ -20,6 +20,9 @@ camsniff \- automated IP camera reconnaissance and credential auditor
 ]
 [
 .BR --interface " " iface
+]
+[
+.BR --extra " " ivre
 ]
 [
 .BR --report " " format
@@ -108,8 +111,11 @@ Disables the automated credential probing phase.
 .B --skip-install
 Skips automatic dependency installation.
 .TP
+.B --extra ivre
+Enable IVRE setup and synchronize discovery results after credential probing.
+.TP
 .B --report
-Generate a report in markdown or HTML format.
+Generate a report in markdown, HTML, or both formats.
 .TP
 .B --encrypt-results
 Encrypt the run artefacts (auto-selects age/gpg).
@@ -143,7 +149,7 @@ Display a concise usage summary and exit.
 .I /usr/lib/camsniff/scripts/camsniff.sh
 Main orchestrator executed by the wrapper binary.
 .TP
-.I /usr/lib/camsniff/scripts/credential-probe.sh
+.I /usr/lib/camsniff/scripts/probes/credential-probe.sh
 Runs HTTP/RTSP credential checks based on discovery output.
 .TP
 .I /usr/lib/camsniff/data/catalog/paths.csv
@@ -159,13 +165,14 @@ Credential dictionaries used by the probe stage.
 .I /usr/lib/camsniff/scripts/core/port-profiles.sh
 Shared port profile definitions for Nmap and Masscan.
 .TP
-.I ~/dev/results/
-Per-run artefact directories containing discovery and credential JSON output,
-logs, and thumbnails.
+.I /var/lib/camsniff/results/
+Default per-run artefact directory for packaged installations. Source-tree runs
+default to Idev/results/R. Both locations contain discovery and credential
+JSON output, logs, reports, and thumbnails.
 
 .SH EXAMPLES
 .TP
-Run the default aggressive profile with interactive confirmation:
+Run the default medium profile with interactive confirmation:
 .PP
 .RS
 .nf

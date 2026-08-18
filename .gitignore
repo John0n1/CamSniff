@@ -2,7 +2,6 @@ build.log
 .venv/*
 dev/results/*
 !dev/results/.gitkeep
-scripts/venv/*
 scripts/paused.conf
 debian/.debhelper/*
 debian/debhelper-build-stamp
@@ -15,9 +14,14 @@ debian/tests/*
 debian/upstream/*
 venv/*
 share/*
-.venv/*
 paused.conf
 *__pycache__*
 *.buildinfo
 *.changes
 *.dsc
+dist/
+# Arch Linux package build artifacts
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/*.pkg.tar.*
+packaging/arch/camsniff-*.tar.gz

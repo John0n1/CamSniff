@@ -469,7 +469,7 @@ install_packages() {
     fi
 
     log_info "${CYAN}Installing dependencies...${RESET}"
-    apt-get install -y -q python3 python3-venv python3-dev git build-essential cmake pkg-config nmap masscan tshark avahi-daemon avahi-utils libpcap-dev libchafa-dev chafa ffmpeg curl jq gnupg &>> "$LOG_FILE" &
+    apt-get install -y -q python3 python3-venv python3-dev git build-essential cmake pkg-config iproute2 nmap masscan tshark avahi-daemon avahi-utils libpcap-dev libchafa-dev chafa ffmpeg curl jq gnupg &>> "$LOG_FILE" &
     local pid=$!
     wait_with_spinner "$pid" "Installing dependencies" || fail_and_exit "Failed to install package dependencies."
     log_success "${GREEN}Dependencies installed successfully!${RESET}"
@@ -480,7 +480,7 @@ install_packages() {
     log_info "${CYAN}Installing dependencies...${RESET}"
     PACKAGE_MANAGER="yum"
     yum install -y epel-release &>> "$LOG_FILE"
-    yum install -y python3 git gcc gcc-c++ make cmake pkgconfig nmap masscan wireshark-cli avahi avahi-tools libpcap-devel ffmpeg curl jq &>> "$LOG_FILE" &
+    yum install -y python3 git gcc gcc-c++ make cmake pkgconfig iproute nmap masscan wireshark-cli avahi avahi-tools libpcap-devel ffmpeg curl jq &>> "$LOG_FILE" &
     local pid=$!
     wait_with_spinner "$pid" "Installing dependencies" || fail_and_exit "Failed to install package dependencies."
     log_success "${GREEN}Dependencies installed successfully!${RESET}"
@@ -490,7 +490,7 @@ install_packages() {
   if command -v pacman > /dev/null 2>&1; then
     log_info "${CYAN}Installing dependencies...${RESET}"
     PACKAGE_MANAGER="pacman"
-    pacman -S --noconfirm python git base-devel cmake pkgconf nmap masscan wireshark-cli avahi libpcap ffmpeg curl jq &>> "$LOG_FILE" &
+    pacman -S --noconfirm python git base-devel cmake pkgconf iproute2 nmap masscan wireshark-cli avahi libpcap ffmpeg curl jq &>> "$LOG_FILE" &
     local pid=$!
     wait_with_spinner "$pid" "Installing dependencies" || fail_and_exit "Failed to install package dependencies."
     log_success "${GREEN}Dependencies installed successfully!${RESET}"
@@ -542,11 +542,15 @@ if [[ -f "$SCRIPT_DIR/requirements.txt" ]]; then
 fi
 
 required_cmds=(
+  ip
+  timeout
+  python3
   nmap
   masscan
   tshark
   avahi-browse
   ffmpeg
+  ffprobe
   curl
   jq
   chafa
@@ -559,12 +563,8 @@ for cmd in "${required_cmds[@]}"; do
 done
 
 if ! command -v coap-client > /dev/null 2>&1; then
-  log_info "${CYAN}Building and installing libcoap (coap-client)...${RESET}"
-  bash "$SCRIPT_DIR/build-coap.sh" &>> "$LOG_FILE" &
-  wait_with_spinner $! "Building coap-client" || fail_and_exit "Failed to build and install coap-client."
-  if ! command -v coap-client > /dev/null 2>&1; then
-    fail_and_exit "coap-client is still missing after build."
-  fi
+  log_warn "${YELLOW}Optional coap-client is not installed; CoAP discovery will be skipped.${RESET}"
+  log_warn "${YELLOW}Build it explicitly with scripts/setup/build-coap.sh if required.${RESET}"
 fi
 
 log_success "${GREEN}Setup complete! All required tools are installed.${RESET}"

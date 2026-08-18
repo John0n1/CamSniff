@@ -5,8 +5,13 @@
 # Copyright (c) 2026 John Hauger Mitander
 # License: MIT License https://opensource.org/license/MIT
 
+# Scan results can contain credentials, device serial numbers, and captured images.
+umask 077
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_VERSION="unknown"
+[[ -f "$ROOT_DIR/VERSION" ]] && APP_VERSION=$(< "$ROOT_DIR/VERSION")
 CORE_DIR="$SCRIPT_DIR/core"
 HELPER_DIR="$SCRIPT_DIR/helpers"
 PROBE_DIR="$SCRIPT_DIR/probes"
@@ -25,6 +30,7 @@ UI_HELPER="$UI_DIR/banner.sh"
 PROFILE_RESOLVER="$HELPER_DIR/profile_resolver.py"
 CONFIDENCE_SCORER="$HELPER_DIR/confidence_scorer.py"
 HTTP_META_PARSER="$HELPER_DIR/http_metadata_parser.py"
+TSHARK_EVENT_PARSER="$HELPER_DIR/tshark_event_parser.py"
 ONVIF_PARSER="$PROBE_DIR/onvif_device_info.py"
 SSDP_PROBE_HELPER="$PROBE_DIR/ssdp_probe.py"
 REPORT_TOOL="$ROOT_DIR/scripts/tools/report.py"
@@ -89,7 +95,11 @@ if [[ -n ${CAM_SSDP_DESCRIBE:-} ]]; then
   esac
 fi
 
-RESULTS_ROOT_DEFAULT="$ROOT_DIR/dev/results"
+if [[ $ROOT_DIR == "/usr/lib/camsniff" ]]; then
+  RESULTS_ROOT_DEFAULT="/var/lib/camsniff/results"
+else
+  RESULTS_ROOT_DEFAULT="$ROOT_DIR/dev/results"
+fi
 RESULTS_ROOT="$RESULTS_ROOT_DEFAULT"
 RUN_STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
 RUN_DIR=""
@@ -124,7 +134,6 @@ ORANGE=""
 BLUE=""
 CYAN=""
 RESET=""
-BLINK=""
 
 SPINNER_FRAMES='-\|/'
 PYTHON_BIN="$(command -v python3 || echo python3)"
@@ -132,6 +141,7 @@ PYTHON_BIN="$(command -v python3 || echo python3)"
 declare -A ip_sources
 declare -A ip_to_mac
 declare -A ip_ports
+declare -A ip_udp_services
 declare -A ip_observed_paths
 declare -A all_ips
 declare -A ip_rtsp_discovered
@@ -144,6 +154,18 @@ declare -A protocol_seen
 declare -A ip_pre_score
 declare -A ip_pre_reasons
 declare -a SMART_TARGETS
+declare -a scan_targets=()
+
+SCOPE_HELPER="$CORE_DIR/scope.sh"
+SUMMARY_HELPER="$CORE_DIR/scan_summary.sh"
+if [[ ! -f $SCOPE_HELPER || ! -f $SUMMARY_HELPER ]]; then
+  echo "Missing core helper under: $CORE_DIR" >&2
+  exit 1
+fi
+# shellcheck source=core/scope.sh
+source "$SCOPE_HELPER"
+# shellcheck source=core/scan_summary.sh
+source "$SUMMARY_HELPER"
 
 nmap_output=""
 nmap_log=""
@@ -175,7 +197,7 @@ Options:
       --interface <iface> Set capture interface for tshark (default: auto-detect)
       --skip-credentials  Skip the credential probing phase
       --skip-install      Skip automatic dependency installation
-      --report <format>   Generate a report (markdown or html) in the run directory
+      --report <format>   Generate a report (markdown, html, or both) in the run directory
       --encrypt-results   Encrypt run artifacts (auto-select age/gpg)
       --encrypt-tool <t>  Force encryption tool (age or gpg)
       --encrypt-recipient <id> Recipient/key id for encryption tool
@@ -228,6 +250,7 @@ configure_run_paths() {
   MASSCAN_OUTPUT_FILE="$LOG_DIR/masscan-output.json"
   MASSCAN_LOG_FILE="$LOG_DIR/masscan-command.log"
   AVAHI_OUTPUT_FILE="$LOG_DIR/avahi-services.txt"
+  AVAHI_LOG_FILE="$LOG_DIR/avahi-command.log"
   TSHARK_OUTPUT_FILE="$LOG_DIR/tshark-traffic.csv"
   COAP_OUTPUT_FILE="$LOG_DIR/coap-discovery.txt"
   COAP_LOG_FILE="$LOG_DIR/coap-probe.log"
@@ -247,34 +270,6 @@ normalize_target_line() {
 
 is_integer() {
   [[ ${1:-} =~ ^[0-9]+$ ]]
-}
-
-is_valid_ipv4() {
-  local ip="$1"
-  local o1 o2 o3 o4 extra
-  IFS='.' read -r o1 o2 o3 o4 extra <<< "$ip"
-  [[ -n $extra || -z $o1 || -z $o2 || -z $o3 || -z $o4 ]] && return 1
-  for octet in "$o1" "$o2" "$o3" "$o4"; do
-    [[ $octet =~ ^[0-9]{1,3}$ ]] || return 1
-    ((octet >= 0 && octet <= 255)) || return 1
-  done
-  return 0
-}
-
-is_valid_ipv4_cidr() {
-  local value="$1"
-  local ip="$value"
-  local mask=""
-  if [[ $value == */* ]]; then
-    ip="${value%%/*}"
-    mask="${value#*/}"
-  fi
-  is_valid_ipv4 "$ip" || return 1
-  if [[ -n $mask ]]; then
-    [[ $mask =~ ^[0-9]{1,2}$ ]] || return 1
-    ((mask >= 0 && mask <= 32)) || return 1
-  fi
-  return 0
 }
 
 parse_target_file() {
@@ -369,9 +364,6 @@ detect_default_network() {
       cidr=$(ip -o -f inet addr show dev "$iface" 2> /dev/null | awk 'NR==1 {print $4; exit}')
     fi
   fi
-  if [[ -z $cidr ]]; then
-    cidr=$(ip route | awk '/default/ {print $3; exit}' | sed 's/\.[0-9]*$/.0\/24/')
-  fi
   printf '%s' "$cidr"
 }
 
@@ -380,6 +372,7 @@ record_protocol_hit() {
   local proto="$2"
   local detail="$3"
   [[ -z $ip || -z $proto || -z $detail ]] && return
+  is_authorized_ip "$ip" || return
   local key="$ip|$proto|$detail"
   if [[ -n ${protocol_seen[$key]+set} ]]; then
     return
@@ -554,7 +547,7 @@ collect_http_metadata_for_ip() {
     local http_code=""
     http_code=$(curl -k -sS -m "$CURL_TIMEOUT" --connect-timeout "$CURL_TIMEOUT" \
       --retry "$HTTP_RETRIES" --retry-delay 1 --retry-connrefused \
-      --location --dump-header "$headers_tmp" --output "$body_tmp" \
+      --dump-header "$headers_tmp" --output "$body_tmp" \
       -w "%{http_code}" "$url" 2> "$log_path" || true)
     if [[ -z $http_code ]]; then
       continue
@@ -654,7 +647,7 @@ run_udp_service_scan() {
       elif [[ $line =~ ^([0-9]+)/udp[[:space:]]+open ]]; then
         local port="${BASH_REMATCH[1]}"
         [[ -z $current_ip ]] && continue
-        track_port "$current_ip" "$port"
+        track_port "$current_ip" "$port" "udp" "open"
         case "$port" in
           3702)
             record_protocol_hit "$current_ip" "ONVIF" "WS-Discovery UDP 3702 open"
@@ -669,13 +662,13 @@ run_udp_service_scan() {
       elif [[ $line =~ ^([0-9]+)/udp[[:space:]]+open/filtered ]]; then
         local port="${BASH_REMATCH[1]}"
         [[ -z $current_ip ]] && continue
-        track_port "$current_ip" "$port"
+        track_port "$current_ip" "$port" "udp" "open_filtered"
         case "$port" in
           3478 | 5349)
-            record_protocol_hit "$current_ip" "WebRTC" "STUN/TURN UDP $port open/filtered"
+            record_protocol_hit "$current_ip" "UDP" "STUN/TURN candidate on $port (open/filtered)"
             ;;
           9710 | 9999)
-            record_protocol_hit "$current_ip" "SRT" "UDP port $port open/filtered"
+            record_protocol_hit "$current_ip" "UDP" "SRT candidate on $port (open/filtered)"
             ;;
         esac
       fi
@@ -778,6 +771,10 @@ run_ssdp_discovery() {
   local ssdp_tmp
   ssdp_tmp=$(mktemp /tmp/camsniff-ssdp.XXXXXX)
   local -a ssdp_args=(--timeout 4 --mx 2 --st "ssdp:all" --output "$ssdp_tmp")
+  local allowed_target
+  for allowed_target in "${scan_targets[@]}"; do
+    ssdp_args+=(--allowed-target "$allowed_target")
+  done
   if [[ $SSDP_DESCRIBE == true ]]; then
     ssdp_args+=(--describe --describe-timeout "$SSDP_DESCRIBE_TIMEOUT" --max-describe "$SSDP_DESCRIBE_MAX")
   fi
@@ -788,7 +785,7 @@ run_ssdp_discovery() {
       local ip
       ip=$(jq -r '.ip // empty' <<< "$line")
       [[ -z $ip ]] && continue
-      append_source "$ip" "SSDP"
+      append_source "$ip" "SSDP" || continue
       ip_ssdp_info["$ip"]+="$line"$'\n'
       local st
       st=$(jq -r '.st // "ssdp:all"' <<< "$line")
@@ -1117,42 +1114,10 @@ cam_run_with_spinner() {
   return $status
 }
 
-cam_run_packinst() {
-  local message="$1"
-  shift
-  local -a command=("$@")
-  if ((${#command[@]} == 0)); then
-    return 1
-  fi
-
-  echo -e "${CYAN}${message}...${RESET}"
-  "${command[@]}" &
-  local pid=$!
-  local frame=0
-  local packages=("📦")
-  local frame_count=${#packages[@]}
-
-  while kill -0 "$pid" 2> /dev/null; do
-    printf "\r${BLINK}${RED}%s${RESET} %s...${RESET} " "${packages[frame]}" "$message"
-    frame=$(((frame + 1) % frame_count))
-    sleep 0.3
-  done
-
-  wait "$pid"
-  local status=$?
-  printf "\r%*s\r" 80 ""
-  if ((status == 0)); then
-    echo -e "${GREEN}${message} complete!${RESET}"
-  else
-    echo -e "${RED}${message} failed (exit ${status}).${RESET}"
-  fi
-  return $status
-}
-
 verify_required_tools() {
-  local -a required=(nmap curl jq tshark avahi-browse python3)
+  local -a required=(ip timeout nmap curl jq tshark avahi-browse python3)
   if [[ $SKIP_CREDS == false ]]; then
-    required+=(ffmpeg)
+    required+=(ffmpeg ffprobe)
   fi
   local -a missing=()
   for cmd in "${required[@]}"; do
@@ -1299,7 +1264,8 @@ encrypt_results() {
         return 1
       fi
     elif [[ -n $ENCRYPT_PASSPHRASE ]]; then
-      if gpg --batch --yes --symmetric --passphrase "$ENCRYPT_PASSPHRASE" --output "$output" "$archive"; then
+      if printf '%s' "$ENCRYPT_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+        --symmetric --passphrase-fd 0 --output "$output" "$archive"; then
         echo -e "${CYAN}Encrypted archive:${RESET} ${GREEN}$output${RESET}"
       else
         echo -e "${YELLOW}GPG encryption failed.${RESET}"
@@ -1576,32 +1542,17 @@ build_coap_with_log() {
 
 # shellcheck disable=SC2317
 do_coap_probe() {
-  local tshark_output="$1"
   rm -f "$COAP_OUTPUT_FILE"
   : > "$COAP_LOG_FILE"
   local coap_output_tmp
   coap_output_tmp=$(mktemp /tmp/camsniff-coap.XXXXXX)
 
   declare -a coap_targets=()
-  declare -A coap_seen_targets=()
-
   for ip in "${!all_ips[@]}"; do
     [[ -z $ip ]] && continue
+    is_authorized_ip "$ip" || continue
     coap_targets+=("$ip")
-    coap_seen_targets["$ip"]=1
   done
-
-  if [[ -s $tshark_output ]]; then
-    while IFS=',' read -r _time_rel src dst _rest; do
-      for candidate in "$src" "$dst"; do
-        candidate=${candidate//\"/}
-        if [[ $candidate =~ ^[0-9]+(\.[0-9]+){3}$ ]] && [[ -z ${coap_seen_targets[$candidate]+set} ]]; then
-          coap_targets+=("$candidate")
-          coap_seen_targets["$candidate"]=1
-        fi
-      done
-    done < "$tshark_output"
-  fi
 
   {
     printf '# CoAP probe log generated %s\n' "$(date -u +%FT%TZ)"
@@ -1665,7 +1616,6 @@ if command -v tput &> /dev/null; then
   ORANGE=$(tput setaf 3)
   BLUE=$(tput setaf 4)
   CYAN=$(tput setaf 6)
-  BLINK=$(tput blink)
   RESET=$(tput sgr0)
 fi
 [[ -z $ORANGE ]] && ORANGE="$YELLOW"
@@ -1686,7 +1636,14 @@ if [[ -z ${TSHARK_INTERFACE:-} ]]; then
 fi
 export TSHARK_INTERFACE
 
-mkdir -p "$RESULTS_ROOT" "$RUN_DIR" "$LOG_DIR" "$THUMB_DIR"
+mkdir -p "$RESULTS_ROOT"
+chmod 700 "$RESULTS_ROOT"
+if [[ -e $RUN_DIR || -L $RUN_DIR ]]; then
+  echo -e "${RED}Refusing to reuse existing run path: $RUN_DIR${RESET}" >&2
+  exit 1
+fi
+mkdir -m 700 "$RUN_DIR"
+mkdir -m 700 "$LOG_DIR" "$THUMB_DIR"
 if [[ $EXTRA_IVRE_ENABLED == true ]]; then
   : > "$IVRE_LOG_FILE"
 
@@ -1727,12 +1684,16 @@ fi
 if [[ -z $extras_label ]]; then
   extras_label="None"
 fi
-cam_ui_render_banner "$TERM_WIDTH" "$CYAN" "$GREEN" "$YELLOW" "$BLUE" "$RESET" "$CAM_MODE_NORMALIZED" "$PORT_SUMMARY_LABEL" "$RUN_DIR" "$extras_label"
+cam_ui_render_banner "$TERM_WIDTH" "$CYAN" "$GREEN" "$YELLOW" "$BLUE" "$RESET" "$CAM_MODE_NORMALIZED" "$PORT_SUMMARY_LABEL" "$RUN_DIR" "$extras_label" "$APP_VERSION"
 
 append_source() {
   local ip="$1"
   local source="$2"
-  [[ -z "$ip" ]] && return
+  [[ -z "$ip" ]] && return 1
+  if ! is_authorized_ip "$ip"; then
+    echo "Ignoring out-of-scope discovery address: $ip" >> "$LOG_DIR/scope-rejections.log"
+    return 1
+  fi
   all_ips["$ip"]=1
   if [[ -z ${ip_sources[$ip]+set} ]]; then
     ip_sources["$ip"]="$source"
@@ -1744,7 +1705,25 @@ append_source() {
 track_port() {
   local ip="$1"
   local port="$2"
-  [[ -z $ip || -z $port ]] && return
+  local protocol="${3:-tcp}"
+  local state="${4:-open}"
+  [[ -z $ip || -z $port ]] && return 1
+  is_authorized_ip "$ip" || return 1
+  [[ $port =~ ^[0-9]+$ ]] || return 1
+  ((10#$port >= 1 && 10#$port <= 65535)) || return 1
+  if [[ $protocol == "udp" ]]; then
+    local udp_entry="$port|$state"
+    if [[ $'\n'${ip_udp_services[$ip]}$'\n' == *$'\n'"$udp_entry"$'\n'* ]]; then
+      return 0
+    fi
+    if [[ $state == "open" && ${ip_udp_services[$ip]} == *"$port|open_filtered"* ]]; then
+      ip_udp_services["$ip"]=${ip_udp_services[$ip]//"$port|open_filtered"/"$port|open"}
+      return 0
+    fi
+    ip_udp_services["$ip"]+="$udp_entry"$'\n'
+    return 0
+  fi
+  [[ $protocol == "tcp" ]] || return 1
   local current=" ${ip_ports[$ip]} "
   if [[ $current == *" $port "* ]]; then
     return
@@ -1886,7 +1865,27 @@ case ${answer:0:1} in
     if [[ $SKIP_INSTALL == true ]]; then
       echo -e "${YELLOW}Skipping dependency installation (--skip-install).${RESET}"
     else
-      if [[ -f "$DEPS_INSTALL" ]]; then
+      install_required=false
+      dependency_check=(ip timeout nmap curl jq tshark avahi-browse python3)
+      if [[ $SKIP_CREDS == false ]]; then
+        dependency_check+=(ffmpeg ffprobe)
+      fi
+      for dependency in "${dependency_check[@]}"; do
+        if ! command -v "$dependency" > /dev/null 2>&1; then
+          install_required=true
+          break
+        fi
+      done
+      dependency_python="$PYTHON_BIN"
+      [[ -x "$ROOT_DIR/venv/bin/python3" ]] && dependency_python="$ROOT_DIR/venv/bin/python3"
+      if [[ $install_required == false ]] && ! "$dependency_python" -c 'import defusedxml' > /dev/null 2>&1; then
+        install_required=true
+      fi
+      unset dependency dependency_check dependency_python
+
+      if [[ $install_required == false ]]; then
+        echo -e "${GREEN}Required command-line dependencies are already available.${RESET}"
+      elif [[ -f "$DEPS_INSTALL" ]]; then
         install_log_tmp=$(mktemp)
         echo -e "${CYAN}Installing dependencies (verbose)...${RESET}"
         if env CAM_INSTALL_LOG_EXPORT="$install_log_tmp" CAM_REQUIRE_IVRE="$EXTRA_IVRE_ENABLED" "$DEPS_INSTALL"; then
@@ -1908,6 +1907,7 @@ case ${answer:0:1} in
       else
         echo -e "${YELLOW}Warning: deps-install.sh not found. Continuing without installing dependencies.${RESET}"
       fi
+      unset install_required
     fi
 
     if ! verify_required_tools; then
@@ -1927,16 +1927,9 @@ case ${answer:0:1} in
       fi
     fi
 
-    # Build coap-client on demand using the shared spinner helper
     if ! command -v coap-client &> /dev/null; then
-      coap_build_log="$LOG_DIR/coap-build.log"
-      : > "$coap_build_log"
-      if cam_run_packinst "Building coap-client (libcoap)" build_coap_with_log; then
-        echo -e "${CYAN}CoAP build log:${RESET} ${GREEN}$coap_build_log${RESET}"
-      else
-        echo -e "${RED}Failed to build coap-client; see ${coap_build_log}.${RESET}"
-        exit 1
-      fi
+      echo -e "${YELLOW}Optional coap-client is unavailable; CoAP discovery will be skipped.${RESET}"
+      echo -e "${YELLOW}Install it explicitly with 'make build-coap' if CoAP coverage is required.${RESET}"
     fi
 
     # IVRE integration check is handled earlier during setup
@@ -1945,7 +1938,7 @@ case ${answer:0:1} in
     fi
 
     # Load targets from file if provided
-    declare -a scan_targets=()
+    scan_targets=()
     scan_scope="auto"
     if [[ -n $TARGET_FILE ]]; then
       echo -e "${CYAN}Loading targets from file: ${GREEN}$TARGET_FILE${RESET}"
@@ -1970,7 +1963,7 @@ case ${answer:0:1} in
       scan_targets=("${TARGET_IPS[@]}")
       scan_scope="${TARGET_IPS[*]}"
     else
-      current_ip=$(ip route get 1 | awk '{print $7;exit}')
+      current_ip=$(ip route get 1 2> /dev/null | awk '{print $7;exit}')
       default_net=$(detect_default_network)
       scan_scope="$default_net"
       scan_targets=("$default_net")
@@ -2050,10 +2043,15 @@ case ${answer:0:1} in
     done
 
     printf "\r%sNmap scan completed!%s                                  \n" "$GREEN" "$RESET"
-    wait $pid
+    if ! wait "$pid"; then
+      cp -f "$nmap_output" "$NMAP_OUTPUT_FILE" 2> /dev/null || true
+      cp -f "$nmap_log" "$NMAP_LOG_FILE" 2> /dev/null || true
+      echo -e "${RED}Nmap failed; refusing to report an incomplete scan as successful. See $NMAP_LOG_FILE.${RESET}" >&2
+      exit 1
+    fi
 
-    hosts_found=$(grep -c "Nmap scan report" "$nmap_output" || echo "0")
-    open_ports=$(grep -c "open" "$nmap_output" || echo "0")
+    hosts_found=$(nmap_hosts_up_count "$nmap_output")
+    open_ports=$(nmap_open_port_count "$nmap_output")
 
     echo ""
     echo -e "${GREEN}========== Nmap Scan Summary ==========${RESET}"
@@ -2081,13 +2079,13 @@ case ${answer:0:1} in
       fi
       if [[ $nmap_line =~ ^Nmap\ scan\ report\ for\ ([^[:space:]]+) ]]; then
         current_nmap_ip=${BASH_REMATCH[1]}
-        append_source "$current_nmap_ip" "Nmap"
+        append_source "$current_nmap_ip" "Nmap" || current_nmap_ip=""
         rtsp_section=false
         rtsp_section_ip="$current_nmap_ip"
         rtsp_current_category=""
         rtsp_current_status=""
       elif [[ $nmap_line =~ MAC\ Address:\ ([0-9A-Fa-f:]+) ]]; then
-        ip_to_mac["$current_nmap_ip"]=${BASH_REMATCH[1]^^}
+        [[ -n $current_nmap_ip ]] && ip_to_mac["$current_nmap_ip"]=${BASH_REMATCH[1]^^}
       elif [[ $nmap_line =~ ^([0-9]+)/tcp[[:space:]]+open ]]; then
         port_open=${BASH_REMATCH[1]}
         [[ -n $current_nmap_ip ]] && track_port "$current_nmap_ip" "$port_open"
@@ -2163,10 +2161,15 @@ case ${answer:0:1} in
       done
 
       printf "\r%sMasscan completed!%s                                  \n" "$GREEN" "$RESET"
-      wait $pid
+      masscan_status=0
+      wait "$pid" || masscan_status=$?
 
-      hosts_found_masscan=$(grep -c "\"ip\"" "$masscan_output" || echo "0")
-      open_ports_masscan=$(grep -c "\"port\"" "$masscan_output" || echo "0")
+      hosts_found_masscan=0
+      open_ports_masscan=0
+      if ((masscan_status == 0)) && jq -e . "$masscan_output" > /dev/null 2>&1; then
+        hosts_found_masscan=$(masscan_host_count "$masscan_output")
+        open_ports_masscan=$(masscan_open_port_count "$masscan_output")
+      fi
 
       echo ""
       echo -e "${GREEN}========== Masscan Summary ==========${RESET}"
@@ -2176,16 +2179,18 @@ case ${answer:0:1} in
       echo -e "${CYAN}Open ports:     ${GREEN}$open_ports_masscan${RESET}"
       echo -e "${GREEN}=====================================${RESET}"
 
-      current_masscan_ip=""
-      while IFS= read -r masscan_line; do
-        if [[ $masscan_line =~ "ip"\:\ "([0-9\.]+)" ]]; then
-          current_masscan_ip=${BASH_REMATCH[1]}
-          append_source "$current_masscan_ip" "Masscan"
-        elif [[ $masscan_line =~ "port"\:\ ([0-9]+) ]]; then
-          port_val=${BASH_REMATCH[1]}
-          [[ -n $current_masscan_ip ]] && track_port "$current_masscan_ip" "$port_val"
-        fi
-      done < "$masscan_output"
+      if ((masscan_status != 0)); then
+        echo -e "${YELLOW}Warning: Masscan failed with exit $masscan_status; its results were not merged.${RESET}" >&2
+      elif jq -e . "$masscan_output" > /dev/null 2>&1; then
+        while IFS=$'\t' read -r current_masscan_ip port_val; do
+          [[ -z $current_masscan_ip || -z $port_val ]] && continue
+          if append_source "$current_masscan_ip" "Masscan"; then
+            track_port "$current_masscan_ip" "$port_val"
+          fi
+        done < <(jq -r '.[]? | .ip as $ip | .ports[]? | [$ip, (.port | tostring)] | @tsv' "$masscan_output")
+      else
+        echo -e "${YELLOW}Warning: Masscan produced invalid JSON; results were not merged.${RESET}" >&2
+      fi
       cp -f "$masscan_output" "$MASSCAN_OUTPUT_FILE" 2> /dev/null || true
       cp -f "$masscan_log" "$MASSCAN_LOG_FILE" 2> /dev/null || true
     else
@@ -2208,9 +2213,11 @@ case ${answer:0:1} in
     echo -e "${BLUE}Starting Avahi service discovery for cameras...${RESET}"
 
     avahi_output=$(mktemp)
+    avahi_raw=$(mktemp)
+    avahi_log=$(mktemp)
     avahi_duration=$((CAM_MODE_TSHARK_DURATION / 2))
     ((avahi_duration < 15)) && avahi_duration=15
-    timeout "${avahi_duration}s" avahi-browse -art | grep -i -e camera -e webcam -e rtsp -e onvif -e axis > "$avahi_output" &
+    timeout "${avahi_duration}s" avahi-browse -art > "$avahi_raw" 2> "$avahi_log" &
     pid=$!
 
     i=0
@@ -2232,7 +2239,12 @@ case ${answer:0:1} in
     done
 
     printf "\r%sService discovery completed!%s                                  \n" "$GREEN" "$RESET"
-    wait $pid
+    avahi_status=0
+    wait "$pid" || avahi_status=$?
+    grep -i -e camera -e webcam -e rtsp -e onvif -e axis "$avahi_raw" > "$avahi_output" || true
+    if ((avahi_status != 0 && avahi_status != 124)); then
+      echo -e "${YELLOW}Warning: Avahi discovery failed with exit $avahi_status; see $AVAHI_LOG_FILE.${RESET}" >&2
+    fi
 
     if ! services_found=$(grep -c "=" "$avahi_output" 2> /dev/null); then
       services_found=0
@@ -2251,11 +2263,13 @@ case ${answer:0:1} in
       while IFS=';' read -r status _iface _proto _service _domain _host address port rest; do
         [[ -z $address ]] && continue
         [[ ${status:0:1} != "=" ]] && continue
-        append_source "$address" "Avahi"
-        [[ -n $port ]] && track_port "$address" "$port"
+        if append_source "$address" "Avahi"; then
+          [[ -n $port ]] && track_port "$address" "$port"
+        fi
       done < "$avahi_output"
     fi
     cp -f "$avahi_output" "$AVAHI_OUTPUT_FILE" 2> /dev/null || true
+    cp -f "$avahi_log" "$AVAHI_LOG_FILE" 2> /dev/null || true
 
     echo ""
     echo -e "${BLUE}Capturing network traffic for camera protocols...${RESET}"
@@ -2264,10 +2278,11 @@ case ${answer:0:1} in
     tshark_output=$(mktemp)
     tshark_duration=${CAM_MODE_TSHARK_DURATION:-30}
     timeout "${tshark_duration}s" tshark -n -i "$TSHARK_INTERFACE" \
-      -f "tcp port 80 or tcp port 554 or tcp port 8554 or udp portrange 5000-5010" \
+      -f "tcp port 80 or tcp port 81 or tcp port 88 or tcp port 443 or tcp port 554 or tcp port 8000 or tcp port 8080 or tcp port 8081 or tcp port 8443 or tcp port 8554 or udp port 3702 or udp portrange 5000-5010" \
       -Y "rtsp || http.request || udp.port == 3702" \
       -T fields -E header=n -E separator=, -E quote=d \
-      -e frame.time_relative -e ip.src -e ip.dst -e tcp.port -e udp.port \
+      -e frame.time_relative -e ip.src -e ip.dst \
+      -e tcp.srcport -e tcp.dstport -e udp.srcport -e udp.dstport \
       -e http.host -e http.request.uri -e rtsp.request > "$tshark_output" &
     pid=$!
 
@@ -2290,7 +2305,11 @@ case ${answer:0:1} in
     done
 
     printf "\r%sTraffic analysis completed!%s                                  \n" "$GREEN" "$RESET"
-    wait $pid
+    tshark_status=0
+    wait "$pid" || tshark_status=$?
+    if ((tshark_status != 0 && tshark_status != 124)); then
+      echo -e "${YELLOW}Warning: TShark exited with status $tshark_status; using any partial capture output.${RESET}" >&2
+    fi
 
     if command -v coap-client &> /dev/null; then
       echo ""
@@ -2318,40 +2337,39 @@ case ${answer:0:1} in
     if [[ -n $traffic_found && $traffic_found =~ ^[0-9]+$ ]] && ((traffic_found > 0)); then
       echo -e "${YELLOW}Potential camera streams detected:${RESET}"
       sort "$tshark_output" | uniq -c | sort -nr | head -10
-      while IFS=',' read -r _time_rel src dst tcp_port udp_port _http_host http_uri rtsp_request; do
-        src=${src//\"/}
-        dst=${dst//\"/}
-        tcp_port=${tcp_port//\"/}
-        udp_port=${udp_port//\"/}
-        http_uri=${http_uri//\"/}
-        rtsp_request=${rtsp_request//\"/}
+      while IFS=$'\x1f' read -r _time_rel src dst _tcp_src_port tcp_dst_port udp_src_port _udp_dst_port http_host http_uri rtsp_request; do
         rtsp_uri=""
         if [[ -n $rtsp_request ]]; then
           rtsp_uri=$(printf '%s\n' "$rtsp_request" | awk '{print $2}' 2> /dev/null)
-          rtsp_uri=${rtsp_uri//\"/}
         fi
 
-        if [[ -n $src ]]; then
-          append_source "$src" "TShark"
-          [[ -n $tcp_port ]] && track_port "$src" "$tcp_port"
-          [[ -n $udp_port ]] && track_port "$src" "$udp_port"
+        # HTTP and RTSP request direction identifies the server as the
+        # destination. Do not promote the client endpoint to a camera candidate.
+        if [[ -n $rtsp_request || -n $http_uri || -n $http_host ]]; then
+          if append_source "$dst" "TShark"; then
+            [[ -n $tcp_dst_port ]] && track_port "$dst" "$tcp_dst_port"
+          fi
         fi
-        if [[ -n $dst ]]; then
-          append_source "$dst" "TShark"
-          [[ -n $tcp_port ]] && track_port "$dst" "$tcp_port"
-          [[ -n $udp_port ]] && track_port "$dst" "$udp_port"
+
+        # A WS-Discovery response originates from UDP/3702. Multicast search
+        # senders are clients and must not become camera candidates.
+        if [[ $udp_src_port == "3702" ]]; then
+          if append_source "$src" "TShark"; then
+            track_port "$src" "$udp_src_port" "udp" "open"
+            record_protocol_hit "$src" "ONVIF" "WS-Discovery traffic from UDP 3702"
+          fi
         fi
 
         if [[ -n $rtsp_uri ]]; then
           target_ip=$dst
           [[ -z $target_ip ]] && target_ip=$src
-          [[ -n $target_ip ]] && ip_observed_paths["$target_ip"]+="$rtsp_uri "
+          is_authorized_ip "$target_ip" && ip_observed_paths["$target_ip"]+="$rtsp_uri "
         elif [[ -n $http_uri ]]; then
           target_ip=$dst
           [[ -z $target_ip ]] && target_ip=$src
-          [[ -n $target_ip ]] && ip_observed_paths["$target_ip"]+="$http_uri "
+          is_authorized_ip "$target_ip" && ip_observed_paths["$target_ip"]+="$http_uri "
         fi
-      done < "$tshark_output"
+      done < <("$PYTHON_BIN" "$TSHARK_EVENT_PARSER" --input "$tshark_output")
     fi
     echo -e "${GREEN}=============================================${RESET}"
     cp -f "$tshark_output" "$TSHARK_OUTPUT_FILE" 2> /dev/null || true
@@ -2378,7 +2396,7 @@ case ${answer:0:1} in
     echo ""
     echo -e "${GREEN}========== Final Results ==========${RESET}"
     camera_count=${#all_ips[@]}
-    echo -e "${CYAN}Potential camera devices found: ${GREEN}$camera_count${RESET}"
+    echo -e "${CYAN}In-scope candidate endpoints found: ${GREEN}$camera_count${RESET}"
 
     if ((camera_count > 0)); then
       echo -e "${CYAN}Summary:${RESET}"
@@ -2472,6 +2490,17 @@ case ${answer:0:1} in
         if [[ -n ${ip_ssdp_info[$ip]} ]]; then
           ssdp_metadata_json=$(printf '%s' "${ip_ssdp_info[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | (try fromjson catch empty)) | map(select(. != null))')
         fi
+        tcp_services_json=$(printf '%s' "$raw_ports" | jq -R '
+          split(" ") | map(select(length > 0) | {
+            protocol: "tcp", port: (tonumber), state: "open"
+          })')
+        udp_services_json="[]"
+        if [[ -n ${ip_udp_services[$ip]} ]]; then
+          udp_services_json=$(printf '%s' "${ip_udp_services[$ip]}" | jq -R -s '
+            split("\n") | map(select(length > 0) | split("|") | {
+              protocol: "udp", port: (.[0] | tonumber), state: .[1]
+            })')
+        fi
 
         host_json=$(jq -n \
           --arg ip "$ip" \
@@ -2485,11 +2514,14 @@ case ${answer:0:1} in
           --argjson http_metadata "$http_metadata_json" \
           --argjson onvif_metadata "$onvif_metadata_json" \
           --argjson ssdp_metadata "$ssdp_metadata_json" \
+          --argjson tcp_services "$tcp_services_json" \
+          --argjson udp_services "$udp_services_json" \
           '{
                         ip: $ip,
                         mac: (if $mac == "Unknown" or $mac == "" then null else $mac end),
                         sources: ($sources | split(", ") | map(select(length>0))),
                         ports: ($ports | split(" ") | map(select(length>0) | (tonumber? // .))),
+                        services: ($tcp_services + $udp_services),
                         observed_paths: ($observed | split(" ") | map(select(length>0))),
                         rtsp_bruteforce: {
                             discovered: $rtsp_discovered,
@@ -2516,7 +2548,8 @@ case ${answer:0:1} in
       --arg raw "$CAM_MODE_RAW" \
       --arg timestamp "$RUN_STAMP" \
       --arg network "$scan_scope" \
-      '.metadata = {mode: $mode, mode_raw: $raw, generated_at: $timestamp, network: $network}' \
+      '.schema_version = 2
+       | .metadata = {mode: $mode, mode_raw: $raw, generated_at: $timestamp, network: $network}' \
       "$DISCOVERY_JSON" > "$DISCOVERY_JSON.tmp"
     mv "$DISCOVERY_JSON.tmp" "$DISCOVERY_JSON"
 
@@ -2547,17 +2580,6 @@ case ${answer:0:1} in
 
     render_confidence_ranking
 
-    if [[ $EXTRA_IVRE_ENABLED == true && -f "$DISCOVERY_JSON" ]]; then
-      echo ""
-      echo -e "${BLUE}Syncing discovery dataset with IVRE...${RESET}"
-
-      if "$INTEGRATION_DIR/ivre-manager.sh" ingest "$DISCOVERY_JSON" --quiet; then
-        echo -e "${GREEN}IVRE sync complete.${RESET}"
-      else
-        echo -e "${YELLOW}IVRE sync encountered issues. Review ${IVRE_LOG_FILE} for details.${RESET}"
-      fi
-    fi
-
     if [[ $SKIP_CREDS == true ]]; then
       echo ""
       echo -e "${YELLOW}Credential probing disabled (--skip-credentials).${RESET}"
@@ -2583,6 +2605,17 @@ case ${answer:0:1} in
     else
       echo ""
       echo -e "${YELLOW}Credential probe helper unavailable or discovery data missing; skipping automated probing.${RESET}"
+    fi
+
+    if [[ $EXTRA_IVRE_ENABLED == true && -f "$DISCOVERY_JSON" ]]; then
+      echo ""
+      echo -e "${BLUE}Syncing discovery and credential datasets with IVRE...${RESET}"
+
+      if "$INTEGRATION_DIR/ivre-manager.sh" ingest "$DISCOVERY_JSON" --quiet; then
+        echo -e "${GREEN}IVRE sync complete.${RESET}"
+      else
+        echo -e "${YELLOW}IVRE sync encountered issues. Review ${IVRE_LOG_FILE} for details.${RESET}"
+      fi
     fi
 
     if [[ -n $REPORT_FORMAT ]]; then
@@ -2629,6 +2662,8 @@ case ${answer:0:1} in
     [[ -n ${masscan_output:-} ]] && rm -f "$masscan_output"
     [[ -n ${masscan_log:-} ]] && rm -f "$masscan_log"
     [[ -n ${avahi_output:-} ]] && rm -f "$avahi_output"
+    [[ -n ${avahi_raw:-} ]] && rm -f "$avahi_raw"
+    [[ -n ${avahi_log:-} ]] && rm -f "$avahi_log"
     [[ -n ${tshark_output:-} ]] && rm -f "$tshark_output"
     [[ -n ${hosts_json_tmp:-} ]] && rm -f "$hosts_json_tmp"
     [[ -n ${discovery_enriched_tmp:-} ]] && rm -f "$discovery_enriched_tmp"

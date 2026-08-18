@@ -52,7 +52,7 @@ license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 
-portrule = shortport.port_or_service(554, "rtsp", "tcp", "open")
+portrule = shortport.port_or_service({554, 8554, 10554, 5544}, "rtsp", "tcp", "open")
 
 --- Retrieves the next RTSP relative URL from the datafile
 -- @param filename string containing the name of the file to read from
@@ -84,6 +84,7 @@ local function fetch_url(host, port, url)
   status, response = helper:describe(url)
   if not status then
     stdnse.debug2("ERROR: Sending DESCRIBE request to url: %s", url)
+    helper:close()
     return nil, response
   end
 
@@ -105,7 +106,6 @@ local function processURL(host, port, url_iter, result)
     local status, response = fetch_url(host, port, url)
     if not status then
       table.insert(result, { url = url, status = -1 } )
-      break
     else
       table.insert(result, { url = url, status = response.status } )
     end
@@ -145,7 +145,7 @@ action = function(host, port)
     )
   local status_404 = 404
   if status then
-    local status_404 = response.status
+    status_404 = response.status
   end
 
   local threads = {}
@@ -176,7 +176,7 @@ action = function(host, port)
   for _, r in ipairs(result) do
     if ( r.status == -1 ) then
       table.insert(failure_urls, r.url)
-    elseif ( r.status == 200 ) then
+    elseif ( r.status == 200 and r.status ~= status_404 ) then
       table.insert(success_urls, r.url)
     elseif r.status ~= status_404 then
       local s = tostring(r.status)
@@ -196,7 +196,7 @@ action = function(host, port)
     output["other responses"] = urls_by_code
   end
 
-  if #output > 0 then
+  if next(output) then
     return output
   end
 end

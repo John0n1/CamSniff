@@ -1,0 +1,70 @@
+name: Build Arch Linux package
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-arch:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+
+    steps:
+      - name: Install checkout and package dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git avahi curl ffmpeg iproute2 jq nmap python \
+            python-defusedxml wireshark-cli
+
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Prepare unprivileged package builder
+        run: |
+          useradd --create-home builduser
+          chown -R builduser:builduser "$GITHUB_WORKSPACE"
+
+      - name: Validate package metadata
+        run: |
+          runuser -u builduser -- makepkg --dir packaging/arch --printsrcinfo > /tmp/generated.SRCINFO
+          diff -u packaging/arch/.SRCINFO /tmp/generated.SRCINFO
+
+      - name: Build package
+        run: |
+          runuser -u builduser -- \
+            makepkg --dir packaging/arch --cleanbuild --clean --force
+
+      - name: Upload package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: camsniff-arch-package
+          path: packaging/arch/camsniff-*.pkg.tar.zst
+          if-no-files-found: error
+
+  release:
+    needs: build-arch
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Arch package artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: camsniff-arch-package
+          path: dist/
+
+      - name: Add Arch package to GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2.6.2
+        with:
+          files: dist/*.pkg.tar.zst
+          fail_on_unmatched_files: true
+          generate_release_notes: true

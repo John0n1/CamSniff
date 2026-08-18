@@ -3,10 +3,13 @@ set -e
 
 cat <<'EOF'
 README.md
+CHANGELOG.md
 VERSION
 LICENSE
 data/vendors/README.md
 docs/customisation.md
 docs/dev-helpers.md
+docs/modes.md
+docs/scanning.md
 docs/camsniff.png
 EOF

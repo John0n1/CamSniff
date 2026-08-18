@@ -90,6 +90,7 @@ class ProfileResolver:
     def _score_row(self, row: CatalogRow, host: HostContext) -> Tuple[int, str]:
         score = 0
         matched_by = ""
+        port_matches = row.port is not None and row.port in host.ports
 
         mac = host.mac.upper()
         pattern = row.oui_regex
@@ -100,11 +101,6 @@ class ProfileResolver:
                     matched_by = "oui"
             except re.error:
                 pass
-
-        if row.port is not None and row.port in host.ports:
-            score += 10
-            if not matched_by:
-                matched_by = "port"
 
         vendor = row.company.lower()
         model = row.model.lower()
@@ -130,6 +126,12 @@ class ProfileResolver:
                     if not matched_by:
                         matched_by = "path"
                     break
+
+        # A shared service port is supporting evidence, never a vendor identity.
+        # Port 554 alone otherwise matches most of the catalog and makes CSV order
+        # determine the alleged vendor, credentials, and CVEs.
+        if port_matches and score > 0:
+            score += 10
 
         return score, matched_by
 

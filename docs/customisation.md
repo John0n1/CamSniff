@@ -1,169 +1,107 @@
-## Customisation hints
+# Customization and IVRE
 
-- Extend `data/catalog/paths.csv` with new vendor fingerprints, CVE IDs, default credentials, and snapshot/stream templates.
-- Update `data/dictionaries/usernames.txt` and `data/dictionaries/passwords.txt` to broaden credential probing.
-- Swap in an alternate RTSP dictionary by editing `data/protocols/rtsp-url-brute.nse` or passing `rtsp-url-brute.urlfile=<path>` through the Nmap script arguments (see comments in the script).
-- Add vendor-specific dictionaries in `data/vendors/<vendor>/http-paths.txt` and `data/vendors/<vendor>/rtsp-paths.txt` using the `template|port|channel|stream|label` / `template|port|channel|stream|transport|label` formats.
-- Modes, timeouts, and credential limits are centralised in `scripts/core/mode-config.sh`.
-- Protocol heuristics for ONVIF/RTMP/HLS/WebRTC/SRT are implemented in `scripts/camsniff.sh` under `probe_additional_protocols`; adjust or extend them there.
+CamSniff keeps scanner behavior in code and device knowledge in data files.
+Prefer data changes when adding a vendor or endpoint; change probe logic only
+when the evidence model itself needs to change.
 
-## IVRE Integration
+## Vendor catalogue
 
-CamSniff includes full integration with [IVRE](https://ivre.rocks), an open-source network reconnaissance framework that stores scan results in MongoDB for advanced querying, analysis, and visualization.
+`data/catalog/paths.csv` is the cross-vendor catalogue used for profile
+matching. Rows may include company/model labels, OUI expressions, service
+ports, default credentials, RTSP/HTTP templates, ONVIF paths, and CVE IDs.
 
-### Features
+A port is supporting evidence only. Vendor identity must come from stronger
+signals such as OUI, banner content, or an observed vendor-specific path. Keep
+CVE associations model-specific and verifiable.
 
-The IVRE integration provides:
-
-- **Fully automatic setup**: MongoDB and IVRE are installed and configured automatically when using `--extra ivre`
-- **Automated schema mapping**: Discovery data is automatically converted to IVRE's Nmap-compatible format
-- **Vendor enrichment**: MAC address-based vendor identification from `data/catalog/paths.csv`
-- **Credential tracking**: Successful authentication attempts are tagged and searchable
-- **Thumbnail references**: Links to captured camera snapshots are stored in host metadata
-- **CVE tracking**: Known vulnerabilities are associated with discovered cameras
-- **Protocol categorization**: Cameras are tagged by supported protocols (RTSP, ONVIF, CoAP, WebRTC, SRT)
-
-### Automatic Usage
-
-Simply add `--extra ivre` to any CamSniff scan:
+After editing the catalogue, validate enrichment with:
 
 ```bash
-sudo scripts/camsniff.sh --mode medium --extra ivre --yes
+python3 scripts/helpers/profile_resolver.py catalog \
+  --paths data/catalog/paths.csv \
+  --output /tmp/camsniff-catalog.json
+make test
 ```
 
-CamSniff will automatically:
+## Endpoint dictionaries
 
-1. Check if IVRE is installed
-2. Install MongoDB if needed
-3. Create Python virtual environment
-4. Install IVRE Python packages
-5. Initialize IVRE databases
-6. Sync discovery results after the scan
+Generic dictionaries live in `data/dictionaries/`:
 
-No additional configuration is required!
+- `rtsp-urls.txt` — relative RTSP paths used by the NSE probe.
+- `http-paths.txt` — fallback HTTP snapshot templates.
+- `usernames.txt` and `passwords.txt` — bounded credential candidates.
 
-### Manual Operations
+Vendor-specific endpoint templates live under `data/vendors/<vendor>/`.
 
-The unified IVRE manager handles all operations:
+```text
+# HTTP
+template|port|channel|stream|label
+
+# RTSP
+template|port|channel|stream|transport|label
+```
+
+Templates support `{{ip_address}}`, `{{username}}`, `{{password}}`, `{{port}}`,
+`{{channel}}`, and `{{stream}}`. Credential values inserted into RTSP userinfo
+are URL-encoded before use. Keep dictionaries conservative: every additional
+path or credential expands traffic and runtime.
+
+## Modes and port profiles
+
+- `scripts/core/mode-config.sh` owns rates, retries, timeouts, and feature flags.
+- `scripts/core/port-profiles.sh` owns named TCP/Masscan port sets.
+
+Mode variables form an internal interface and may replace values inherited from
+the environment. Make changes in the resolver, then run `make test` and an
+isolated loopback smoke run.
+
+## IVRE integration
+
+Enable IVRE for a scan with:
 
 ```bash
-# Check IVRE status
+sudo camsniff --mode medium --extra ivre
+```
+
+This invokes `scripts/integrations/ivre-manager.sh`, which manages the Python
+environment, MongoDB readiness, and ingestion. IVRE setup changes local system
+state and should be reviewed before use.
+
+Supported manager commands:
+
+```bash
+# Readiness check
 scripts/integrations/ivre-manager.sh check
 
-# Manual setup (if needed)
+# Explicit setup
 sudo scripts/integrations/ivre-manager.sh setup
 
-# Ingest specific run
-scripts/integrations/ivre-manager.sh ingest dev/results/20251010T215139Z/discovery.json
+# Ingest one discovery dataset
+scripts/integrations/ivre-manager.sh ingest /path/to/discovery.json
 
-# Bulk ingest all historical runs
+# Ingest source-tree history
 scripts/integrations/ivre-manager.sh bulk-ingest
 
-# Show summary statistics
+# Query/export CamSniff records
 scripts/integrations/ivre-manager.sh summary
-
-# Export results
 scripts/integrations/ivre-manager.sh export json > cameras.json
 scripts/integrations/ivre-manager.sh export csv > cameras.csv
 ```
 
-### Querying IVRE Data
+Discovery schema version 2 service entries retain their TCP/UDP transport and
+state when mapped into IVRE. Successful credentials are read from the nested
+`credentials` and `artifact` structures used by `credentials.json`.
 
-Use the query helper for common analysis:
+IVRE records can contain credential material. Restrict MongoDB access and treat
+exports with the same care as the original run directory.
 
-```bash
-# Use the original query script for detailed analysis
-scripts/ivre-query.sh summary
-scripts/ivre-query.sh vendors
-scripts/ivre-query.sh credentials
-scripts/ivre-query.sh dashboard
-```
-
-Or access IVRE directly:
-
-```bash
-source venv/bin/activate
-
-# Show all CamSniff discoveries
-ivre scancli --category camsniff
-
-# Filter by vendor
-ivre scancli --category vendor:hikvision
-
-# Show cameras with credentials
-ivre scancli --category credentials-found
-
-# Export to JSON
-ivre scancli --category camsniff --json > all_cameras.json
-```
-
-### IVRE Web Interface
-
-Launch the web interface for interactive exploration:
-
-```bash
-scripts/ivre-query.sh web
-# Or directly:
-source venv/bin/activate
-ivre httpd
-```
-
-Access at `http://localhost:8080` to view interactive maps, statistics, and detailed host information.
-
-### Schema Details
-
-CamSniff maps discovery data into IVRE with these fields:
-
-**Host-level scripts:**
-
-- `camsniff-summary`: Mode, network, sources, vendor, credentials, protocols
-- `camsniff-vendor`: Company, model, CVEs, credentials (if found)
-- `camsniff-protocols`: List of detected protocols (ONVIF, CoAP, etc.)
-- `camsniff-rtsp-responses`: RTSP probe results
-
-**Categories (tags):**
-
-- `camsniff`: All CamSniff hosts
-- `camsniff-mode:<name>`: Hosts discovered in specific mode
-- `vendor:<company>`: Hosts from specific vendor
-- `credentials-found`: Hosts with successful authentication
-
-**Credential structure:**
-
-```json
-{
-  "username": "admin",
-  "password": "12345",
-  "method": "rtsp",
-  "rtsp_url": "rtsp://...",
-  "http_url": "http://...",
-  "thumbnail": "/path/to/snapshot.jpg"
-}
-```
-
-### Troubleshooting
-
-**Check IVRE status:**
+## Troubleshooting IVRE
 
 ```bash
 scripts/integrations/ivre-manager.sh check
-```
-
-**Re-setup IVRE:**
-
-```bash
-sudo scripts/integrations/ivre-manager.sh setup
-```
-
-**View sync logs:**
-
-```bash
 tail -f dev/results/*/logs/ivre-sync.log
 ```
 
-**Clear all CamSniff data:**
-
-```bash
-source venv/bin/activate
-ivre scancli --category camsniff --delete
-```
+Packaged installations store ordinary scan output under
+`/var/lib/camsniff/results/`; pass an explicit discovery path to `ingest` when
+working outside a source checkout.

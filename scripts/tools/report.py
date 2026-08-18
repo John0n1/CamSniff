@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -89,6 +90,10 @@ def summarize_credentials(
 
 def safe_join(values: List[str]) -> str:
     return ", ".join([value for value in values if value])
+
+
+def redact_url_credentials(value: str) -> str:
+    return re.sub(r"(?<=://)[^/@]+@", "[redacted]@", value or "", count=1)
 
 
 def build_host_rows(
@@ -254,8 +259,8 @@ def render_markdown(
             ip = entry.get("ip") or ""
             method = entry.get("method") or ""
             user = entry.get("credentials", {}).get("username") or ""
-            password = entry.get("credentials", {}).get("password") or ""
-            url = entry.get("url") or ""
+            password = "[redacted]" if entry.get("credentials", {}).get("password") else ""
+            url = redact_url_credentials(str(entry.get("url") or ""))
             lines.append(f"- {ip} ({method}): `{user}` / `{password}` -> {url}")
 
     return "\n".join(lines) + "\n"
@@ -408,8 +413,8 @@ def render_html(
             ip = esc(str(entry.get("ip") or ""))
             method = esc(str(entry.get("method") or ""))
             user = esc(str(entry.get("credentials", {}).get("username") or ""))
-            password = esc(str(entry.get("credentials", {}).get("password") or ""))
-            url = esc(str(entry.get("url") or ""))
+            password = "[redacted]" if entry.get("credentials", {}).get("password") else ""
+            url = esc(redact_url_credentials(str(entry.get("url") or "")))
             entries.append(
                 f"<li>{ip} ({method}): "
                 f"<code>{user}</code> / <code>{password}</code> "

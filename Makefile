@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-MODE ?= nuke
+MODE ?= medium
 RUN_FLAGS ?=
 
 SH_SOURCES := $(shell find scripts data -type f -name '*.sh' -print) bin/camsniff
@@ -17,21 +17,31 @@ ifeq ($(BUILD_SOURCE),0)
 DPKG_BUILD_FLAGS += -b
 endif
 DPKG_BUILD := dpkg-buildpackage $(DPKG_BUILD_FLAGS)
+ARCH_PACKAGE_DIR := $(ROOT_DIR)/packaging/arch
 
-.PHONY: help build clean run lint dev shellcheck install-deps distclean build-coap
+.PHONY: help build arch-package arch-verify clean run lint test dev shellcheck install-deps distclean build-coap
 
 help:
 	@echo "Available targets:"
 	@echo "  make build        # dpkg-buildpackage -us -uc (adds -b on /mnt; set BUILD_SOURCE=1 for source)"
+	@echo "  make arch-package # build the native Arch package with makepkg"
+	@echo "  make arch-verify  # verify Arch PKGBUILD metadata"
 	@echo "  make clean        # remove build artefacts and temporary state"
 	@echo "  make run MODE=war # invoke sudo ./scripts/camsniff.sh --mode war"
 	@echo "  make lint         # shellcheck + bash -n across project scripts"
-	@echo "  make dev          # lint plus dpkg-buildpackage --dry-run sanity"
+	@echo "  make test         # focused Python and shell integration regression tests"
+	@echo "  make dev          # run lint, tests, and the Debian package build"
 	@echo "  make install-deps # bootstrap runtime dependencies via apt/yum/pacman"
 	@echo "  make distclean    # clean plus drop virtualenv and build outputs"
 
 build:
 	$(DPKG_BUILD)
+
+arch-package:
+	makepkg --dir $(ARCH_PACKAGE_DIR) --cleanbuild --clean --force
+
+arch-verify:
+	diff -u $(ARCH_PACKAGE_DIR)/.SRCINFO <(makepkg --dir $(ARCH_PACKAGE_DIR) --printsrcinfo)
 
 clean:
 	dh_clean
@@ -64,9 +74,11 @@ lint: shellcheck
 
 shellcheck:
 	@echo "Running shellcheck"
-	sudo apt-get install -y shellcheck || true
 	@command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not available"; exit 1; }
 	shellcheck -x -P scripts -P data -P . $(SH_SOURCES)
 
-dev: lint
+test:
+	python3 -m unittest discover -s tests -v
+
+dev: lint test
 	$(DPKG_BUILD)

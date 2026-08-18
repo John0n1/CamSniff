@@ -17,7 +17,11 @@ override_dh_auto_build:
 	# Nothing to build
 
 override_dh_auto_test:
-	# No automated test suite during package build
+	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+
+override_dh_installchangelogs:
+	# Keep the project release notes beside the native Debian changelog.
+	dh_installchangelogs -XCHANGELOG.md
 
 override_dh_builddeb:
 	set -e; \

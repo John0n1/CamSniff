@@ -1,0 +1,2 @@
+# Safe local-only target for orchestration smoke tests.
+127.0.0.1

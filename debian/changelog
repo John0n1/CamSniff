@@ -1,3 +1,25 @@
+camsniff (2.2.6) unstable; urgency=medium
+
+  * Enforce IPv4 target containment across passive discovery and all follow-up
+    probes, including scoped SSDP description retrieval and redirects.
+  * Correct Masscan JSON ingestion, TShark CSV parsing/directionality, Nmap and
+    Masscan summaries, and TCP/UDP service-state preservation.
+  * Repair credential candidate deduplication, apply per-host time budgets,
+    support current FFmpeg RTSP timeouts, URL-encode RTSP userinfo, and validate
+    captured media before reporting success.
+  * Stop assigning vendors from a common port alone and classify evidence-free
+    endpoints as unknown instead of cameras.
+  * Restrict run artifacts to owner access, redact credentials in rendered
+    reports, and fix IVRE ingestion for the current discovery/credential schema.
+  * Add a native Arch Linux PKGBUILD, Debian/Arch package CI, and a focused
+    regression suite covering critical parsing, scope, profile, and probe paths.
+  * Replace automatic unpinned CoAP builds with explicit opt-in setup and avoid
+    reinstalling dependencies when the selected runtime is already complete.
+  * Refresh and consolidate the README, mode/scanning references, customization
+    guide, development guide, manual page, and package metadata for 2.2.6.
+
+ -- John Hauger Mitander <john@on1.no>  Tue, 18 Aug 2026 20:15:00 +0000
+
 camsniff (2.2.5) unstable; urgency=medium
   * Fix shfmt/bashate conflict: rename stealth+ to stealth-plus as internal key
     to allow shfmt to parse associative arrays correctly.

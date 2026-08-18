@@ -96,6 +96,7 @@ cam_ui_render_banner() {
   local port_label="${8:-Ports}"
   local run_dir="${9:-"./dev/results"}"
   local extras_label="${10:-None}"
+  local version="${11:-unknown}"
   local color_orange="${color_yellow}"
 
   local ascii_lines=(
@@ -106,7 +107,7 @@ cam_ui_render_banner() {
     "▐ ██║     ██╔══██║██║╚██╔╝██║╚════██║██║╚██╗██║██║██╔══╝  ██╔══╝   ▌"
     "▐ ╚██████╗██║  ██║██║ ╚═╝ ██║███████║██║ ╚████║██║██║     ██║      ▌"
     "▐  ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝      ▌"
-    "▐                          Version 2.2.5                           ▌"
+    "▐                          Version ${version}                           ▌"
     "▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌"
   )
 

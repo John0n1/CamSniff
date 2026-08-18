@@ -1,0 +1,24 @@
+pkgbase = camsniff
+	pkgdesc = Mode-aware reconnaissance toolkit for IP cameras
+	pkgver = 2.2.6
+	pkgrel = 1
+	url = https://github.com/John0n1/CamSniff
+	arch = any
+	license = MIT
+	depends = avahi
+	depends = bash
+	depends = coreutils
+	depends = curl
+	depends = ffmpeg
+	depends = iproute2
+	depends = jq
+	depends = nmap
+	depends = python>=3.11
+	depends = python-defusedxml
+	depends = wireshark-cli
+	optdepends = age: encrypt result archives with age
+	optdepends = chafa: render terminal previews of captured images
+	optdepends = gnupg: encrypt result archives with GnuPG
+	optdepends = masscan: enable the optional high-speed discovery phase
+
+pkgname = camsniff

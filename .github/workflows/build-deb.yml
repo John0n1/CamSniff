@@ -27,7 +27,13 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            build-essential debhelper debhelper-compat dpkg-dev
+            build-essential debhelper debhelper-compat dpkg-dev jq
+
+      - name: Run regression tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Check shell syntax
+        run: bash -n bin/camsniff scripts/camsniff.sh scripts/**/*.sh
 
       - name: Build .deb package
         run: dpkg-buildpackage -us -uc -b

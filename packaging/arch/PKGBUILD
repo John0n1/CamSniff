@@ -1,0 +1,70 @@
+# Maintainer: John Hauger Mitander <john@on1.no>
+
+pkgname=camsniff
+pkgver=2.2.6
+pkgrel=1
+pkgdesc="Mode-aware reconnaissance toolkit for IP cameras"
+arch=('any')
+url="https://github.com/John0n1/CamSniff"
+license=('MIT')
+depends=(
+  'avahi'
+  'bash'
+  'coreutils'
+  'curl'
+  'ffmpeg'
+  'iproute2'
+  'jq'
+  'nmap'
+  'python>=3.11'
+  'python-defusedxml'
+  'wireshark-cli'
+)
+optdepends=(
+  'age: encrypt result archives with age'
+  'chafa: render terminal previews of captured images'
+  'gnupg: encrypt result archives with GnuPG'
+  'masscan: enable the optional high-speed discovery phase'
+)
+check() {
+  cd "${startdir}/../.."
+
+  local script
+  while IFS= read -r -d '' script; do
+    bash -n "$script"
+  done < <(find bin scripts data -type f -name '*.sh' -print0)
+
+  python -m compileall -q scripts
+  if [[ -d tests ]]; then
+    python -m unittest discover -s tests -v
+  fi
+}
+
+package() {
+  cd "${startdir}/../.."
+
+  install -d "${pkgdir}/usr/lib/${pkgname}"
+  cp -a scripts data "${pkgdir}/usr/lib/${pkgname}/"
+  find "${pkgdir}/usr/lib/${pkgname}" -type d -name __pycache__ -prune -exec rm -rf {} +
+  install -Dm644 VERSION README.md CHANGELOG.md \
+    -t "${pkgdir}/usr/lib/${pkgname}/"
+
+  install -Dm755 bin/camsniff "${pkgdir}/usr/bin/camsniff"
+  install -Dm644 docs/camsniff.1 \
+    "${pkgdir}/usr/share/man/man1/camsniff.1"
+  install -Dm644 LICENSE \
+    "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm644 README.md CHANGELOG.md docs/customisation.md docs/dev-helpers.md \
+    docs/modes.md docs/scanning.md \
+    -t "${pkgdir}/usr/share/doc/${pkgname}/"
+  install -Dm644 docs/camsniff.png \
+    "${pkgdir}/usr/share/doc/${pkgname}/camsniff.png"
+  install -Dm644 debian/camsniff.desktop \
+    "${pkgdir}/usr/share/applications/camsniff.desktop"
+
+  local size
+  for size in 32 48 64 128 256; do
+    install -Dm644 "docs/icons/camsniff-${size}.png" \
+      "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/camsniff-256.png"
+  done
+}

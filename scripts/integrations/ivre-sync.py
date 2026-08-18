@@ -155,17 +155,31 @@ def load_credentials(
             if not ip_addr:
                 continue
 
+            nested_credentials = entry.get("credentials") or {}
+            artifact = entry.get("artifact") or {}
+            method = entry.get("method", "")
+            success = entry.get("success") is not False and bool(method)
+            url = entry.get("url", "")
+
             creds_db[ip_addr] = {
-                "success": entry.get("success", False),
-                "username": entry.get("username", ""),
-                "password": entry.get("password", ""),
-                "method": entry.get("method", ""),
+                "success": success,
+                "username": nested_credentials.get(
+                    "username", entry.get("username", "")
+                ),
+                "password": nested_credentials.get(
+                    "password", entry.get("password", "")
+                ),
+                "method": method,
                 "vendor": entry.get("vendor", "Unknown"),
                 "model": entry.get("model", "Unknown"),
                 "protocols": entry.get("protocols", []),
-                "rtsp_url": entry.get("rtsp_url", ""),
-                "http_url": entry.get("http_url", ""),
-                "thumbnail": entry.get("thumbnail", ""),
+                "rtsp_url": entry.get("rtsp_url", "")
+                or (url if method == "rtsp_stream" else ""),
+                "http_url": entry.get("http_url", "")
+                or (url if method == "http_snapshot" else ""),
+                "thumbnail": artifact.get(
+                    "snapshot", entry.get("thumbnail", "")
+                ),
             }
     except Exception as exc:
         print(
@@ -197,25 +211,36 @@ def build_host_documents(
         if not ip_addr:
             continue
 
-        ports_field = host.get("ports", []) or []
+        services_field = host.get("services", []) or []
+        if not services_field:
+            services_field = [
+                {"protocol": "tcp", "port": value, "state": "open"}
+                for value in (host.get("ports", []) or [])
+            ]
         ports_seen: Set[tuple[str, int]] = set()
         port_documents: List[Dict[str, Any]] = []
 
-        for port_candidate in ports_field:
-            port_number = normalise_port(port_candidate)
+        for service in services_field:
+            if not isinstance(service, dict):
+                continue
+            port_number = normalise_port(service.get("port"))
             if port_number is None:
                 continue
-            key = ("tcp", port_number)
+            protocol = str(service.get("protocol") or "tcp").lower()
+            if protocol not in {"tcp", "udp"}:
+                continue
+            state = str(service.get("state") or "open").lower()
+            key = (protocol, port_number)
             if key in ports_seen:
                 continue
             ports_seen.add(key)
             entry: Dict[str, Any] = {
-                "protocol": "tcp",
+                "protocol": protocol,
                 "port": port_number,
-                "state_state": "open",
+                "state_state": "open|filtered" if state == "open_filtered" else state,
                 "state_reason": "script",
             }
-            if port_number in {
+            if protocol == "tcp" and port_number in {
                 80,
                 81,
                 88,
@@ -226,10 +251,10 @@ def build_host_documents(
                 8443,
             }:
                 entry["service_name"] = "http"
-            if port_number in {443, 7443, 8443, 9443, 10443}:
+            if protocol == "tcp" and port_number in {443, 7443, 8443, 9443, 10443}:
                 entry["service_name"] = "http"
                 entry["service_tunnel"] = "ssl"
-            if port_number == 554:
+            if protocol == "tcp" and port_number == 554:
                 entry["service_name"] = "rtsp"
             port_documents.append(entry)
 

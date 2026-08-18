@@ -26,13 +26,13 @@ firewalled cameras are still scanned and lookups don't slow down discovery.
 
 **Alias**: `stealth_plus`
 
-The slowest and least detectable mode. Adds a 200 ms scan delay between probes
-and limits credential attempts to 16. Intended for high-security environments
-where any anomalous traffic is a concern.
+The lowest-volume mode. It adds a 200 ms delay between Nmap probes and limits
+credential attempts to 16. It still sends active probes and must not be treated
+as invisible.
 
 ```bash
 --mode stealth+
-```bash
+```
 
 | Setting | Value |
 |---------|-------|
@@ -59,7 +59,7 @@ segments where noise must be kept low.
 
 ```bash
 --mode stealth
-```bash
+```
 
 | Setting | Value |
 |---------|-------|
@@ -86,7 +86,7 @@ and enables ONVIF, SSDP, HTTP metadata, and follow-up UDP scans.
 
 ```bash
 --mode medium    # or omit --mode entirely
-```bash
+```
 
 | Setting | Value |
 |---------|-------|
@@ -113,7 +113,7 @@ pps. Well-suited for scheduled audits of known camera segments.
 
 ```bash
 --mode aggressive
-```bash
+```
 
 | Setting | Value |
 |---------|-------|
@@ -141,7 +141,7 @@ Hikvision (8899), Dahua (34567), Axis (4520), and Reolink (8787).
 
 ```bash
 --mode war
-```bash
+```
 
 | Setting | Value |
 |---------|-------|
@@ -171,7 +171,7 @@ Use only on networks you are explicitly authorised to test.
 
 ```bash
 --mode nuke
-```bash
+```
 
 | Setting | Value |
 |---------|-------|
@@ -196,33 +196,22 @@ Use only on networks you are explicitly authorised to test.
 ```bash
 Low noise / high stealth ───────────────────────────────────► High coverage
 stealth+   stealth   medium (default)   aggressive   war   nuke
-```bash
+```
 
 - Start with **medium** on an unknown network.
 - Use **stealth/stealth+** when scanning monitored production environments.
 - Use **aggressive** for a scheduled audit where speed matters more than silence.
-- Use **war** for large /16+ address spaces or dense camera deployments.
+- Use **war** only for explicitly scoped, scheduled high-coverage assessments.
 - Use **nuke** only in lab or fully authorised red-team contexts — it is loud,
   fast, and exhaustive.
 
 ---
 
-## Overriding mode settings
+## Changing mode settings
 
-Any mode variable can be overridden by exporting it before launching CamSniff:
+Mode values are centralized in `scripts/core/mode-config.sh`; port membership is
+centralized in `scripts/core/port-profiles.sh`. There is currently no supported
+CLI for overriding individual rates or retry counts. Treat local edits as code
+changes: review them, run `make test`, and record them with the assessment.
 
-```bash
-# Use medium mode but increase Masscan rate
-export CAM_MODE_MASSCAN_RATE=8000
-sudo camsniff --mode medium
-
-# Reduce credential attempts in war mode
-export CAM_MODE_MAX_CREDENTIALS=32
-sudo camsniff --mode war
-
-# Disable OS detection for faster scanning
-export CAM_MODE_NMAP_OSSCAN_ENABLE=false
-sudo camsniff --mode aggressive
-```bash
-
-See [scanning.md](scanning.md) for a full list of tunable variables.
+See [scanning.md](scanning.md) for the scanner-level reference.
