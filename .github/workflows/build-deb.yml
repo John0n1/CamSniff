@@ -27,7 +27,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            build-essential debhelper debhelper-compat dpkg-dev jq
+            build-essential debhelper debhelper-compat dpkg-dev jq \
+            python3-defusedxml
 
       - name: Run regression tests
         run: python3 -m unittest discover -s tests -v
