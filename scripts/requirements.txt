@@ -5,5 +5,5 @@ defusedxml==0.7.1
 dnspython==2.8.0
 ivre==0.9.20
 pycparser==2.23
-pymongo==4.15.3
+pymongo==4.17.0
 pyOpenSSL==26.0.0
