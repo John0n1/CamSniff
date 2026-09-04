@@ -6,4 +6,4 @@ dnspython==2.8.0
 ivre==0.9.20
 pycparser==2.23
 pymongo==4.17.0
-pyOpenSSL==26.0.0
+pyOpenSSL==26.4.0
