@@ -1,5 +1,5 @@
 bottle==0.13.4
-cffi==2.0.0
+cffi==2.1.1
 cryptography==50.0.1
 defusedxml==0.7.1
 dnspython==2.8.0
