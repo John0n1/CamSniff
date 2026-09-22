@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
+
+from defusedxml import ElementTree
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,10 +34,17 @@ def read_payload(path: Path) -> str:
 
 
 def extract_field(payload: str, tag: str) -> str:
-    pattern = rf"<tds:{tag}>(.*?)</tds:{tag}>"
-    match = re.search(pattern, payload, re.IGNORECASE | re.DOTALL)
-    if match:
-        return re.sub(r"\s+", " ", match.group(1)).strip()
+    """Extract a SOAP value by local name, independent of namespace prefixes."""
+    if not payload:
+        return ""
+    try:
+        root = ElementTree.fromstring(payload)
+    except ElementTree.ParseError:
+        return ""
+    for element in root.iter():
+        local_name = element.tag.rsplit("}", 1)[-1].rsplit(":", 1)[-1]
+        if local_name.lower() == tag.lower():
+            return " ".join((element.text or "").split())
     return ""
 
 
