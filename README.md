@@ -192,7 +192,19 @@ Discovery schema version 2 represents transport explicitly:
       ],
       "confidence": {
         "score": 72,
-        "classification": "camera"
+        "classification": "camera",
+        "positive_score": 87,
+        "negative_score": 15,
+        "evidence": [
+          {
+            "kind": "observation",
+            "source": "discovery",
+            "weight": 30,
+            "reason": "onvif detected",
+            "polarity": "positive",
+            "value": null
+          }
+        ]
       }
     }
   ]
