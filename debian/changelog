@@ -1,3 +1,22 @@
+camsniff (2.3.0) unstable; urgency=medium
+
+  * Introduce structured positive and negative evidence with one canonical
+    confidence engine for smart targeting and final classification.
+  * Add evidence-driven, phase-specific follow-up planning for HTTP, ONVIF,
+    and streaming protocol characterization.
+  * Verify RTSP natively with bounded OPTIONS and DESCRIBE requests, parse SDP
+    media tracks, and preserve authentication/server fingerprints.
+  * Expand unauthenticated ONVIF enumeration to services, capabilities,
+    scopes, network interfaces, device identity, and system time.
+  * Add declarative YAML vendor fingerprints for Axis, Dahua, and Hikvision,
+    correlating OUI, HTTP, ONVIF, RTSP, SSDP, and path evidence.
+  * Replace regex-based ONVIF XML extraction with namespace-aware defusedxml
+    parsing and add conservative non-camera contradiction fingerprints.
+  * Expand behavioral regression coverage and synchronize Debian and Arch
+    packaging dependencies for the new fingerprint subsystem.
+
+ -- John Hauger Mitander <john@on1.no>  Tue, 22 Sep 2026 17:30:00 +0000
+
 camsniff (2.2.6) unstable; urgency=medium
 
   * Enforce IPv4 target containment across passive discovery and all follow-up
