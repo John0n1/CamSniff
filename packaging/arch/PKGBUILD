@@ -1,7 +1,7 @@
 # Maintainer: John Hauger Mitander <john@on1.no>
 
 pkgname=camsniff
-pkgver=2.2.6
+pkgver=2.3.0
 pkgrel=1
 pkgdesc="Mode-aware reconnaissance toolkit for IP cameras"
 arch=('any')
