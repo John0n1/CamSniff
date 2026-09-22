@@ -1,6 +1,6 @@
 pkgbase = camsniff
 	pkgdesc = Mode-aware reconnaissance toolkit for IP cameras
-	pkgver = 2.2.6
+	pkgver = 2.3.0
 	pkgrel = 1
 	url = https://github.com/John0n1/CamSniff
 	arch = any
