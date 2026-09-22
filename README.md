@@ -33,6 +33,8 @@ proof of a particular vendor or device type.
 - Enumerates unauthenticated ONVIF identity, services, capabilities, scopes,
   network interfaces, and system time with a fixed six-request budget.
 - Uses OUI, banner, path, and protocol evidence to rank vendor profiles.
+- Loads declarative YAML vendor fingerprints that correlate HTTP, ONVIF, RTSP,
+  SSDP, path, and OUI evidence without treating shared ports as identity.
 - Tries bounded HTTP/RTSP credential candidates and validates captured media.
 - Emits schema-versioned JSON, raw logs, optional reports, and thumbnails.
 - Optionally synchronizes discovery and credential results into IVRE.
