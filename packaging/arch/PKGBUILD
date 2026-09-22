@@ -18,6 +18,7 @@ depends=(
   'nmap'
   'python>=3.11'
   'python-defusedxml'
+  'python-yaml'
   'wireshark-cli'
 )
 optdepends=(

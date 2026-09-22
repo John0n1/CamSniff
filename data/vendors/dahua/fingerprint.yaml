@@ -1,0 +1,13 @@
+vendor: Dahua
+family: network-camera
+type: camera
+fingerprints:
+  oui: ['^3C:EF:8C']
+  http: ['Dahua', 'Web Service']
+  onvif: ['Dahua']
+  rtsp: ['Dahua']
+  ssdp: ['Dahua']
+  paths: ['/cam/realmonitor', '/cgi-bin/']
+probes:
+  rtsp_paths: ['/cam/realmonitor?channel=1&subtype=0']
+  snapshot_paths: ['/cgi-bin/snapshot.cgi']

@@ -1,0 +1,13 @@
+vendor: Hikvision
+family: network-camera
+type: camera
+fingerprints:
+  oui: ['^(?:44:19:B6|48:02:2A)']
+  http: ['Hikvision', '/ISAPI/']
+  onvif: ['HIKVISION']
+  rtsp: ['Hikvision']
+  ssdp: ['Hikvision']
+  paths: ['/ISAPI/', '/Streaming/Channels/']
+probes:
+  rtsp_paths: ['/Streaming/Channels/101']
+  snapshot_paths: ['/ISAPI/Streaming/channels/101/picture']

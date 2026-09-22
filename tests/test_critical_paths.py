@@ -107,6 +107,36 @@ class ProfileAndConfidenceTests(unittest.TestCase):
         self.assertEqual(matches[0][1], "oui")
         self.assertGreaterEqual(matches[0][2], 100)
 
+    def test_yaml_fingerprint_combines_independent_protocol_evidence(self) -> None:
+        modules = profile_resolver._load_fingerprint_modules(ROOT / "data" / "vendors")
+        resolver = profile_resolver.ProfileResolver([], modules)
+        host = profile_resolver.HostContext(
+            ip="10.0.0.11",
+            ports=[80, 554],
+            observed_paths=["/Streaming/Channels/101"],
+            onvif=[{"manufacturer": "HIKVISION", "model": "DS-2CD"}],
+            rtsp_probe=[{"server": "Hikvision-Webs", "verified": True}],
+        )
+        matches = resolver.resolve_many(host, limit=1)
+        self.assertEqual(matches[0][0].company, "Hikvision")
+        self.assertEqual(matches[0][1], "onvif+rtsp+path")
+        self.assertGreaterEqual(matches[0][2], 180)
+
+    def test_yaml_fingerprint_port_alone_never_identifies_vendor(self) -> None:
+        modules = profile_resolver._load_fingerprint_modules(ROOT / "data" / "vendors")
+        resolver = profile_resolver.ProfileResolver([], modules)
+        host = profile_resolver.HostContext(ip="10.0.0.12", ports=[554])
+        self.assertEqual(resolver.resolve_many(host), [])
+
+    def test_invalid_fingerprint_module_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            vendor = Path(temp_dir) / "broken"
+            vendor.mkdir()
+            (vendor / "fingerprint.yaml").write_text("vendor: [", encoding="utf-8")
+            self.assertEqual(
+                profile_resolver._load_fingerprint_modules(Path(temp_dir)), []
+            )
+
     def test_evidence_free_host_is_not_classified_as_camera(self) -> None:
         result = confidence_scorer.score_host(
             {"ip": "10.0.0.20", "sources": [], "ports": []}

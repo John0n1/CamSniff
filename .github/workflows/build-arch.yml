@@ -21,7 +21,7 @@ jobs:
         run: |
           pacman -Syu --noconfirm --needed \
             git avahi curl ffmpeg iproute2 jq nmap python \
-            python-defusedxml wireshark-cli
+            python-defusedxml python-yaml wireshark-cli
 
       - name: Check out source
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1

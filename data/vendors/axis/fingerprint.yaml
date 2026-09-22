@@ -1,0 +1,13 @@
+vendor: Axis
+family: network-camera
+type: camera
+fingerprints:
+  oui: ['^00:40:8C']
+  http: ['AXIS', '/axis-cgi/']
+  onvif: ['Axis Communications']
+  rtsp: ['GStreamer', 'AXIS']
+  ssdp: ['Axis']
+  paths: ['/axis-media/media.amp', '/axis-cgi/']
+probes:
+  rtsp_paths: ['/axis-media/media.amp']
+  snapshot_paths: ['/axis-cgi/jpg/image.cgi']

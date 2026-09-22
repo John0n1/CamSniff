@@ -15,6 +15,7 @@ pkgbase = camsniff
 	depends = nmap
 	depends = python>=3.11
 	depends = python-defusedxml
+	depends = python-yaml
 	depends = wireshark-cli
 	optdepends = age: encrypt result archives with age
 	optdepends = chafa: render terminal previews of captured images
