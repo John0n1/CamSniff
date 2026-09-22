@@ -67,6 +67,15 @@ def load_ssdp_probe():
     return module
 
 
+def load_onvif_device_info():
+    path = ROOT / "scripts" / "probes" / "onvif_device_info.py"
+    spec = importlib.util.spec_from_file_location("onvif_device_info", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class ProfileAndConfidenceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -92,6 +101,77 @@ class ProfileAndConfidenceTests(unittest.TestCase):
         )
         self.assertEqual(result["score"], 0)
         self.assertEqual(result["classification"], "unknown")
+
+    def test_confidence_exposes_inspectable_evidence(self) -> None:
+        result = confidence_scorer.score_host(
+            {
+                "ip": "10.0.0.21",
+                "sources": ["SSDP"],
+                "ports": [554],
+                "additional_protocols": [{"protocol": "ONVIF"}],
+            }
+        )
+        self.assertEqual(result["score"], result["positive_score"])
+        self.assertEqual(result["negative_score"], 0)
+        self.assertTrue(result["evidence"])
+        self.assertTrue(
+            all(
+                {"kind", "source", "weight", "reason", "polarity"}
+                <= set(item)
+                for item in result["evidence"]
+            )
+        )
+
+    def test_strong_non_camera_fingerprint_is_negative_evidence(self) -> None:
+        result = confidence_scorer.score_host(
+            {
+                "ip": "10.0.0.22",
+                "sources": ["Nmap"],
+                "ports": [554, 80],
+                "http_metadata": [{"title": "Home Assistant"}],
+            }
+        )
+        self.assertEqual(result["classification"], "non-camera")
+        self.assertEqual(result["negative_score"], 45)
+        self.assertTrue(
+            any(item["polarity"] == "negative" for item in result["evidence"])
+        )
+
+    def test_verified_camera_evidence_can_outweigh_port_collision(self) -> None:
+        result = confidence_scorer.score_host(
+            {
+                "ip": "10.0.0.23",
+                "sources": ["SSDP"],
+                "ports": [554, 80],
+                "http_metadata": [{"title": "Home Assistant camera bridge"}],
+                "additional_protocols": [
+                    {"protocol": "RTSP"},
+                    {"protocol": "ONVIF"},
+                ],
+                "onvif": [{"manufacturer": "Axis", "model": "M2035-LE"}],
+            }
+        )
+        self.assertEqual(result["classification"], "camera")
+        self.assertGreaterEqual(result["score"], 40)
+
+    def test_onvif_parser_accepts_arbitrary_namespace_prefixes(self) -> None:
+        module = load_onvif_device_info()
+        payload = """<?xml version="1.0"?>
+        <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+                       xmlns:device="http://www.onvif.org/ver10/device/wsdl">
+          <soap:Body><device:GetDeviceInformationResponse>
+            <device:Manufacturer> Axis Communications </device:Manufacturer>
+            <device:Model>M2035-LE</device:Model>
+          </device:GetDeviceInformationResponse></soap:Body>
+        </soap:Envelope>"""
+        self.assertEqual(
+            module.extract_field(payload, "Manufacturer"), "Axis Communications"
+        )
+        self.assertEqual(module.extract_field(payload, "Model"), "M2035-LE")
+
+    def test_onvif_parser_rejects_malformed_xml(self) -> None:
+        module = load_onvif_device_info()
+        self.assertEqual(module.extract_field("<broken", "Manufacturer"), "")
 
 
 class IntegrationContractTests(unittest.TestCase):
