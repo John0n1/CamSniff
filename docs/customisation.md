@@ -46,6 +46,46 @@ Templates support `{{ip_address}}`, `{{username}}`, `{{password}}`, `{{port}}`,
 are URL-encoded before use. Keep dictionaries conservative: every additional
 path or credential expands traffic and runtime.
 
+## Vendor fingerprint modules
+
+`data/vendors/<vendor>/fingerprint.yaml` identifies a vendor or family by
+correlating independent observations. Modules may define case-insensitive
+regular expressions for `oui`, `http`, `onvif`, `rtsp`, `ssdp`, and `paths`.
+They may also provide focused RTSP and snapshot paths for later validation.
+
+```yaml
+vendor: Example
+family: network-camera
+type: camera
+fingerprints:
+  http: ['ExampleCam']
+  onvif: ['Example Corporation']
+  rtsp: ['Example RTSP Server']
+  paths: ['/example-api/']
+probes:
+  rtsp_paths: ['/stream/main']
+  snapshot_paths: ['/snapshot.jpg']
+```
+
+Fingerprint modules complement rather than replace `paths.csv`. The module
+establishes identity from protocol evidence; the catalogue continues to supply
+legacy model, endpoint, and compatibility data. Ports are never accepted as a
+vendor fingerprint. Invalid YAML and invalid regular expressions are ignored
+safely, but every submitted signature should still have a documented source or
+sanitized device capture behind it.
+
+## Confidence evidence and probe plans
+
+Each host's `confidence` object includes positive and negative evidence,
+separate score subtotals, classification reasons, and a follow-up `probe_plan`.
+Smart mode consumes that same object when choosing deeper HTTP, ONVIF, and
+streaming work; there is no separate preliminary scoring table to tune.
+
+When adding a signal, update `scripts/helpers/confidence_scorer.py` and include
+tests demonstrating both the intended match and a nearby false-positive case.
+Strong protocol evidence such as ONVIF identity or valid RTSP SDP should carry
+more weight than an open port or generic banner.
+
 ## Modes and port profiles
 
 - `scripts/core/mode-config.sh` owns rates, retries, timeouts, and feature flags.
