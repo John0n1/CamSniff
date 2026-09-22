@@ -4,9 +4,11 @@
 
 <div align="center">
 
-[![Debian package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-deb.yml?label=debian&style=flat-square)](https://github.com/John0n1/CamSniff/actions/workflows/build-deb.yml)
-[![Arch package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-arch.yml?label=arch&style=flat-square)](https://github.com/John0n1/CamSniff/actions/workflows/build-arch.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![Debian Package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-deb.yml?style=flat-square&logo=debian&logoColor=white&label=Debian&labelColor=A80030)](https://github.com/John0n1/CamSniff/actions/workflows/build-deb.yml)
+[![Arch Package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-arch.yml?style=flat-square&logo=archlinux&logoColor=white&label=Arch%20Linux&labelColor=1793D1)](https://github.com/John0n1/CamSniff/actions/workflows/build-arch.yml)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
+
 
 **Version 2.2.6**
 
