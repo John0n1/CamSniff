@@ -45,6 +45,7 @@ PORT_WEIGHTS = {
 }
 
 HTTP_PORTS = {80, 81, 82, 88, 443, 7443, 8000, 8080, 8081, 8088, 8443}
+STREAM_PORTS = {554, 8554, 10554, 5544, 1935, 1936, 3478, 5349, 9710, 9999}
 
 PROTOCOL_WEIGHTS = {
     "ONVIF": 30,
@@ -240,6 +241,44 @@ def flatten_metadata(host: Dict[str, Any]) -> str:
     if isinstance(observed, list):
         parts.extend([sanitize_text(item) for item in observed])
     return " ".join(parts)
+
+
+def plan_probes(host: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Choose valuable follow-up phases from evidence already collected."""
+    ports = {port for port in host.get("ports") or [] if isinstance(port, int)}
+    sources = {sanitize_text(source) for source in host.get("sources") or []}
+    paths = " ".join(
+        sanitize_text(path).lower() for path in host.get("observed_paths") or []
+    )
+    plan: List[Dict[str, Any]] = []
+
+    if ports & HTTP_PORTS:
+        plan.append(
+            {
+                "probe": "http_metadata",
+                "priority": 90,
+                "reason": "known HTTP service port",
+            }
+        )
+    if ports & HTTP_PORTS and (
+        "SSDP" in sources or "TShark" in sources or "onvif" in paths
+    ):
+        plan.append(
+            {
+                "probe": "onvif_metadata",
+                "priority": 80,
+                "reason": "HTTP service with discovery or ONVIF evidence",
+            }
+        )
+    if ports & STREAM_PORTS or contains_keyword(paths, OBSERVED_PATH_HINTS):
+        plan.append(
+            {
+                "probe": "stream_protocols",
+                "priority": 70,
+                "reason": "stream port or path evidence",
+            }
+        )
+    return plan
 
 
 def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
@@ -446,6 +485,7 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
         "negative_score": min(
             100, sum(item.weight for item in evidence if item.polarity == "negative")
         ),
+        "probe_plan": plan_probes(host),
     }
 
 

@@ -49,6 +49,7 @@ authorized targets
       ▼
 evidence correlation + confidence scoring
       │
+      ├─ evidence-driven follow-up probe plan
       ├─ discovery.json
       ├─ bounded credential/media checks
       ├─ optional Markdown/HTML report

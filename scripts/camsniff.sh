@@ -153,6 +153,7 @@ declare -A ip_ssdp_info
 declare -A protocol_seen
 declare -A ip_pre_score
 declare -A ip_pre_reasons
+declare -A ip_probe_plan
 declare -a SMART_TARGETS
 declare -a scan_targets=()
 
@@ -692,7 +693,7 @@ probe_additional_protocols() {
   if [[ ${CAM_MODE_FOLLOWUP_SERVICE_SCAN_ENABLE,,} != "true" ]]; then
     return
   fi
-  mapfile -t ip_list < <(get_probe_targets)
+  mapfile -t ip_list < <(get_probe_targets "stream_protocols")
   ((${#ip_list[@]} == 0)) && return
 
   : "${NMAP_UDP_OUTPUT_FILE:=$LOG_DIR/nmap-udp-output.txt}"
@@ -723,7 +724,7 @@ collect_http_metadata() {
   fi
   : > "$HTTP_META_LOG"
   local -a targets=()
-  mapfile -t targets < <(get_probe_targets)
+  mapfile -t targets < <(get_probe_targets "http_metadata")
   local ip
   for ip in "${targets[@]}"; do
     local ports_string
@@ -745,7 +746,7 @@ run_onvif_metadata_probe() {
   fi
   : > "$ONVIF_OUTPUT_FILE"
   local -a targets=()
-  mapfile -t targets < <(get_probe_targets)
+  mapfile -t targets < <(get_probe_targets "onvif_metadata")
   local ip
   for ip in "${targets[@]}"; do
     local ports_string
@@ -1329,11 +1330,12 @@ compute_prelim_scores() {
     return 1
   fi
 
-  while IFS=$'\t' read -r ip score reason_summary; do
+  while IFS=$'\t' read -r ip score reason_summary probe_plan; do
     [[ -z $ip ]] && continue
     ip_pre_score["$ip"]=${score:-0}
     ip_pre_reasons["$ip"]=${reason_summary:-}
-  done < <(jq -r '.hosts[] | [.ip, (.confidence.score | tostring), (.confidence.reasons[:3] | join("; "))] | @tsv' "$scored_tmp")
+    ip_probe_plan["$ip"]=${probe_plan:-}
+  done < <(jq -r '.hosts[] | [.ip, (.confidence.score | tostring), (.confidence.reasons[:3] | join("; ")), (.confidence.probe_plan | map(.probe) | join(","))] | @tsv' "$scored_tmp")
 
   rm -f "$candidates_tmp" "$candidates_tmp.json" "$scored_tmp"
 }
@@ -1403,8 +1405,14 @@ render_smart_summary() {
 }
 
 get_probe_targets() {
+  local phase=${1:-}
   if [[ $SMART_MODE == true && ${#SMART_TARGETS[@]} -gt 0 ]]; then
-    printf "%s\n" "${SMART_TARGETS[@]}"
+    local ip
+    for ip in "${SMART_TARGETS[@]}"; do
+      if [[ -z $phase || ",${ip_probe_plan[$ip]:-}," == *",$phase,"* ]]; then
+        printf '%s\n' "$ip"
+      fi
+    done
     return 0
   fi
   printf "%s\n" "${!all_ips[@]}" | sort -V
