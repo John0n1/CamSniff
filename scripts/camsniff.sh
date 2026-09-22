@@ -1288,129 +1288,54 @@ encrypt_results() {
 }
 
 compute_prelim_scores() {
+  local candidates_tmp scored_tmp ip host_json
+  candidates_tmp=$(mktemp)
+  scored_tmp=$(mktemp)
+
   for ip in "${!all_ips[@]}"; do
-    local score=0
-    local -a reasons=()
-    local signal_count=0
-    local has_port_signal=false
-    local has_source_signal=false
-    local has_path_signal=false
-    local has_rtsp_signal=false
+    local sources=${ip_sources[$ip]:-}
+    local ports=${ip_ports[$ip]:-}
+    local observed=${ip_observed_paths[$ip]:-}
+    local mac=${ip_to_mac[$ip]:-}
+    local rtsp_discovered=${ip_rtsp_discovered[$ip]:-}
+    local rtsp_other=${ip_rtsp_other[$ip]:-}
 
-    local ports_string
-    ports_string=$(printf "%s" "${ip_ports[$ip]}" | tr ' ' '\n' | sed '/^$/d' | sort -u)
-
-    if [[ -n ${ip_sources[$ip]:-} ]]; then
-      if [[ ${ip_sources[$ip]} == *"SSDP"* ]]; then
-        score=$((score + 25))
-        reasons+=("ssdp response")
-        has_source_signal=true
-      fi
-      if [[ ${ip_sources[$ip]} == *"TShark"* ]]; then
-        score=$((score + 20))
-        reasons+=("traffic hit")
-        has_source_signal=true
-      fi
-      if [[ ${ip_sources[$ip]} == *"Avahi"* ]]; then
-        score=$((score + 15))
-        reasons+=("avahi service")
-        has_source_signal=true
-      fi
-      if [[ ${ip_sources[$ip]} == *"Nmap"* ]]; then
-        score=$((score + 8))
-      fi
-      if [[ ${ip_sources[$ip]} == *"Masscan"* ]]; then
-        score=$((score + 5))
-      fi
-      if [[ ${ip_sources[$ip]} == *"CoAP"* ]]; then
-        score=$((score + 8))
-        reasons+=("coap response")
-        has_source_signal=true
-      fi
-    fi
-
-    if port_in_list "$ports_string" "554" || port_in_list "$ports_string" "8554" || port_in_list "$ports_string" "10554" || port_in_list "$ports_string" "5544"; then
-      score=$((score + 35))
-      reasons+=("rtsp port open")
-      has_port_signal=true
-    fi
-    if port_in_list "$ports_string" "1935" || port_in_list "$ports_string" "1936"; then
-      score=$((score + 12))
-      reasons+=("rtmp port open")
-      has_port_signal=true
-    fi
-    if port_in_list "$ports_string" "37777" || port_in_list "$ports_string" "37778" || port_in_list "$ports_string" "37779"; then
-      score=$((score + 20))
-      reasons+=("dahua port")
-      has_port_signal=true
-    fi
-    if port_in_list "$ports_string" "8000" || port_in_list "$ports_string" "8001"; then
-      score=$((score + 18))
-      reasons+=("hikvision port")
-      has_port_signal=true
-    fi
-    if port_in_list "$ports_string" "8899" || port_in_list "$ports_string" "9000" || port_in_list "$ports_string" "7001"; then
-      score=$((score + 12))
-      reasons+=("camera api port")
-      has_port_signal=true
-    fi
-    if port_in_list "$ports_string" "80" || port_in_list "$ports_string" "81" || port_in_list "$ports_string" "88" || port_in_list "$ports_string" "443" || port_in_list "$ports_string" "8080" || port_in_list "$ports_string" "8081" || port_in_list "$ports_string" "8443"; then
-      score=$((score + 8))
-      reasons+=("http port open")
-      has_port_signal=true
-    fi
-
-    if [[ -n ${ip_rtsp_discovered[$ip]:-} ]]; then
-      score=$((score + 30))
-      reasons+=("rtsp url discovered")
-      has_rtsp_signal=true
-    fi
-    if [[ -n ${ip_rtsp_other[$ip]:-} ]]; then
-      score=$((score + 10))
-      reasons+=("rtsp response")
-      has_rtsp_signal=true
-    fi
-
-    if [[ -n ${ip_observed_paths[$ip]:-} ]]; then
-      if printf '%s' "${ip_observed_paths[$ip]}" | grep -Eqi "rtsp|onvif|snapshot|mjpg|mjpeg|stream|live"; then
-        score=$((score + 18))
-        reasons+=("observed stream uri")
-        has_path_signal=true
-      fi
-    fi
-
-    if [[ -n ${ip_to_mac[$ip]:-} ]]; then
-      score=$((score + 5))
-    fi
-
-    if [[ $has_port_signal == true ]]; then
-      signal_count=$((signal_count + 1))
-    fi
-    if [[ $has_source_signal == true ]]; then
-      signal_count=$((signal_count + 1))
-    fi
-    if [[ $has_path_signal == true ]]; then
-      signal_count=$((signal_count + 1))
-    fi
-    if [[ $has_rtsp_signal == true ]]; then
-      signal_count=$((signal_count + 1))
-    fi
-    if ((signal_count >= 3)); then
-      score=$((score + 10))
-      reasons+=("multi-signal")
-    fi
-
-    if ((score > 100)); then
-      score=100
-    fi
-
-    ip_pre_score["$ip"]=$score
-    if ((${#reasons[@]} > 0)); then
-      ip_pre_reasons["$ip"]=$(printf '%s\n' "${reasons[@]}" | head -3 | paste -sd '; ')
-    else
-      ip_pre_reasons["$ip"]=""
-    fi
+    host_json=$(jq -n \
+      --arg ip "$ip" \
+      --arg sources "$sources" \
+      --arg ports "$ports" \
+      --arg observed "$observed" \
+      --arg mac "$mac" \
+      --arg rtsp_discovered "$rtsp_discovered" \
+      --arg rtsp_other "$rtsp_other" \
+      '{
+        ip: $ip,
+        mac: (if $mac == "" then null else $mac end),
+        sources: ($sources | split(", ") | map(select(length > 0))),
+        ports: ($ports | split(" ") | map(select(length > 0) | tonumber)),
+        observed_paths: ($observed | split(" ") | map(select(length > 0))),
+        rtsp_bruteforce: {
+          discovered: ($rtsp_discovered | split("\n") | map(select(length > 0))),
+          other_responses: (if $rtsp_other == "" then {} else {observed: [$rtsp_other]} end)
+        }
+      }')
+    printf '%s\n' "$host_json" >> "$candidates_tmp"
   done
+
+  if ! jq -s '{hosts: .}' "$candidates_tmp" > "$candidates_tmp.json" ||
+    ! "$PYTHON_BIN" "$CONFIDENCE_SCORER" --input "$candidates_tmp.json" --output "$scored_tmp"; then
+    echo -e "${YELLOW}Warning: canonical smart scoring failed; all candidates will be probed.${RESET}" >&2
+    rm -f "$candidates_tmp" "$candidates_tmp.json" "$scored_tmp"
+    return 1
+  fi
+
+  while IFS=$'\t' read -r ip score reason_summary; do
+    [[ -z $ip ]] && continue
+    ip_pre_score["$ip"]=${score:-0}
+    ip_pre_reasons["$ip"]=${reason_summary:-}
+  done < <(jq -r '.hosts[] | [.ip, (.confidence.score | tostring), (.confidence.reasons[:3] | join("; "))] | @tsv' "$scored_tmp")
+
+  rm -f "$candidates_tmp" "$candidates_tmp.json" "$scored_tmp"
 }
 
 select_smart_targets() {
