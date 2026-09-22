@@ -8,7 +8,7 @@
 [![Arch package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-arch.yml?label=arch&style=flat-square)](https://github.com/John0n1/CamSniff/actions/workflows/build-arch.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-**Version 2.2.6**
+**Version 2.3.0**
 
 <img src="docs/camsniff.png" alt="CamSniff logo" width="320" />
 
@@ -39,9 +39,10 @@ proof of a particular vendor or device type.
 - Emits schema-versioned JSON, raw logs, optional reports, and thumbnails.
 - Optionally synchronizes discovery and credential results into IVRE.
 
-Version 2.2.6 strengthens scope enforcement, keeps TCP and UDP services
-separate, validates media before reporting success, redacts credentials from
-rendered reports, and adds regression-tested Debian and Arch packaging.
+Version 2.3.0 turns CamSniff's discovery pipeline into an evidence-driven
+identification engine. Smart mode now plans follow-up work from the same
+confidence model used in reports, while native RTSP, expanded ONVIF, negative
+evidence, and YAML fingerprints improve both depth and false-positive control.
 
 ## How a run flows
 
@@ -85,7 +86,7 @@ See [Mode reference](docs/modes.md) and
 ### Debian or Ubuntu package
 
 ```bash
-sudo apt install ./camsniff_2.2.6_all.deb
+sudo apt install ./camsniff_2.3.0_all.deb
 sudo camsniff --mode medium
 ```
 
@@ -97,7 +98,7 @@ release CI and local validation:
 ```bash
 make arch-verify
 make arch-package
-sudo pacman -U packaging/arch/camsniff-2.2.6-1-any.pkg.tar.zst
+sudo pacman -U packaging/arch/camsniff-2.3.0-1-any.pkg.tar.zst
 sudo camsniff --mode medium
 ```
 
