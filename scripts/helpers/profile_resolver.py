@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+import yaml
+
 
 @dataclass
 class HostContext:
@@ -27,6 +29,9 @@ class HostContext:
     ports: Sequence[int] = field(default_factory=list)
     observed_paths: Sequence[str] = field(default_factory=list)
     http_metadata: Sequence[Dict[str, str]] = field(default_factory=list)
+    onvif: Sequence[Dict[str, Any]] = field(default_factory=list)
+    rtsp_probe: Sequence[Dict[str, Any]] = field(default_factory=list)
+    ssdp: Sequence[Dict[str, Any]] = field(default_factory=list)
 
     @property
     def http_banners(self) -> List[str]:
@@ -60,9 +65,23 @@ class CatalogRow:
     user_manual_url: str
 
 
+@dataclass
+class FingerprintModule:
+    vendor: str
+    family: str
+    device_type: str
+    fingerprints: Dict[str, Any]
+    probes: Dict[str, Any]
+
+
 class ProfileResolver:
-    def __init__(self, catalog: Sequence[CatalogRow]):
+    def __init__(
+        self,
+        catalog: Sequence[CatalogRow],
+        fingerprints: Sequence[FingerprintModule] = (),
+    ):
         self.catalog = catalog
+        self.fingerprints = fingerprints
 
     def resolve(self, host: HostContext) -> Optional[Tuple[CatalogRow, str]]:
         matches = self.resolve_many(host, limit=1)
@@ -81,11 +100,72 @@ class ProfileResolver:
                 continue
             ranked.append((score, row, matched_by))
 
+        for module in self.fingerprints:
+            score, matched_by = self._score_module(module, host)
+            if score <= 0:
+                continue
+            ranked.append((score, _module_catalog_row(module), matched_by))
+
         ranked.sort(key=lambda item: item[0], reverse=True)
         trimmed: List[Tuple[CatalogRow, str, int]] = []
         for score, row, matched_by in ranked[: max(limit, 0)]:
             trimmed.append((row, matched_by, score))
         return trimmed
+
+    def _score_module(
+        self, module: FingerprintModule, host: HostContext
+    ) -> Tuple[int, str]:
+        score = 0
+        matches: List[str] = []
+        rules = module.fingerprints
+
+        for pattern in rules.get("oui", []) or []:
+            try:
+                if host.mac and re.search(str(pattern), host.mac, re.IGNORECASE):
+                    score += 100
+                    matches.append("oui")
+                    break
+            except re.error:
+                continue
+
+        http_blob = " ".join(host.http_banners)
+        for pattern in rules.get("http", []) or []:
+            if _pattern_matches(str(pattern), http_blob):
+                score += 40
+                matches.append("http")
+                break
+
+        onvif_blob = _metadata_blob(host.onvif)
+        for pattern in rules.get("onvif", []) or []:
+            if _pattern_matches(str(pattern), onvif_blob):
+                score += 90
+                matches.append("onvif")
+                break
+
+        rtsp_blob = _metadata_blob(host.rtsp_probe)
+        for pattern in rules.get("rtsp", []) or []:
+            if _pattern_matches(str(pattern), rtsp_blob):
+                score += 55
+                matches.append("rtsp")
+                break
+
+        ssdp_blob = _metadata_blob(host.ssdp)
+        for pattern in rules.get("ssdp", []) or []:
+            if _pattern_matches(str(pattern), ssdp_blob):
+                score += 45
+                matches.append("ssdp")
+                break
+
+        path_blob = " ".join(host.observed_paths)
+        for pattern in rules.get("paths", []) or []:
+            if _pattern_matches(str(pattern), path_blob):
+                score += 25
+                matches.append("path")
+                break
+
+        if len(set(matches)) >= 2:
+            score += 20
+        return score, "+".join(dict.fromkeys(matches))
 
     def _score_row(self, row: CatalogRow, host: HostContext) -> Tuple[int, str]:
         score = 0
@@ -152,6 +232,76 @@ def _extract_template_path(template: str) -> str:
     if len(path) == 1:
         return ""
     return path[1]
+
+
+def _metadata_blob(entries: Sequence[Dict[str, Any]]) -> str:
+    values: List[str] = []
+    for entry in entries:
+        if isinstance(entry, dict):
+            values.extend(str(value) for value in entry.values())
+    return " ".join(values)
+
+
+def _pattern_matches(pattern: str, value: str) -> bool:
+    if not pattern or not value:
+        return False
+    try:
+        return re.search(pattern, value, re.IGNORECASE) is not None
+    except re.error:
+        return pattern.lower() in value.lower()
+
+
+def _load_fingerprint_modules(root: Path) -> List[FingerprintModule]:
+    modules: List[FingerprintModule] = []
+    if not root.exists():
+        return modules
+    for path in sorted(root.glob("*/fingerprint.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError):
+            continue
+        if not isinstance(data, dict) or not data.get("vendor"):
+            continue
+        modules.append(
+            FingerprintModule(
+                vendor=str(data["vendor"]).strip(),
+                family=str(data.get("family") or "generic").strip(),
+                device_type=str(data.get("type") or "camera").strip(),
+                fingerprints=(
+                    data.get("fingerprints")
+                    if isinstance(data.get("fingerprints"), dict)
+                    else {}
+                ),
+                probes=data.get("probes") if isinstance(data.get("probes"), dict) else {},
+            )
+        )
+    return modules
+
+
+def _module_catalog_row(module: FingerprintModule) -> CatalogRow:
+    rtsp_paths = module.probes.get("rtsp_paths") or []
+    snapshot_paths = module.probes.get("snapshot_paths") or []
+    rtsp_path = str(rtsp_paths[0]) if rtsp_paths else ""
+    snapshot_path = str(snapshot_paths[0]) if snapshot_paths else ""
+    return CatalogRow(
+        raw={"source": "fingerprint-module"},
+        company=module.vendor,
+        model=module.family,
+        type=module.device_type,
+        oui_regex="",
+        rtsp_url=(f"rtsp://{{{{ip_address}}}}:{{{{port}}}}{rtsp_path}" if rtsp_path else ""),
+        http_snapshot_url=(f"http://{{{{ip_address}}}}{snapshot_path}" if snapshot_path else ""),
+        onvif_profile_path="",
+        video_encoding="",
+        port=554 if rtsp_path else None,
+        streams=[],
+        channels=[],
+        username="",
+        password="",
+        is_digest_auth_supported="",
+        cve_ids=[],
+        user_manual_url="",
+    )
 
 
 def _parse_list(value: str) -> List[str]:
@@ -351,7 +501,8 @@ def _render_text_profile(ip: str, profile: Dict[str, Any]) -> str:
 
 def command_match(args: argparse.Namespace) -> int:
     catalog = _load_catalog(Path(args.paths))
-    resolver = ProfileResolver(catalog)
+    modules = _load_fingerprint_modules(Path(args.fingerprints))
+    resolver = ProfileResolver(catalog, modules)
     context = HostContext(
         ip=args.ip,
         mac=args.mac or "",
@@ -393,7 +544,8 @@ def command_match(args: argparse.Namespace) -> int:
 
 def command_enrich(args: argparse.Namespace) -> int:
     catalog = _load_catalog(Path(args.paths))
-    resolver = ProfileResolver(catalog)
+    modules = _load_fingerprint_modules(Path(args.fingerprints))
+    resolver = ProfileResolver(catalog, modules)
     input_path = Path(args.input)
     output_path = Path(args.output)
 
@@ -415,6 +567,9 @@ def command_enrich(args: argparse.Namespace) -> int:
             ports=[value for value in ports if isinstance(value, int)],
             observed_paths=[value for value in observed if isinstance(value, str)],
             http_metadata=[value for value in http_meta if isinstance(value, dict)],
+            onvif=[value for value in host.get("onvif") or [] if isinstance(value, dict)],
+            rtsp_probe=[value for value in host.get("rtsp_probe") or [] if isinstance(value, dict)],
+            ssdp=[value for value in host.get("ssdp") or [] if isinstance(value, dict)],
         )
         matches = resolver.resolve_many(context, limit=args.limit)
         if not matches:
@@ -483,6 +638,9 @@ def build_parser() -> argparse.ArgumentParser:
     match_parser.add_argument(
         "--paths", required=True, help="Path to paths.csv catalog"
     )
+    match_parser.add_argument(
+        "--fingerprints", default="data/vendors", help="Vendor fingerprint root"
+    )
     match_parser.add_argument("--ip", required=True, help="Host IP address")
     match_parser.add_argument("--mac", default="", help="Host MAC address")
     match_parser.add_argument(
@@ -510,6 +668,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     enrich_parser.add_argument(
         "--paths", required=True, help="Path to paths.csv catalog"
+    )
+    enrich_parser.add_argument(
+        "--fingerprints", default="data/vendors", help="Vendor fingerprint root"
     )
     enrich_parser.add_argument(
         "--input", required=True, help="Discovery JSON input path"
