@@ -32,6 +32,7 @@ CONFIDENCE_SCORER="$HELPER_DIR/confidence_scorer.py"
 HTTP_META_PARSER="$HELPER_DIR/http_metadata_parser.py"
 TSHARK_EVENT_PARSER="$HELPER_DIR/tshark_event_parser.py"
 ONVIF_PARSER="$PROBE_DIR/onvif_device_info.py"
+RTSP_PROBE="$PROBE_DIR/rtsp_probe.py"
 SSDP_PROBE_HELPER="$PROBE_DIR/ssdp_probe.py"
 REPORT_TOOL="$ROOT_DIR/scripts/tools/report.py"
 
@@ -146,6 +147,7 @@ declare -A ip_observed_paths
 declare -A all_ips
 declare -A ip_rtsp_discovered
 declare -A ip_rtsp_other
+declare -A ip_rtsp_native
 declare -A ip_protocol_hits
 declare -A ip_http_metadata
 declare -A ip_onvif_info
@@ -632,6 +634,22 @@ detect_srt_from_ports() {
   done <<< "$ports_string"
 }
 
+probe_native_rtsp() {
+  local ip="$1"
+  local ports_string="$2"
+  [[ -f $RTSP_PROBE ]] || return
+  local port
+  for port in 554 8554 10554 5544; do
+    port_in_list "$ports_string" "$port" || continue
+    local result
+    result=$("$PYTHON_BIN" "$RTSP_PROBE" --host "$ip" --port "$port" --timeout 3 2> /dev/null || true)
+    if [[ -n $result ]] && jq -e '.verified == true' <<< "$result" > /dev/null 2>&1; then
+      ip_rtsp_native["$ip"]+="$result"$'\n'
+      record_protocol_hit "$ip" "RTSP" "native RTSP verification on port $port"
+    fi
+  done
+}
+
 run_udp_service_scan() {
   local -a ip_list=("$@")
   ((${#ip_list[@]} == 0)) && return
@@ -703,6 +721,7 @@ probe_additional_protocols() {
 
   for ip in "${ip_list[@]}"; do
     ports_string=$(printf "%s" "${ip_ports[$ip]}" | tr ' ' '\n' | sed '/^$/d' | sort -u)
+    probe_native_rtsp "$ip" "$ports_string"
     detect_srt_from_ports "$ip" "$ports_string"
     detect_rtmp "$ip" "$ports_string"
     detect_onvif "$ip" "$ports_string"
@@ -2407,6 +2426,10 @@ case ${answer:0:1} in
         if [[ -n ${ip_rtsp_other[$ip]} ]]; then
           rtsp_other_json=$(printf '%s' "${ip_rtsp_other[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | split("|")) | group_by(.[0]) | map({key: (.[0][0]), value: map(.[1])}) | from_entries')
         fi
+        rtsp_native_json="[]"
+        if [[ -n ${ip_rtsp_native[$ip]} ]]; then
+          rtsp_native_json=$(printf '%s' "${ip_rtsp_native[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | fromjson)')
+        fi
         protocol_hits_json="[]"
         if [[ -n ${ip_protocol_hits[$ip]} ]]; then
           protocol_hits_json=$(printf '%s' "${ip_protocol_hits[$ip]}" | sed '/^$/d' | jq -R -s 'split("\n") | map(select(length>0) | split("|") | {protocol: .[0], detail: ((.[1:] | join("|")) // "")} )')
@@ -2443,6 +2466,7 @@ case ${answer:0:1} in
           --arg observed "$observed" \
           --argjson rtsp_discovered "$rtsp_discovered_json" \
           --argjson rtsp_other "$rtsp_other_json" \
+          --argjson rtsp_native "$rtsp_native_json" \
           --argjson protocol_hits "$protocol_hits_json" \
           --argjson http_metadata "$http_metadata_json" \
           --argjson onvif_metadata "$onvif_metadata_json" \
@@ -2460,6 +2484,7 @@ case ${answer:0:1} in
                             discovered: $rtsp_discovered,
                             other_responses: $rtsp_other
                         },
+                        rtsp_probe: $rtsp_native,
                         additional_protocols: $protocol_hits,
                         http_metadata: $http_metadata,
                         onvif: $onvif_metadata,
