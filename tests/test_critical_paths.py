@@ -173,6 +173,28 @@ class ProfileAndConfidenceTests(unittest.TestCase):
         module = load_onvif_device_info()
         self.assertEqual(module.extract_field("<broken", "Manufacturer"), "")
 
+    def test_probe_planner_selects_only_evidence_backed_phases(self) -> None:
+        plan = confidence_scorer.plan_probes(
+            {
+                "ports": [80, 554],
+                "sources": ["SSDP"],
+                "observed_paths": ["/onvif/device_service"],
+            }
+        )
+        probes = [item["probe"] for item in plan]
+        self.assertEqual(
+            probes, ["http_metadata", "onvif_metadata", "stream_protocols"]
+        )
+        self.assertTrue(all(item["reason"] for item in plan))
+
+    def test_probe_planner_avoids_unrelated_followups(self) -> None:
+        self.assertEqual(
+            confidence_scorer.plan_probes(
+                {"ports": [22], "sources": ["Nmap"], "observed_paths": []}
+            ),
+            [],
+        )
+
 
 class IntegrationContractTests(unittest.TestCase):
     def test_smart_targeting_uses_canonical_confidence_scorer(self) -> None:
@@ -183,6 +205,13 @@ class IntegrationContractTests(unittest.TestCase):
         self.assertIn('"$CONFIDENCE_SCORER"', function)
         self.assertIn(".confidence.score", function)
         self.assertNotRegex(function, r"score=\$\(\(score \+")
+
+    def test_smart_probe_phases_use_planner_output(self) -> None:
+        scanner = (ROOT / "scripts" / "camsniff.sh").read_text(encoding="utf-8")
+        self.assertIn('get_probe_targets "http_metadata"', scanner)
+        self.assertIn('get_probe_targets "onvif_metadata"', scanner)
+        self.assertIn('get_probe_targets "stream_protocols"', scanner)
+        self.assertIn(".confidence.probe_plan", scanner)
 
     def test_preliminary_and_final_scoring_are_identical(self) -> None:
         host = {
