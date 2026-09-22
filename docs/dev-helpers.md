@@ -28,7 +28,8 @@ Key implementation entry points:
 
 - `scripts/camsniff.sh` — orchestration and artifact assembly.
 - `scripts/core/` — modes, scope enforcement, summaries, and templates.
-- `scripts/probes/` — credential, SSDP, and ONVIF probes.
-- `scripts/helpers/` — parsing, profile enrichment, and confidence scoring.
+- `scripts/probes/` — credential, SSDP, native RTSP, and ONVIF probes.
+- `scripts/helpers/` — parsing, YAML/CSV profile enrichment, adaptive planning,
+  and confidence scoring.
 - `scripts/integrations/` — IVRE setup and ingestion.
 - `scripts/tools/` — reports and post-run analysis.
