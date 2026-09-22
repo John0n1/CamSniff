@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -101,6 +102,17 @@ RECORDER_KEYWORDS = [
     "cms",
 ]
 
+# Strong application fingerprints that contradict the generic camera hypothesis.
+# Keep these narrow: a negative match can suppress an otherwise plausible host.
+NON_CAMERA_KEYWORDS = {
+    "home assistant": "home automation controller",
+    "openwrt": "network router",
+    "pfsense": "network firewall",
+    "proxmox": "virtualization host",
+    "printer": "network printer",
+    "cups": "print server",
+}
+
 OBSERVED_PATH_HINTS = [
     "rtsp",
     "onvif",
@@ -137,6 +149,18 @@ SSDP_LOCATION_HINTS = [
     "upnp",
     "camera",
 ]
+
+
+@dataclass(frozen=True)
+class Evidence:
+    """One inspectable contribution to a host classification."""
+
+    kind: str
+    source: str
+    weight: int
+    reason: str
+    polarity: str = "positive"
+    value: Optional[str] = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -221,15 +245,39 @@ def flatten_metadata(host: Dict[str, Any]) -> str:
 def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
     score = 0
     reasons: List[str] = []
+    evidence: List[Evidence] = []
     signals = set()
 
-    def add(points: int, reason: str, signal: Optional[str] = None) -> None:
+    def add(
+        points: int,
+        reason: str,
+        signal: Optional[str] = None,
+        *,
+        kind: str = "observation",
+        source: str = "discovery",
+        value: Optional[str] = None,
+    ) -> None:
         nonlocal score
         score += points
+        evidence.append(Evidence(kind, source, points, reason, "positive", value))
         if reason and reason not in reasons:
             reasons.append(reason)
         if signal:
             signals.add(signal)
+
+    def subtract(
+        points: int,
+        reason: str,
+        *,
+        kind: str = "application_fingerprint",
+        source: str = "metadata",
+        value: Optional[str] = None,
+    ) -> None:
+        nonlocal score
+        score -= points
+        evidence.append(Evidence(kind, source, points, reason, "negative", value))
+        if reason and reason not in reasons:
+            reasons.append(reason)
 
     sources = host.get("sources") or []
     for source in sources:
@@ -297,6 +345,17 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
     elif meta_blob:
         add(5, "banner metadata present", "banner")
 
+    negative_matches = []
+    lowered_metadata = meta_blob.lower()
+    for keyword, identity in NON_CAMERA_KEYWORDS.items():
+        if keyword in lowered_metadata:
+            negative_matches.append(identity)
+            subtract(
+                45,
+                f"identified as {identity}",
+                value=keyword,
+            )
+
     onvif_entries = host.get("onvif") or []
     if onvif_entries:
         add(10, "onvif metadata", "onvif")
@@ -334,8 +393,7 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
     if "rtsp" in signals and "onvif" in signals:
         add(10, "rtsp + onvif alignment", "boost")
 
-    if score > 100:
-        score = 100
+    score = max(0, min(score, 100))
 
     level = "low"
     if score >= 70:
@@ -345,7 +403,9 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
     elif score >= 20:
         level = "medium"
 
-    if score < 20:
+    if negative_matches and score < 40:
+        classification = "non-camera"
+    elif score < 20:
         classification = "unknown"
     elif score < 40:
         classification = "possible-camera"
@@ -379,6 +439,13 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
         "classification": classification,
         "reasons": reasons[:6],
         "signals": sorted(signals),
+        "evidence": [asdict(item) for item in evidence],
+        "positive_score": min(
+            100, sum(item.weight for item in evidence if item.polarity == "positive")
+        ),
+        "negative_score": min(
+            100, sum(item.weight for item in evidence if item.polarity == "negative")
+        ),
     }
 
 
