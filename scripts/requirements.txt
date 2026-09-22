@@ -7,3 +7,4 @@ ivre==0.9.20
 pycparser==3.0
 pymongo==4.18.1
 pyOpenSSL==26.4.0
+PyYAML==6.0.2
