@@ -19,6 +19,7 @@ SETUP_DIR="$SCRIPT_DIR/setup"
 INTEGRATION_DIR="$SCRIPT_DIR/integrations"
 UI_DIR="$SCRIPT_DIR/ui"
 PATHS_FILE="${PATHS_FILE:-"$ROOT_DIR/data/catalog/paths.csv"}"
+FINGERPRINT_ROOT="${FINGERPRINT_ROOT:-"$ROOT_DIR/data/vendors"}"
 MODE_CONFIG="$CORE_DIR/mode-config.sh"
 DEPS_INSTALL="$SETUP_DIR/deps-install.sh"
 CREDENTIAL_PROBE="$PROBE_DIR/credential-probe.sh"
@@ -2499,7 +2500,7 @@ case ${answer:0:1} in
 
     if [[ -f "$PATHS_FILE" && -s "$DISCOVERY_JSON" ]]; then
       discovery_enriched_tmp=$(mktemp)
-      if "$PYTHON_BIN" "$PROFILE_RESOLVER" enrich --paths "$PATHS_FILE" --input "$DISCOVERY_JSON" --output "$discovery_enriched_tmp" --limit 3; then
+      if "$PYTHON_BIN" "$PROFILE_RESOLVER" enrich --paths "$PATHS_FILE" --fingerprints "$FINGERPRINT_ROOT" --input "$DISCOVERY_JSON" --output "$discovery_enriched_tmp" --limit 3; then
         mv "$discovery_enriched_tmp" "$DISCOVERY_JSON"
       else
         echo -e "${YELLOW}Warning: Unable to enrich device profiles; see above for details.${RESET}"
