@@ -4,10 +4,12 @@ import importlib.util
 import json
 import os
 import re
+import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import types
 import unittest
 import xml.etree.ElementTree
@@ -70,6 +72,15 @@ def load_ssdp_probe():
 def load_onvif_device_info():
     path = ROOT / "scripts" / "probes" / "onvif_device_info.py"
     spec = importlib.util.spec_from_file_location("onvif_device_info", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_rtsp_probe():
+    path = ROOT / "scripts" / "probes" / "rtsp_probe.py"
+    spec = importlib.util.spec_from_file_location("rtsp_probe", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -194,6 +205,93 @@ class ProfileAndConfidenceTests(unittest.TestCase):
             ),
             [],
         )
+
+    def test_native_rtsp_evidence_has_protocol_strength(self) -> None:
+        result = confidence_scorer.score_host(
+            {
+                "ports": [8554],
+                "rtsp_probe": [
+                    {"verified": True, "state": "media-described", "sdp": {}}
+                ],
+            }
+        )
+        self.assertEqual(result["classification"], "camera")
+        self.assertIn("rtsp media described", result["reasons"])
+
+
+class RtspProbeTests(unittest.TestCase):
+    def test_sdp_parser_extracts_media_codecs_and_controls(self) -> None:
+        module = load_rtsp_probe()
+        parsed = module.parse_sdp(
+            "v=0\r\ns=Lobby Camera\r\n"
+            "m=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\n"
+            "a=control:trackID=1\r\n"
+            "m=audio 0 RTP/AVP 97\r\na=rtpmap:97 MPEG4-GENERIC/48000/2\r\n"
+        )
+        self.assertEqual(parsed["name"], "Lobby Camera")
+        self.assertEqual(parsed["media"][0]["codecs"], ["H264/90000"])
+        self.assertEqual(parsed["media"][0]["control"], "trackID=1")
+        self.assertEqual(parsed["media"][1]["type"], "audio")
+
+    def test_native_probe_performs_options_then_describe(self) -> None:
+        module = load_rtsp_probe()
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(2)
+        port = listener.getsockname()[1]
+        requests = []
+
+        def serve() -> None:
+            for response in (
+                b"RTSP/1.0 200 OK\r\nCSeq: 1\r\nServer: FakeCam/1.0\r\n"
+                b"Public: OPTIONS, DESCRIBE\r\nContent-Length: 0\r\n\r\n",
+                b"RTSP/1.0 200 OK\r\nCSeq: 2\r\nContent-Type: application/sdp\r\n"
+                b"Content-Length: 57\r\n\r\nv=0\r\ns=Test\r\n"
+                b"m=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\n",
+            ):
+                connection, _ = listener.accept()
+                with connection:
+                    requests.append(connection.recv(4096).decode("ascii"))
+                    connection.sendall(response)
+            listener.close()
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        result = module.probe("127.0.0.1", port, "/stream", 1.0)
+        thread.join(timeout=2)
+        self.assertEqual(result["state"], "media-described")
+        self.assertEqual(result["server"], "FakeCam/1.0")
+        self.assertEqual(result["methods"], ["OPTIONS", "DESCRIBE"])
+        self.assertEqual(result["sdp"]["media"][0]["codecs"], ["H264/90000"])
+        self.assertTrue(requests[0].startswith("OPTIONS rtsp://"))
+        self.assertTrue(requests[1].startswith("DESCRIBE rtsp://"))
+
+    def test_authentication_challenge_is_identification_not_failure(self) -> None:
+        module = load_rtsp_probe()
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+
+        def serve() -> None:
+            connection, _ = listener.accept()
+            with connection:
+                connection.recv(4096)
+                connection.sendall(
+                    b"RTSP/1.0 401 Unauthorized\r\nCSeq: 1\r\n"
+                    b'WWW-Authenticate: Digest realm="IP Camera"\r\n'
+                    b"Content-Length: 0\r\n\r\n"
+                )
+            listener.close()
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        result = module.probe("127.0.0.1", port, "/", 1.0)
+        thread.join(timeout=2)
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["state"], "rtsp-responsive")
+        self.assertEqual(result["authentication"]["scheme"], "Digest")
+        self.assertEqual(result["authentication"]["realm"], "IP Camera")
 
 
 class IntegrationContractTests(unittest.TestCase):
