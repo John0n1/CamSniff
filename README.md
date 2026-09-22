@@ -146,7 +146,7 @@ interface. It does not guess a `/24` from the gateway address.
 --interface <iface>     Select the TShark capture interface
 --skip-credentials      Disable credential and media acquisition attempts
 --skip-install          Never invoke the dependency installer
---smart                 Prioritize deeper probes using preliminary evidence
+--smart                 Prioritize deeper probes using the canonical evidence score
 --ssdp-describe         Fetch in-scope SSDP device descriptions
 --report <format>       Generate markdown, html, or both
 --encrypt-results       Create an age/GPG encrypted archive after the run
