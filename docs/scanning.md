@@ -20,6 +20,9 @@ CamSniff uses a layered scanning strategy driven by the selected `--mode`:
 7. **Native RTSP identification** — bounded `OPTIONS` and `DESCRIBE` requests
    verify RTSP behavior, capture server/authentication fingerprints, and parse
    advertised SDP media without authenticating or starting playback.
+8. **ONVIF enumeration** — up to six namespace-aware SOAP requests collect
+   device identity, services, capabilities, scopes, interfaces, and system time.
+   Enumeration stops immediately when authentication is required.
 
 Results from all layers are merged into a unified host record in
 `discovery.json`. Passive observations are accepted only when the observed IPv4
