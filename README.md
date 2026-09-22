@@ -4,11 +4,9 @@
 
 <div align="center">
 
-[![Debian Package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-deb.yml?style=flat-square&logo=debian&logoColor=white&label=Debian&labelColor=A80030)](https://github.com/John0n1/CamSniff/actions/workflows/build-deb.yml)
-[![Arch Package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-arch.yml?style=flat-square&logo=archlinux&logoColor=white&label=Arch%20Linux&labelColor=1793D1)](https://github.com/John0n1/CamSniff/actions/workflows/build-arch.yml)
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
-
+[![Debian package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-deb.yml?label=debian&style=flat-square)](https://github.com/John0n1/CamSniff/actions/workflows/build-deb.yml)
+[![Arch package](https://img.shields.io/github/actions/workflow/status/John0n1/CamSniff/build-arch.yml?label=arch&style=flat-square)](https://github.com/John0n1/CamSniff/actions/workflows/build-arch.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 **Version 2.2.6**
 
@@ -30,6 +28,8 @@ proof of a particular vendor or device type.
 - Scans selected IPv4 addresses and CIDRs with Nmap and optional Masscan.
 - Correlates RTSP, HTTP, ONVIF, SSDP, mDNS, HLS, RTMP, SRT, WebRTC, and optional
   CoAP signals.
+- Verifies RTSP endpoints with bounded `OPTIONS`/`DESCRIBE` requests and parses
+  SDP media tracks without authenticating or starting playback.
 - Uses OUI, banner, path, and protocol evidence to rank vendor profiles.
 - Tries bounded HTTP/RTSP credential candidates and validates captured media.
 - Emits schema-versioned JSON, raw logs, optional reports, and thumbnails.

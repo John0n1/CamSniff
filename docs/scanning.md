@@ -17,6 +17,9 @@ CamSniff uses a layered scanning strategy driven by the selected `--mode`:
 4. **Avahi/mDNS** — passive service discovery filtered for camera keywords.
 5. **SSDP** — active UPnP/SSDP broadcast sweep for camera announcements.
 6. **TShark** — short traffic capture to observe live RTSP and HTTP streams.
+7. **Native RTSP identification** — bounded `OPTIONS` and `DESCRIBE` requests
+   verify RTSP behavior, capture server/authentication fingerprints, and parse
+   advertised SDP media without authenticating or starting playback.
 
 Results from all layers are merged into a unified host record in
 `discovery.json`. Passive observations are accepted only when the observed IPv4

@@ -351,6 +351,15 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(other, dict) and other:
         add(10, "rtsp response observed", "rtsp")
 
+    for native in host.get("rtsp_probe") or []:
+        if not isinstance(native, dict) or not native.get("verified"):
+            continue
+        state = sanitize_text(native.get("state"))
+        if state == "media-described":
+            add(45, "rtsp media described", "rtsp", source="rtsp_probe")
+        else:
+            add(30, "rtsp protocol verified", "rtsp", source="rtsp_probe")
+
     observed_paths = host.get("observed_paths") or []
     observed_blob = " ".join(sanitize_text(item) for item in observed_paths if item)
     if observed_blob and contains_keyword(observed_blob, OBSERVED_PATH_HINTS):
