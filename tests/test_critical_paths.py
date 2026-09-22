@@ -175,6 +175,42 @@ class ProfileAndConfidenceTests(unittest.TestCase):
 
 
 class IntegrationContractTests(unittest.TestCase):
+    def test_smart_targeting_uses_canonical_confidence_scorer(self) -> None:
+        scanner = (ROOT / "scripts" / "camsniff.sh").read_text(encoding="utf-8")
+        function = scanner.split("compute_prelim_scores() {", 1)[1].split(
+            "\n}\n\nselect_smart_targets()", 1
+        )[0]
+        self.assertIn('"$CONFIDENCE_SCORER"', function)
+        self.assertIn(".confidence.score", function)
+        self.assertNotRegex(function, r"score=\$\(\(score \+")
+
+    def test_preliminary_and_final_scoring_are_identical(self) -> None:
+        host = {
+            "ip": "10.0.0.50",
+            "sources": ["SSDP", "Nmap"],
+            "ports": [80, 554],
+            "observed_paths": ["/onvif/device_service"],
+            "rtsp_bruteforce": {"discovered": [], "other_responses": {}},
+        }
+        direct = confidence_scorer.score_host(host)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "input.json"
+            output_path = Path(temp_dir) / "output.json"
+            input_path.write_text(json.dumps({"hosts": [host]}), encoding="utf-8")
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "helpers" / "confidence_scorer.py"),
+                    "--input",
+                    str(input_path),
+                    "--output",
+                    str(output_path),
+                ],
+                check=True,
+            )
+            scored = json.loads(output_path.read_text(encoding="utf-8"))
+        self.assertEqual(scored["hosts"][0]["confidence"], direct)
+
     def test_scan_summaries_ignore_command_flags(self) -> None:
         nmap_output = """# Nmap scan initiated as: nmap --open -p 80 127.0.0.1
 # Nmap done -- 1 IP address (1 host up) scanned
