@@ -30,6 +30,8 @@ proof of a particular vendor or device type.
   CoAP signals.
 - Verifies RTSP endpoints with bounded `OPTIONS`/`DESCRIBE` requests and parses
   SDP media tracks without authenticating or starting playback.
+- Enumerates unauthenticated ONVIF identity, services, capabilities, scopes,
+  network interfaces, and system time with a fixed six-request budget.
 - Uses OUI, banner, path, and protocol evidence to rank vendor profiles.
 - Tries bounded HTTP/RTSP credential candidates and validates captured media.
 - Emits schema-versioned JSON, raw logs, optional reports, and thumbnails.

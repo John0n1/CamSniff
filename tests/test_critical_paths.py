@@ -13,6 +13,7 @@ import threading
 import types
 import unittest
 import xml.etree.ElementTree
+from unittest import mock
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -183,6 +184,51 @@ class ProfileAndConfidenceTests(unittest.TestCase):
     def test_onvif_parser_rejects_malformed_xml(self) -> None:
         module = load_onvif_device_info()
         self.assertEqual(module.extract_field("<broken", "Manufacturer"), "")
+
+    def test_onvif_enumeration_parses_services_scopes_and_interfaces(self) -> None:
+        module = load_onvif_device_info()
+        payloads = {
+            "device_information": """<Envelope><Manufacturer>Axis</Manufacturer>
+                <Model>M2035-LE</Model><FirmwareVersion>11.8</FirmwareVersion>
+                <SerialNumber>ABC123</SerialNumber><HardwareId>HW1</HardwareId></Envelope>""",
+            "services": """<Envelope><Service><Namespace>http://www.onvif.org/ver10/media/wsdl</Namespace></Service></Envelope>""",
+            "scopes": """<Envelope><ScopeItem>onvif://www.onvif.org/type/video_encoder</ScopeItem></Envelope>""",
+            "capabilities": """<Envelope><Media><XAddr>http://10.0.0.2/onvif/media_service</XAddr></Media></Envelope>""",
+            "network_interfaces": """<Envelope><NetworkInterfaces token="eth0"><Enabled>true</Enabled></NetworkInterfaces></Envelope>""",
+            "system_date_time": """<Envelope><DateTimeType>NTP</DateTimeType><DaylightSavings>false</DaylightSavings><TZ>UTC</TZ></Envelope>""",
+        }
+        result = module.parse_enumeration(payloads)
+        self.assertEqual(result["manufacturer"], "Axis")
+        self.assertEqual(
+            result["services"], ["http://www.onvif.org/ver10/media/wsdl"]
+        )
+        self.assertEqual(result["network_interfaces"][0]["token"], "eth0")
+        self.assertEqual(result["system_date_time"]["type"], "NTP")
+
+    def test_onvif_enumeration_has_a_fixed_request_budget(self) -> None:
+        module = load_onvif_device_info()
+        calls = []
+
+        def fake_request(_url, operation, _timeout):
+            calls.append(operation)
+            return {"status": 200, "payload": "<Envelope/>"}
+
+        with mock.patch.object(module, "request_action", side_effect=fake_request):
+            result = module.enumerate_device("http://127.0.0.1/onvif", 1.0)
+        self.assertEqual(calls, list(module.ACTIONS.values()))
+        self.assertEqual(len(calls), 6)
+        self.assertTrue(result["verified"])
+
+    def test_onvif_enumeration_stops_after_authentication_challenge(self) -> None:
+        module = load_onvif_device_info()
+        with mock.patch.object(
+            module,
+            "request_action",
+            return_value={"status": 401, "payload": ""},
+        ) as request:
+            result = module.enumerate_device("http://127.0.0.1/onvif", 1.0)
+        request.assert_called_once()
+        self.assertTrue(result["verified"])
 
     def test_probe_planner_selects_only_evidence_backed_phases(self) -> None:
         plan = confidence_scorer.plan_probes(

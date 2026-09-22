@@ -575,13 +575,6 @@ collect_http_metadata_for_ip() {
 probe_onvif_device_info() {
   local ip="$1"
   local ports_string="$2"
-  local soap_payload
-  soap_payload='<?xml version="1.0" encoding="UTF-8"?>
-<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
-  <s:Body>
-    <tds:GetDeviceInformation xmlns:tds="http://www.onvif.org/ver10/device/wsdl"/>
-  </s:Body>
-</s:Envelope>'
   local max_ports=3
   local count=0
   while IFS= read -r port; do
@@ -597,26 +590,19 @@ probe_onvif_device_info() {
     local scheme
     scheme=$(http_scheme_for_port "$port")
     local url="${scheme}://${ip}:${port}/onvif/device_service"
-    local body_tmp
-    body_tmp=$(mktemp /tmp/camsniff-onvif.XXXXXX)
     local log_path="$LOG_DIR/onvif-${ip//[^a-zA-Z0-9._-]/_}-${port}.log"
-    local http_code=""
-    http_code=$(curl -k -sS -m "$CURL_TIMEOUT" --connect-timeout "$CURL_TIMEOUT" \
-      -H "Content-Type: application/soap+xml; charset=utf-8" \
-      -H "SOAPAction: \"http://www.onvif.org/ver10/device/wsdl/GetDeviceInformation\"" \
-      -d "$soap_payload" -o "$body_tmp" -w "%{http_code}" "$url" 2> "$log_path" || true)
-    if [[ $http_code =~ ^(200|401|500)$ ]]; then
-      record_protocol_hit "$ip" "ONVIF" "$url (HTTP $http_code)"
-    fi
     if command -v "$PYTHON_BIN" > /dev/null 2>&1 && [[ -f $ONVIF_PARSER ]]; then
       local parsed
-      parsed=$("$PYTHON_BIN" "$ONVIF_PARSER" --input "$body_tmp" --ip "$ip" --port "$port" --scheme "$scheme" 2> /dev/null || true)
+      parsed=$("$PYTHON_BIN" "$ONVIF_PARSER" --url "$url" --ip "$ip" --port "$port" \
+        --scheme "$scheme" --timeout "$CURL_TIMEOUT" 2> "$log_path" || true)
       if [[ -n $parsed && $parsed != "{}" ]]; then
         ip_onvif_info["$ip"]+="$parsed"$'\n'
         echo "$parsed" >> "$ONVIF_OUTPUT_FILE"
+        if jq -e '.verified == true' <<< "$parsed" > /dev/null 2>&1; then
+          record_protocol_hit "$ip" "ONVIF" "$url (native enumeration)"
+        fi
       fi
     fi
-    rm -f "$body_tmp"
     count=$((count + 1))
   done <<< "$ports_string"
 }
