@@ -57,7 +57,7 @@ package() {
     "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
   install -Dm644 README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md \
     docs/customisation.md docs/dev-helpers.md \
-    docs/modes.md docs/scanning.md \
+    docs/modes.md docs/scanning.md docs/upstream-intelligence.md \
     -t "${pkgdir}/usr/share/doc/${pkgname}/"
   install -Dm644 docs/camsniff.png \
     "${pkgdir}/usr/share/doc/${pkgname}/camsniff.png"

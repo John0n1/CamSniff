@@ -1,0 +1,57 @@
+name: Sync upstream camera intelligence
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/helpers/sync_upstream_intel.py'
+      - 'data/upstream/**'
+      - 'tests/test_upstream_sync.py'
+      - '.github/workflows/sync-upstream-intel.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          token: ${{ secrets.CAMSYNC_PR_TOKEN || github.token }}
+      - name: Install parser
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends python3-yaml python3-defusedxml
+      - name: Fetch and normalize upstream data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/helpers/sync_upstream_intel.py
+      - name: Validate catalogue and regression suite
+        run: |
+          python3 -m unittest discover -s tests -v
+          python3 -m json.tool data/upstream/candidates.json > /dev/null
+      - name: Open review PR when data changes
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.CAMSYNC_PR_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/upstream/candidates.json; then
+            echo 'No upstream changes'
+            exit 0
+          fi
+          branch=automation/upstream-intel
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin "+refs/heads/$branch:refs/remotes/origin/$branch" || true
+          git checkout -B "$branch"
+          git add data/upstream/candidates.json
+          git commit -m 'data: refresh review-only upstream camera intelligence'
+          git push --force-with-lease origin "$branch"
+          gh pr view "$branch" --json url --jq .url || gh pr create \
+            --base main --head "$branch" \
+            --title 'data: review upstream camera intelligence refresh' \
+            --body 'Automated review-only data refresh. No active scan behavior changes. Inspect provenance and rejected-route count before merging. Tests ran in the sync workflow.'
