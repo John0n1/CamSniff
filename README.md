@@ -228,6 +228,8 @@ Discovery schema version 2 represents transport explicitly:
   and supported IVRE commands.
 - [Development helpers](docs/dev-helpers.md) — tests, linting, and package builds.
 - [Vendor data guide](data/vendors/README.md) — vendor-specific endpoint files.
+- [Upstream intelligence sync](docs/upstream-intelligence.md) — provenance,
+  review-only candidates, and automated update PRs.
 
 Primary editable data lives under `data/catalog/`, `data/dictionaries/`, and
 `data/vendors/`. Keep additions narrow and evidence-backed. A port match alone
