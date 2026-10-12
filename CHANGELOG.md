@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Classification correctness
+
+- Separate device-identification confidence from camera-likelihood confidence.
+- Require camera-specific evidence anchors before classifying a host as a camera.
+- Add `network-device`, `camera-candidate`, `probable-camera`, and
+  `confirmed-camera` states for clearer uncertainty handling.
+- Deduplicate repeated SSDP/protocol evidence and add conservative negative
+  fingerprints for routers, casting/TV devices, firewalls, and printers.
+- Keep port matches as hints only; port overlap cannot establish vendor/model identity.
+- Keep smart-mode HTTP metadata shallow, but require stronger evidence for
+  ONVIF/stream escalation and probable/confirmed classification before smart-mode
+  credential probing.
+- Remove the smart-target fallback that previously escalated every host when no
+  candidate met the threshold.
+- Report camera confidence and device confidence separately.
+
 This file summarizes user-visible releases. Debian-specific release history is
 retained in `debian/changelog`.
 
