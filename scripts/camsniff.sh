@@ -1377,8 +1377,7 @@ select_smart_targets() {
   done
 
   if ((${#SMART_TARGETS[@]} == 0)); then
-    echo -e "${YELLOW}Smart targeting found no hosts above threshold; falling back to all targets.${RESET}"
-    mapfile -t SMART_TARGETS < <(printf "%s\n" "${!all_ips[@]}" | sort -V)
+    echo -e "${YELLOW}Smart targeting found no hosts above threshold; deeper probes will be skipped.${RESET}"
   fi
 }
 
@@ -1412,7 +1411,7 @@ render_smart_summary() {
 
 get_probe_targets() {
   local phase=${1:-}
-  if [[ $SMART_MODE == true && ${#SMART_TARGETS[@]} -gt 0 ]]; then
+  if [[ $SMART_MODE == true ]]; then
     local ip
     for ip in "${SMART_TARGETS[@]}"; do
       if [[ -z $phase || ",${ip_probe_plan[$ip]:-}," == *",$phase,"* ]]; then
@@ -1733,9 +1732,8 @@ match_device_profile() {
     if [[ -n $mac_upper && -n $oui_regex && $mac_upper =~ $oui_regex ]]; then
       matched=true
       match_reason="OUI"
-    elif [[ -n $csv_port && $csv_port =~ ^[0-9]+$ && $port_list =~ (^|[[:space:]])$csv_port($|[[:space:]]) ]]; then
-      matched=true
-      match_reason="port"
+    # Port overlap is supporting evidence only and must never create a profile
+    # identity by itself. Evidence-backed resolver enrichment handles richer matches.
     fi
 
     [[ $matched == false ]] && continue
@@ -2314,8 +2312,12 @@ case ${answer:0:1} in
     cp -f "$tshark_output" "$TSHARK_OUTPUT_FILE" 2> /dev/null || true
 
     if [[ $SMART_MODE == true && ${#all_ips[@]} -gt 0 ]]; then
-      compute_prelim_scores
-      select_smart_targets
+      if compute_prelim_scores; then
+        select_smart_targets
+      else
+        echo -e "${YELLOW}Smart scoring unavailable; using the conservative shallow-only path.${RESET}"
+        SMART_TARGETS=()
+      fi
       render_smart_summary
     fi
 
@@ -2533,7 +2535,9 @@ case ${answer:0:1} in
       echo -e "${BLUE}Launching automated credential probe...${RESET}"
       cred_args=(--input "$DISCOVERY_JSON" --mode "$CAM_MODE_NORMALIZED" --output "$CREDS_JSON" --thumbnails "$THUMB_DIR" --log-dir "$LOG_DIR")
       if [[ $SMART_MODE == true && $CONFIDENCE_READY == true ]]; then
-        cred_args+=(--min-confidence "$SMART_MIN_SCORE")
+        # Credential probing is a late-stage action: require probable-camera
+        # classification in addition to the numeric threshold.
+        cred_args+=(--min-confidence "$SMART_MIN_SCORE" --require-camera-classification)
       fi
       if bash "$CREDENTIAL_PROBE" "${cred_args[@]}"; then
         success_count=$(jq 'map(select(.success? != false and .method? != null)) | length' "$CREDS_JSON" 2> /dev/null || echo 0)
