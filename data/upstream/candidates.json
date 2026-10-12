@@ -15,9 +15,9 @@
       "source": "nuclei-dahua-panel",
       "repository": "projectdiscovery/nuclei-templates",
       "path": "http/exposed-panels/dahua-web-panel.yaml",
-      "commit": "a638cbe6c48f164725ec31fd6fd90eebfd063037",
+      "commit": "6dd47bf6b9bfe2ff36bb23439876363c5c8c6b2f",
       "license": "MIT",
-      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/a638cbe6c48f164725ec31fd6fd90eebfd063037/http/exposed-panels/dahua-web-panel.yaml"
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/6dd47bf6b9bfe2ff36bb23439876363c5c8c6b2f/http/exposed-panels/dahua-web-panel.yaml"
     }
   },
   "rejected_unsafe_routes": 10,
