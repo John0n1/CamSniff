@@ -1413,6 +1413,16 @@ get_probe_targets() {
   local phase=${1:-}
   if [[ $SMART_MODE == true ]]; then
     local ip
+    # Keep low-impact HTTP metadata available for weak candidates so smart mode
+    # can learn what a device is before deciding whether deeper probes are justified.
+    if [[ $phase == "http_metadata" ]]; then
+      for ip in "${!all_ips[@]}"; do
+        if [[ ",${ip_probe_plan[$ip]:-}," == *",$phase,"* ]]; then
+          printf '%s\n' "$ip"
+        fi
+      done | sort -V
+      return 0
+    fi
     for ip in "${SMART_TARGETS[@]}"; do
       if [[ -z $phase || ",${ip_probe_plan[$ip]:-}," == *",$phase,"* ]]; then
         printf '%s\n' "$ip"
