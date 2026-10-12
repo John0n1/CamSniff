@@ -521,7 +521,10 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
         # family once instead of rewarding every repeated response/URN.
         add_device(min(24, 10 + len(ssdp_entries) * 2))
         if any(
-            contains_keyword(_metadata_blob([entry]), CAMERA_KEYWORDS)
+            contains_keyword(
+                " ".join(sanitize_text(value) for value in entry.values()),
+                CAMERA_KEYWORDS,
+            )
             for entry in ssdp_entries
         ):
             add_camera(12, "camera-specific ssdp metadata", "ssdp", source="ssdp")
