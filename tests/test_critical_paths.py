@@ -174,7 +174,7 @@ class ProfileAndConfidenceTests(unittest.TestCase):
             }
         )
         self.assertEqual(result["classification"], "non-camera")
-        self.assertEqual(result["negative_score"], 45)
+        self.assertEqual(result["negative_score"], 55)
         self.assertTrue(
             any(item["polarity"] == "negative" for item in result["evidence"])
         )
@@ -193,8 +193,86 @@ class ProfileAndConfidenceTests(unittest.TestCase):
                 "onvif": [{"manufacturer": "Axis", "model": "M2035-LE"}],
             }
         )
-        self.assertEqual(result["classification"], "camera")
-        self.assertGreaterEqual(result["score"], 40)
+        self.assertIn(
+            result["classification"], {"probable-camera", "confirmed-camera"}
+        )
+        self.assertGreaterEqual(result["score"], 50)
+
+    def test_generic_http_services_are_not_camera_evidence(self) -> None:
+        result = confidence_scorer.score_host(
+            {
+                "ip": "192.168.32.2",
+                "sources": ["Nmap", "Masscan"],
+                "ports": [80, 443, 8080],
+                "http_metadata": [
+                    {"url": "http://192.168.32.2/", "status": 200, "server": "nginx"}
+                ],
+            }
+        )
+        self.assertEqual(result["classification"], "network-device")
+        self.assertLess(result["camera_score"], 20)
+        self.assertGreater(result["device_score"], result["camera_score"])
+        self.assertEqual(result["camera_anchors"], [])
+
+    def test_chromecast_dial_ssdp_is_negative_not_camera_evidence(self) -> None:
+        ssdp_entry = {
+            "st": "urn:dial-multiscreen-org:service:dial:1",
+            "friendly_name": "4K Google TV Box",
+            "manufacturer": "SkyworthDigital",
+            "model": "4K Google TV Box",
+            "server": "Linux UPnP/1.0 Chromecast/1.6.18",
+        }
+        result = confidence_scorer.score_host(
+            {
+                "ip": "192.168.32.9",
+                "sources": ["Masscan", "SSDP"],
+                "ports": [8008, 8009],
+                "ssdp": [ssdp_entry, dict(ssdp_entry), dict(ssdp_entry), dict(ssdp_entry)],
+            }
+        )
+        self.assertEqual(result["classification"], "non-camera")
+        self.assertEqual(result["camera_anchors"], [])
+        self.assertGreaterEqual(result["negative_score"], 55)
+        self.assertLess(result["camera_score"], 20)
+        self.assertGreater(result["device_score"], result["camera_score"])
+
+    def test_repeated_ssdp_responses_do_not_multiply_camera_score(self) -> None:
+        entry = {
+            "st": "upnp:rootdevice",
+            "location": "http://10.0.0.9/device.xml",
+            "manufacturer": "Generic",
+            "model": "Box",
+        }
+        one = confidence_scorer.score_host(
+            {"ip": "10.0.0.9", "sources": ["SSDP"], "ssdp": [entry]}
+        )
+        repeated = confidence_scorer.score_host(
+            {"ip": "10.0.0.9", "sources": ["SSDP"], "ssdp": [entry] * 6}
+        )
+        self.assertEqual(one["camera_score"], repeated["camera_score"])
+        self.assertEqual(one["device_score"], repeated["device_score"])
+
+    def test_verified_rtsp_plus_onvif_confirms_camera(self) -> None:
+        result = confidence_scorer.score_host(
+            {
+                "ip": "10.0.0.24",
+                "sources": ["Nmap"],
+                "ports": [80, 554],
+                "additional_protocols": [{"protocol": "RTSP"}, {"protocol": "ONVIF"}],
+                "rtsp_probe": [
+                    {
+                        "verified": True,
+                        "state": "media-described",
+                        "sdp": {"media": [{"type": "video", "codecs": ["H264/90000"]}]},
+                    }
+                ],
+                "onvif": [{"manufacturer": "Axis", "model": "M2035-LE"}],
+            }
+        )
+        self.assertEqual(result["classification"], "confirmed-camera")
+        self.assertIn("rtsp", result["camera_anchors"])
+        self.assertIn("onvif", result["camera_anchors"])
+        self.assertGreaterEqual(result["camera_score"], 70)
 
     def test_onvif_parser_accepts_arbitrary_namespace_prefixes(self) -> None:
         module = load_onvif_device_info()
@@ -379,6 +457,29 @@ class IntegrationContractTests(unittest.TestCase):
         self.assertIn('"$CONFIDENCE_SCORER"', function)
         self.assertIn(".confidence.score", function)
         self.assertNotRegex(function, r"score=\$\(\(score \+")
+
+    def test_smart_targeting_does_not_fallback_to_all_hosts(self) -> None:
+        scanner = (ROOT / "scripts" / "camsniff.sh").read_text(encoding="utf-8")
+        function = scanner.split("select_smart_targets() {", 1)[1].split(
+            "\n}\n\nrender_smart_summary()", 1
+        )[0]
+        self.assertIn("deeper probes will be skipped", function)
+        self.assertNotIn("falling back to all targets", function)
+
+    def test_smart_probe_targets_allow_empty_selection(self) -> None:
+        scanner = (ROOT / "scripts" / "camsniff.sh").read_text(encoding="utf-8")
+        function = scanner.split("get_probe_targets() {", 1)[1].split(
+            "\n}\n\nrender_confidence_ranking()", 1
+        )[0]
+        self.assertIn("if [[ $SMART_MODE == true ]]; then", function)
+        self.assertNotIn('&& ${#SMART_TARGETS[@]} -gt 0', function)
+
+    def test_terminal_profile_matcher_rejects_port_only_identity(self) -> None:
+        scanner = (ROOT / "scripts" / "camsniff.sh").read_text(encoding="utf-8")
+        function = scanner.split("match_device_profile() {", 1)[1].split(
+            "\n}\nif [[ $AUTO_CONFIRM", 1
+        )[0]
+        self.assertNotIn('match_reason="port"', function)
 
     def test_smart_probe_phases_use_planner_output(self) -> None:
         scanner = (ROOT / "scripts" / "camsniff.sh").read_text(encoding="utf-8")
