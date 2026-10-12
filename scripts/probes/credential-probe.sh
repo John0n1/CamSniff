@@ -26,6 +26,7 @@ OUTPUT_JSON="$ROOT_DIR/dev/results/credentials.json"
 THUMB_DIR="$ROOT_DIR/dev/results/thumbnails"
 LOG_DIR="$ROOT_DIR/dev/results/logs"
 MIN_CONFIDENCE=0
+REQUIRE_CAMERA_CLASSIFICATION=false
 VENDOR_DATA_DIR="$ROOT_DIR/data/vendors"
 VENDOR_HTTP_LIMIT=10 # Max vendor-specific HTTP paths to try per host
 VENDOR_RTSP_LIMIT=8  # Max vendor-specific RTSP paths to try per host
@@ -35,7 +36,8 @@ declare -A vendor_rtsp_cache
 print_usage() {
   cat << 'EOF'
 Usage: credential-probe.sh --input devices.json [--mode <mode>] [--usernames file] [--passwords file] \
-                           [--output credentials.json] [--thumbnails dir] [--min-confidence <score>]
+                           [--output credentials.json] [--thumbnails dir] [--min-confidence <score>] \
+                           [--require-camera-classification]
 EOF
 }
 
@@ -80,6 +82,10 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       shift 2
+      ;;
+    --require-camera-classification)
+      REQUIRE_CAMERA_CLASSIFICATION=true
+      shift
       ;;
     -h | --help)
       print_usage
@@ -572,6 +578,16 @@ while IFS= read -r host_json; do
   fi
   if ((confidence_score < MIN_CONFIDENCE)); then
     continue
+  fi
+  confidence_classification=$(jq -r '.confidence.classification // "unknown"' <<< "$host_json")
+  if [[ $REQUIRE_CAMERA_CLASSIFICATION == true ]]; then
+    case "$confidence_classification" in
+      probable-camera | confirmed-camera | camera)
+        ;;
+      *)
+        continue
+        ;;
+    esac
   fi
   vendor=$(jq -r '.profile_match.vendor // "Unknown"' <<< "$host_json")
   model=$(jq -r '.profile_match.model // "Unknown"' <<< "$host_json")
