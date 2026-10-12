@@ -108,7 +108,8 @@ def build_host_rows(
         model = str(profile.get("model") or "Unknown")
         matched_by = str(profile.get("matched_by") or "")
         confidence = host.get("confidence") or {}
-        confidence_score = str(confidence.get("score") or "")
+        confidence_score = str(confidence.get("camera_score", confidence.get("score")) or "")
+        device_score = str(confidence.get("device_score") or "")
         confidence_level = str(confidence.get("level") or "")
         confidence_class = str(confidence.get("classification") or "")
         ports = [str(port) for port in host.get("ports") or [] if port is not None]
@@ -124,6 +125,7 @@ def build_host_rows(
                 "vendor": vendor,
                 "model": model,
                 "confidence_score": confidence_score,
+                "device_score": device_score,
                 "confidence_level": confidence_level,
                 "confidence_class": confidence_class,
                 "matched_by": matched_by,
@@ -227,12 +229,12 @@ def render_markdown(
         lines.append("")
         lines.append("## Top Confidence")
         lines.append("")
-        lines.append("| IP | Score | Level | Class | Reasons |")
-        lines.append("| --- | --- | --- | --- | --- |")
+        lines.append("| IP | Camera | Device | Level | Class | Reasons |")
+        lines.append("| --- | --- | --- | --- | --- | --- |")
         for row in confidence_rows:
             lines.append(
-                f"| {row['ip']} | {row['score']} | {row['level']} | "
-                f"{row['classification']} | {row['reasons']} |"
+                f"| {row['ip']} | {row['score']} | {row['device_score']} | "
+                f"{row['level']} | {row['classification']} | {row['reasons']} |"
             )
 
     if host_rows:
@@ -240,14 +242,14 @@ def render_markdown(
         lines.append("## Hosts")
         lines.append("")
         lines.append(
-            "| IP | Vendor | Model | Confidence | Class | Ports | Protocols | Credentials |"
+            "| IP | Vendor | Model | Camera Confidence | Device Confidence | Class | Ports | Protocols | Credentials |"
         )
-        lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
+        lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
         for row in host_rows:
             lines.append(
                 f"| {row['ip']} | {row['vendor']} | {row['model']} | "
                 f"{row['confidence_score']} {row['confidence_level']} | "
-                f"{row['confidence_class']} | {row['ports']} | "
+                f"{row['device_score']} | {row['confidence_class']} | {row['ports']} | "
                 f"{row['protocols']} | {row['credentials']} |"
             )
 
@@ -353,6 +355,7 @@ def render_html(
             f"<td>{esc(row['vendor'])}</td>"
             f"<td>{esc(row['model'])}</td>"
             f"<td>{esc(row['confidence_score'])} {esc(row['confidence_level'])}</td>"
+            f"<td>{esc(row['device_score'])}</td>"
             f"<td>{esc(row['confidence_class'])}</td>"
             f"<td>{esc(row['ports'])}</td>"
             f"<td>{esc(row['protocols'])}</td>"
@@ -366,8 +369,8 @@ def render_html(
   <table>
     <thead>
       <tr>
-        <th>IP</th><th>Vendor</th><th>Model</th><th>Confidence</th>
-        <th>Class</th><th>Ports</th><th>Protocols</th><th>Credentials</th>
+        <th>IP</th><th>Vendor</th><th>Model</th><th>Camera Confidence</th>
+        <th>Device Confidence</th><th>Class</th><th>Ports</th><th>Protocols</th><th>Credentials</th>
       </tr>
     </thead>
     <tbody>
@@ -383,6 +386,7 @@ def render_html(
             "<tr>"
             f"<td>{esc(row['ip'])}</td>"
             f"<td>{esc(row['score'])}</td>"
+            f"<td>{esc(row['device_score'])}</td>"
             f"<td>{esc(row['level'])}</td>"
             f"<td>{esc(row['classification'])}</td>"
             f"<td>{esc(row['reasons'])}</td>"
@@ -395,7 +399,7 @@ def render_html(
   <table>
     <thead>
       <tr>
-        <th>IP</th><th>Score</th><th>Level</th>
+        <th>IP</th><th>Camera</th><th>Device</th><th>Level</th>
         <th>Class</th><th>Reasons</th>
       </tr>
     </thead>
@@ -474,11 +478,16 @@ def main() -> int:
         conf = host.get("confidence") or {}
         if not isinstance(conf, dict):
             continue
-        score = conf.get("score", 0)
+        score = conf.get("camera_score", conf.get("score", 0))
+        device_score = conf.get("device_score", 0)
         try:
             score_int = int(score)
         except (TypeError, ValueError):
             score_int = 0
+        try:
+            device_score_int = int(device_score)
+        except (TypeError, ValueError):
+            device_score_int = 0
         reasons = conf.get("reasons") or []
         if isinstance(reasons, list):
             reasons_text = ", ".join(str(item) for item in reasons if item)
@@ -488,6 +497,7 @@ def main() -> int:
             {
                 "ip": str(host.get("ip") or ""),
                 "score": str(score_int),
+                "device_score": str(device_score_int),
                 "level": str(conf.get("level") or ""),
                 "classification": str(conf.get("classification") or ""),
                 "reasons": reasons_text,
