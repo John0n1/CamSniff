@@ -369,7 +369,7 @@ class ProfileAndConfidenceTests(unittest.TestCase):
                 ],
             }
         )
-        self.assertEqual(result["classification"], "camera")
+        self.assertEqual(result["classification"], "camera-candidate")
         self.assertIn("rtsp media described", result["reasons"])
 
 
