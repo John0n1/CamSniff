@@ -17,46 +17,49 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 SOURCE_WEIGHTS = {
-    "SSDP": 25,
-    "Avahi": 15,
-    "TShark": 20,
-    "Nmap": 5,
-    "Masscan": 4,
-    "CoAP": 8,
+    # Discovery sources answer "we know this host exists", not "this is a camera".
+    # Keep them intentionally weak so repeated generic discovery cannot dominate.
+    "SSDP": 3,
+    "Avahi": 4,
+    "TShark": 3,
+    "Nmap": 1,
+    "Masscan": 1,
+    "CoAP": 2,
 }
 
 PORT_WEIGHTS = {
-    554: 35,
-    8554: 30,
-    10554: 30,
-    5544: 25,
-    1935: 12,
-    1936: 12,
-    37777: 20,
-    37778: 20,
-    37779: 20,
-    8000: 18,
-    8001: 18,
-    8899: 12,
-    9000: 10,
-    7001: 10,
-    5000: 10,
-    5001: 10,
+    # Ports are hints only. Even RTSP-adjacent ports are not identity evidence.
+    554: 8,
+    8554: 7,
+    10554: 7,
+    5544: 6,
+    1935: 3,
+    1936: 3,
+    37777: 5,
+    37778: 5,
+    37779: 5,
+    8000: 2,
+    8001: 2,
+    8899: 2,
+    9000: 2,
+    7001: 2,
+    5000: 2,
+    5001: 2,
 }
 
 HTTP_PORTS = {80, 81, 82, 88, 443, 7443, 8000, 8080, 8081, 8088, 8443}
 STREAM_PORTS = {554, 8554, 10554, 5544, 1935, 1936, 3478, 5349, 9710, 9999}
 
 PROTOCOL_WEIGHTS = {
-    "ONVIF": 30,
-    "RTSP": 25,
-    "HLS": 15,
-    "RTMP": 12,
-    "WebRTC": 12,
-    "SRT": 8,
-    "HTTP": 8,
-    "SSDP": 10,
-    "CoAP": 8,
+    "ONVIF": 32,
+    "RTSP": 24,
+    "HLS": 8,
+    "RTMP": 6,
+    "WebRTC": 6,
+    "SRT": 4,
+    "HTTP": 2,
+    "SSDP": 2,
+    "CoAP": 2,
 }
 
 CAMERA_KEYWORDS = [
@@ -109,9 +112,18 @@ NON_CAMERA_KEYWORDS = {
     "home assistant": "home automation controller",
     "openwrt": "network router",
     "pfsense": "network firewall",
+    "opnsense": "network firewall",
+    "router": "network router",
+    "wireless gateway": "network gateway",
     "proxmox": "virtualization host",
     "printer": "network printer",
     "cups": "print server",
+    "chromecast": "casting device",
+    "google tv": "television/streaming device",
+    "android tv": "television/streaming device",
+    "dial-multiscreen-org": "DIAL casting device",
+    "roku": "television/streaming device",
+    "smart tv": "television",
 }
 
 OBSERVED_PATH_HINTS = [
@@ -243,51 +255,129 @@ def flatten_metadata(host: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def _unique_protocol_names(host: Dict[str, Any]) -> set[str]:
+    names: set[str] = set()
+    for entry in host.get("additional_protocols") or []:
+        if not isinstance(entry, dict):
+            continue
+        name = sanitize_text(entry.get("protocol"))
+        if name:
+            names.add(name)
+    return names
+
+
+def _dedupe_entries(entries: Any) -> List[Dict[str, Any]]:
+    """Deduplicate repeated discovery responses before they contribute evidence."""
+    if not isinstance(entries, list):
+        return []
+    unique: List[Dict[str, Any]] = []
+    seen = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        marker = json.dumps(entry, sort_keys=True, default=str)
+        if marker in seen:
+            continue
+        seen.add(marker)
+        unique.append(entry)
+    return unique
+
+
+def _camera_anchors(host: Dict[str, Any], meta_blob: str) -> set[str]:
+    """Return independent camera-specific anchors, excluding generic discovery."""
+    anchors: set[str] = set()
+    protocol_names = _unique_protocol_names(host)
+    if "ONVIF" in protocol_names or host.get("onvif"):
+        anchors.add("onvif")
+    if "RTSP" in protocol_names:
+        anchors.add("rtsp")
+
+    rtsp = host.get("rtsp_bruteforce") or {}
+    if isinstance(rtsp, dict) and (rtsp.get("discovered") or rtsp.get("other_responses")):
+        anchors.add("rtsp")
+
+    for native in host.get("rtsp_probe") or []:
+        if isinstance(native, dict) and native.get("verified"):
+            anchors.add("rtsp")
+
+    observed_paths = host.get("observed_paths") or []
+    for path in observed_paths:
+        if not path:
+            continue
+        if any(re.search(pattern, str(path), re.IGNORECASE) for pattern in PATH_PATTERNS):
+            anchors.add("camera_path")
+            break
+
+    if meta_blob and contains_keyword(meta_blob, CAMERA_KEYWORDS):
+        anchors.add("camera_banner")
+
+    profile = host.get("profile_match") or {}
+    matched_by = {
+        part.strip().lower()
+        for part in sanitize_text(profile.get("matched_by")).split("+")
+        if part.strip()
+    }
+    # A profile is an anchor only when backed by identity/protocol evidence.
+    if matched_by & {"oui", "http", "onvif", "rtsp", "ssdp", "path"}:
+        anchors.add("profile")
+
+    return anchors
+
+
 def plan_probes(host: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Choose valuable follow-up phases from evidence already collected."""
+    """Choose follow-up phases without escalating generic devices by default."""
     ports = {port for port in host.get("ports") or [] if isinstance(port, int)}
-    sources = {sanitize_text(source) for source in host.get("sources") or []}
     paths = " ".join(
         sanitize_text(path).lower() for path in host.get("observed_paths") or []
     )
+    meta_blob = flatten_metadata(host)
+    anchors = _camera_anchors(host, meta_blob)
     plan: List[Dict[str, Any]] = []
 
+    # HTTP metadata is low impact and useful for classification, so generic web
+    # endpoints may receive this one shallow follow-up.
     if ports & HTTP_PORTS:
         plan.append(
             {
                 "probe": "http_metadata",
-                "priority": 90,
-                "reason": "known HTTP service port",
+                "priority": 40,
+                "reason": "HTTP service available for device classification",
             }
         )
+
+    # ONVIF/stream probing requires at least one camera-specific anchor, or a
+    # dedicated stream port/path. Generic SSDP/HTTP alone is deliberately insufficient.
     if ports & HTTP_PORTS and (
-        "SSDP" in sources or "TShark" in sources or "onvif" in paths
+        anchors
+        or "onvif" in paths
+        or any(port in {3702, 8899} for port in ports)
     ):
         plan.append(
             {
                 "probe": "onvif_metadata",
                 "priority": 80,
-                "reason": "HTTP service with discovery or ONVIF evidence",
+                "reason": "camera-specific evidence justifies ONVIF follow-up",
             }
         )
-    if ports & STREAM_PORTS or contains_keyword(paths, OBSERVED_PATH_HINTS):
+    if anchors or ports & STREAM_PORTS or contains_keyword(paths, OBSERVED_PATH_HINTS):
         plan.append(
             {
                 "probe": "stream_protocols",
                 "priority": 70,
-                "reason": "stream port or path evidence",
+                "reason": "camera/stream evidence justifies protocol verification",
             }
         )
     return plan
 
 
 def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
-    score = 0
+    camera_score = 0
+    device_score = 0
     reasons: List[str] = []
     evidence: List[Evidence] = []
     signals = set()
 
-    def add(
+    def add_camera(
         points: int,
         reason: str,
         signal: Optional[str] = None,
@@ -296,13 +386,17 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
         source: str = "discovery",
         value: Optional[str] = None,
     ) -> None:
-        nonlocal score
-        score += points
+        nonlocal camera_score
+        camera_score += points
         evidence.append(Evidence(kind, source, points, reason, "positive", value))
         if reason and reason not in reasons:
             reasons.append(reason)
         if signal:
             signals.add(signal)
+
+    def add_device(points: int) -> None:
+        nonlocal device_score
+        device_score += points
 
     def subtract(
         points: int,
@@ -312,181 +406,184 @@ def score_host(host: Dict[str, Any]) -> Dict[str, Any]:
         source: str = "metadata",
         value: Optional[str] = None,
     ) -> None:
-        nonlocal score
-        score -= points
+        nonlocal camera_score
+        camera_score -= points
         evidence.append(Evidence(kind, source, points, reason, "negative", value))
         if reason and reason not in reasons:
             reasons.append(reason)
 
-    sources = host.get("sources") or []
-    for source in sources:
-        name = sanitize_text(source)
-        if name in SOURCE_WEIGHTS:
-            add(SOURCE_WEIGHTS[name], f"{name.lower()} signal", "source")
+    # Generic discovery contributes primarily to device confidence.
+    for source in sorted({sanitize_text(item) for item in host.get("sources") or []}):
+        if source in SOURCE_WEIGHTS:
+            add_device(8)
+            add_camera(SOURCE_WEIGHTS[source], f"{source.lower()} discovery", "source")
 
-    ports = host.get("ports") or []
+    ports = sorted({port for port in host.get("ports") or [] if isinstance(port, int)})
+    if ports:
+        add_device(min(20, 4 + len(ports) * 2))
     for port in ports:
-        if isinstance(port, int) and port in PORT_WEIGHTS:
-            add(PORT_WEIGHTS[port], f"port {port} open", "port")
-    if any(isinstance(port, int) and port in HTTP_PORTS for port in ports):
-        add(8, "http port open", "port")
+        if port in PORT_WEIGHTS:
+            add_camera(PORT_WEIGHTS[port], f"camera-adjacent port {port}", "port")
+    if any(port in HTTP_PORTS for port in ports):
+        add_camera(1, "http service present", "port")
 
-    protocols = host.get("additional_protocols") or []
-    for entry in protocols:
-        if isinstance(entry, dict):
-            name = sanitize_text(entry.get("protocol"))
-            if name in PROTOCOL_WEIGHTS:
-                signal = "protocol"
-                if name == "RTSP":
-                    signal = "rtsp"
-                elif name == "ONVIF":
-                    signal = "onvif"
-                add(PROTOCOL_WEIGHTS[name], f"{name.lower()} detected", signal)
+    protocol_names = _unique_protocol_names(host)
+    for name in sorted(protocol_names):
+        add_device(10)
+        if name in PROTOCOL_WEIGHTS:
+            signal = "protocol"
+            if name == "RTSP":
+                signal = "rtsp"
+            elif name == "ONVIF":
+                signal = "onvif"
+            add_camera(PROTOCOL_WEIGHTS[name], f"{name.lower()} verified", signal, source="protocol")
 
     rtsp = host.get("rtsp_bruteforce") or {}
-    discovered = rtsp.get("discovered") or []
+    discovered = rtsp.get("discovered") or [] if isinstance(rtsp, dict) else []
+    other = rtsp.get("other_responses") or {} if isinstance(rtsp, dict) else {}
     if isinstance(discovered, list) and discovered:
-        add(35, "rtsp url discovered", "rtsp")
-    other = rtsp.get("other_responses") or {}
-    if isinstance(other, dict) and other:
-        add(10, "rtsp response observed", "rtsp")
+        add_camera(30, "rtsp url discovered", "rtsp", source="rtsp_bruteforce")
+    elif isinstance(other, dict) and other:
+        add_camera(14, "rtsp response observed", "rtsp", source="rtsp_bruteforce")
 
-    for native in host.get("rtsp_probe") or []:
-        if not isinstance(native, dict) or not native.get("verified"):
+    native_verified = False
+    native_media = False
+    for native in _dedupe_entries(host.get("rtsp_probe")):
+        if not native.get("verified"):
             continue
+        native_verified = True
         state = sanitize_text(native.get("state"))
         if state == "media-described":
-            add(45, "rtsp media described", "rtsp", source="rtsp_probe")
-        else:
-            add(30, "rtsp protocol verified", "rtsp", source="rtsp_probe")
+            native_media = True
+    if native_media:
+        add_camera(45, "rtsp media described", "rtsp", source="rtsp_probe")
+    elif native_verified:
+        add_camera(30, "rtsp protocol verified", "rtsp", source="rtsp_probe")
 
     observed_paths = host.get("observed_paths") or []
-    observed_blob = " ".join(sanitize_text(item) for item in observed_paths if item)
-    if observed_blob and contains_keyword(observed_blob, OBSERVED_PATH_HINTS):
-        add(18, "observed stream path", "path")
-    if observed_paths:
-        path_hits = 0
-        for path in observed_paths:
-            if not path:
-                continue
-            for pattern in PATH_PATTERNS:
-                if re.search(pattern, str(path), re.IGNORECASE):
-                    path_hits += 1
-                    add(12, "camera path signature", "path")
-                    break
-        if path_hits >= 2:
-            add(6, "multiple camera paths", "path")
+    unique_paths = sorted({sanitize_text(item) for item in observed_paths if sanitize_text(item)})
+    path_hits = 0
+    for path in unique_paths:
+        if any(re.search(pattern, path, re.IGNORECASE) for pattern in PATH_PATTERNS):
+            path_hits += 1
+    if path_hits:
+        add_camera(min(24, 12 + (path_hits - 1) * 4), "camera path signature", "path")
+    elif unique_paths and contains_keyword(" ".join(unique_paths), OBSERVED_PATH_HINTS):
+        add_camera(8, "stream-like path observed", "path")
 
     profile = host.get("profile_match") or {}
     vendor = sanitize_text(profile.get("vendor"))
-    if vendor and vendor.lower() != "unknown":
-        add(10, "vendor match", "profile")
-    matched_by = sanitize_text(profile.get("matched_by"))
-    if matched_by.lower() == "oui":
-        add(15, "mac oui match", "profile")
+    matched_by = {
+        part.strip().lower()
+        for part in sanitize_text(profile.get("matched_by")).split("+")
+        if part.strip()
+    }
+    profile_strength = 0
+    if matched_by & {"onvif", "rtsp"}:
+        profile_strength = 24
+    elif matched_by & {"oui", "http", "ssdp"}:
+        profile_strength = 12
+    elif "path" in matched_by:
+        profile_strength = 8
+    # Never award camera confidence for a port-only profile.
+    if vendor and vendor.lower() != "unknown" and profile_strength:
+        add_camera(profile_strength, "evidence-backed vendor profile", "profile")
+        add_device(12)
 
     meta_blob = flatten_metadata(host)
+    if meta_blob:
+        add_device(18)
     if meta_blob and contains_keyword(meta_blob, CAMERA_KEYWORDS):
-        add(20, "camera keyword in banners", "banner")
+        add_camera(22, "camera keyword in metadata", "banner")
     if meta_blob and contains_keyword(meta_blob, VENDOR_KEYWORDS):
-        add(12, "vendor keyword in banners", "banner")
-    elif meta_blob:
-        add(5, "banner metadata present", "banner")
+        add_camera(10, "camera-vendor keyword in metadata", "banner")
 
-    negative_matches = []
+    negative_matches: List[str] = []
     lowered_metadata = meta_blob.lower()
     for keyword, identity in NON_CAMERA_KEYWORDS.items():
-        if keyword in lowered_metadata:
+        if keyword in lowered_metadata and identity not in negative_matches:
             negative_matches.append(identity)
-            subtract(
-                45,
-                f"identified as {identity}",
-                value=keyword,
-            )
+            subtract(55, f"identified as {identity}", value=keyword)
 
-    onvif_entries = host.get("onvif") or []
+    onvif_entries = _dedupe_entries(host.get("onvif"))
     if onvif_entries:
-        add(10, "onvif metadata", "onvif")
-        for entry in onvif_entries:
-            if not isinstance(entry, dict):
-                continue
-            manufacturer = sanitize_text(entry.get("manufacturer"))
-            model = sanitize_text(entry.get("model"))
-            firmware = sanitize_text(entry.get("firmware"))
-            serial = sanitize_text(entry.get("serial"))
-            if manufacturer or model:
-                add(25, "onvif device info", "onvif")
-            if firmware or serial:
-                add(8, "onvif firmware/serial", "onvif")
+        add_device(20)
+        add_camera(18, "onvif service verified", "onvif", source="onvif")
+        if any(
+            sanitize_text(entry.get("manufacturer")) or sanitize_text(entry.get("model"))
+            for entry in onvif_entries
+        ):
+            add_camera(22, "onvif device identity", "onvif", source="onvif")
 
-    ssdp_entries = host.get("ssdp") or []
+    ssdp_entries = _dedupe_entries(host.get("ssdp"))
     if ssdp_entries:
-        add(10, "ssdp metadata", "ssdp")
-        for entry in ssdp_entries:
-            if not isinstance(entry, dict):
-                continue
-            location = sanitize_text(entry.get("location"))
-            if location and contains_keyword(location, SSDP_LOCATION_HINTS):
-                add(10, "ssdp device description", "ssdp")
-            manufacturer = sanitize_text(entry.get("manufacturer"))
-            model = sanitize_text(entry.get("model"))
-            if manufacturer or model:
-                add(12, "ssdp device info", "ssdp")
+        # SSDP richness identifies a device, not a camera. Count the whole SSDP
+        # family once instead of rewarding every repeated response/URN.
+        add_device(min(24, 10 + len(ssdp_entries) * 2))
+        if any(
+            contains_keyword(_metadata_blob([entry]), CAMERA_KEYWORDS)
+            for entry in ssdp_entries
+        ):
+            add_camera(12, "camera-specific ssdp metadata", "ssdp", source="ssdp")
 
     if host.get("mac"):
-        add(3, "mac address observed", "mac")
+        add_device(8)
 
-    if len(signals) >= 3:
-        add(10, "multi-signal confirmation", "boost")
-    if "rtsp" in signals and "onvif" in signals:
-        add(10, "rtsp + onvif alignment", "boost")
+    meta_blob = flatten_metadata(host)
+    anchors = _camera_anchors(host, meta_blob)
+    independent_anchors = len(anchors)
+    if independent_anchors >= 2:
+        add_camera(10, "independent camera evidence agrees", "boost")
+    if "rtsp" in anchors and "onvif" in anchors:
+        add_camera(12, "rtsp + onvif alignment", "boost")
 
-    score = max(0, min(score, 100))
+    camera_score = max(0, min(camera_score, 100))
+    device_score = max(0, min(device_score, 100))
 
-    level = "low"
-    if score >= 70:
-        level = "very_high"
-    elif score >= 40:
-        level = "high"
-    elif score >= 20:
-        level = "medium"
-
-    if negative_matches and score < 40:
+    # Classification is gated by camera-specific anchors, not raw score alone.
+    if negative_matches and not ({"rtsp", "onvif"} <= anchors):
         classification = "non-camera"
-    elif score < 20:
-        classification = "unknown"
-    elif score < 40:
-        classification = "possible-camera"
+    elif not anchors:
+        classification = "network-device" if device_score >= 20 else "unknown"
+    elif (
+        "rtsp" in anchors
+        and ("onvif" in anchors or native_media)
+        and camera_score >= 70
+    ):
+        classification = "confirmed-camera"
+    elif independent_anchors >= 2 and camera_score >= 50:
+        classification = "probable-camera"
     else:
-        classification = "camera"
+        classification = "camera-candidate"
+
     model_hint = sanitize_text(profile.get("model"))
     vendor_hint = vendor
-    onvif_hint = ""
-    if onvif_entries:
-        for entry in onvif_entries:
-            if isinstance(entry, dict):
-                onvif_hint += " " + sanitize_text(entry.get("manufacturer"))
-                onvif_hint += " " + sanitize_text(entry.get("model"))
+    onvif_hint = " ".join(
+        f"{sanitize_text(entry.get('manufacturer'))} {sanitize_text(entry.get('model'))}"
+        for entry in onvif_entries
+    )
     recorder_blob = f"{meta_blob} {model_hint} {vendor_hint} {onvif_hint}"
     if recorder_blob and contains_keyword(recorder_blob, RECORDER_KEYWORDS):
         classification = "recorder"
-    else:
-        protocol_names = {
-            sanitize_text(entry.get("protocol"))
-            for entry in protocols
-            if isinstance(entry, dict)
-        }
-        if "WebRTC" in protocol_names and "RTSP" not in protocol_names:
-            classification = "webrtc-camera"
-        elif "SRT" in protocol_names:
-            classification = "streamer"
+
+    level = "low"
+    if camera_score >= 70:
+        level = "very_high"
+    elif camera_score >= 50:
+        level = "high"
+    elif camera_score >= 25:
+        level = "medium"
 
     return {
-        "score": score,
+        # score remains the camera-likelihood score for schema compatibility.
+        "score": camera_score,
+        "camera_score": camera_score,
+        "device_score": device_score,
         "level": level,
         "classification": classification,
-        "reasons": reasons[:6],
+        "reasons": reasons[:8],
         "signals": sorted(signals),
+        "camera_anchors": sorted(anchors),
         "evidence": [asdict(item) for item in evidence],
         "positive_score": min(
             100, sum(item.weight for item in evidence if item.polarity == "positive")
