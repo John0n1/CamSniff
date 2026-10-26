@@ -7,17 +7,17 @@
       "source": "cameradar",
       "repository": "Ullaakut/cameradar",
       "path": "internal/dict/assets/routes",
-      "commit": "fe8eace80f7fd98475f8f8994af543652a0ef53d",
+      "commit": "b214998998521c77bbe9bfd2e061ec9e994399ce",
       "license": "MIT",
-      "url": "https://github.com/Ullaakut/cameradar/blob/fe8eace80f7fd98475f8f8994af543652a0ef53d/internal/dict/assets/routes"
+      "url": "https://github.com/Ullaakut/cameradar/blob/b214998998521c77bbe9bfd2e061ec9e994399ce/internal/dict/assets/routes"
     },
     "nuclei-dahua-panel": {
       "source": "nuclei-dahua-panel",
       "repository": "projectdiscovery/nuclei-templates",
       "path": "http/exposed-panels/dahua-web-panel.yaml",
-      "commit": "a638cbe6c48f164725ec31fd6fd90eebfd063037",
+      "commit": "e4820f0a255a016983ef843dc993276058bbd3d7",
       "license": "MIT",
-      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/a638cbe6c48f164725ec31fd6fd90eebfd063037/http/exposed-panels/dahua-web-panel.yaml"
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/e4820f0a255a016983ef843dc993276058bbd3d7/http/exposed-panels/dahua-web-panel.yaml"
     }
   },
   "rejected_unsafe_routes": 10,
