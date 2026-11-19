@@ -2,7 +2,7 @@ bottle==0.13.4
 cffi==2.1.1
 cryptography==50.0.2
 defusedxml==0.7.1
-dnspython==2.9.1
+dnspython==2.9.2
 ivre==0.9.20
 pycparser==3.12
 pymongo==4.19.0
